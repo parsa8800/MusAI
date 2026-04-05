@@ -22,5 +22,37 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/* Dark app shell: soft glassy ambient light (minimal, professional). */
+body.musai-app-body {
+  background-color: #09090b;
+  background-image:
+    radial-gradient(
+      ellipse 140% 90% at 50% -30%,
+      rgba(16, 185, 129, 0.11),
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse 90% 70% at 100% 20%,
+      rgba(139, 92, 246, 0.07),
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse 80% 60% at 0% 80%,
+      rgba(56, 189, 248, 0.06),
+      transparent 45%
+    );
+  background-attachment: fixed;
+}
+
+/* Note ring wedges: no browser default focus rectangle (blue box). */
+.musai-note-wedge:focus,
+.musai-note-wedge:focus-visible {
+  outline: none !important;
+}
+
+.musai-note-ring-shell {
+  -webkit-tap-highlight-color: transparent;
 }
