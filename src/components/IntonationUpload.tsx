@@ -1,10 +1,11 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AudioActivityVisualizer } from "@/components/AudioActivityVisualizer";
 import { NoteRing } from "@/components/NoteRing";
 import { ReferenceToneHelpButton } from "@/components/ReferenceToneHelpButton";
-import { ScoreRing } from "@/components/ScoreRing";
+import { StepShell } from "@/components/StepShell";
 import { createAudioContext } from "@/lib/audioContext";
 import { getMicStream } from "@/lib/micStream";
 import {
@@ -17,100 +18,26 @@ import {
   intonationLabel,
   intonationScore,
   midiToHz,
-  verdictSummary,
 } from "@/lib/intonation";
+import { persistIntonationResult } from "@/lib/musaiResultSession";
+import { pickRecorderMime } from "@/lib/mediaRecorderMime";
 
 type InputMode = "upload" | "record";
 
-function pickRecorderMime(): string | undefined {
-  const candidates = [
-    "audio/webm;codecs=opus",
-    "audio/webm",
-    "audio/mp4",
-    "audio/aac",
-    "audio/mp4;codecs=mp4a.40.2",
-  ];
-  for (const t of candidates) {
-    if (MediaRecorder.isTypeSupported(t)) return t;
-  }
-  return undefined;
-}
-
-function titleCaseVerdict(label: string): string {
-  return label
-    .split(" ")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-}
-
-function StepShell({
-  step,
-  title,
-  subtitle,
-  accent,
-  cornerAction,
-  children,
-}: {
-  step: number;
-  title: string;
-  subtitle?: string;
-  accent: "emerald" | "sky" | "violet";
-  /** e.g. help (i) control anchored to the step card */
-  cornerAction?: ReactNode;
-  children: ReactNode;
-}) {
-  const bar =
-    accent === "emerald"
-      ? "from-emerald-400/90 to-teal-600/20"
-      : accent === "sky"
-        ? "from-sky-400/90 to-blue-600/20"
-        : "from-violet-400/90 to-purple-600/20";
-
-  return (
-    <section className="relative overflow-hidden rounded-3xl border border-white/[0.1] bg-white/[0.035] shadow-[0_12px_40px_rgba(0,0,0,0.32),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-xl">
-      <div
-        className={`pointer-events-none absolute left-0 top-0 h-full w-[3px] bg-gradient-to-b ${bar}`}
-        aria-hidden
-      />
-      <div
-        className={
-          cornerAction
-            ? "px-5 pb-14 pt-6 sm:px-7 sm:pb-16 sm:pt-7"
-            : "px-5 py-6 sm:px-7 sm:py-7"
-        }
-      >
-        <div className="flex gap-3 pl-0.5">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/[0.08] text-xs font-bold tabular-nums text-white ring-1 ring-white/[0.12]">
-            {step}
-          </span>
-          <div className="min-w-0 pt-0.5">
-            <h2 className="text-sm font-semibold tracking-tight text-white">
-              {title}
-            </h2>
-            {subtitle ? (
-              <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">
-                {subtitle}
-              </p>
-            ) : null}
-          </div>
-        </div>
-        <div className="mt-6">{children}</div>
-      </div>
-      {cornerAction ? (
-        <div className="absolute bottom-3 right-3 z-20 sm:bottom-4 sm:right-4">
-          {cornerAction}
-        </div>
-      ) : null}
-    </section>
-  );
-}
-
 const WAVE_BAR_COUNT = 48;
 
+/** Long enough that spectrum / EQ motion reads clearly (not a flash). */
+const UPLOAD_PROCESSING_MIN_MS = 2100;
+const UPLOAD_PROCESSING_MIN_MS_REDUCED = 720;
+
 export function IntonationUpload() {
+  const router = useRouter();
   const [inputMode, setInputMode] = useState<InputMode>("record");
   const [midi, setMidi] = useState(69);
   const [file, setFile] = useState<File | null>(null);
+  /** Brief “processing” phase after pick so the card feels alive (not instant/static). */
+  const [uploadProcessing, setUploadProcessing] = useState(false);
+  const uploadTokenRef = useRef(0);
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordSeconds, setRecordSeconds] = useState(0);
@@ -135,21 +62,8 @@ export function IntonationUpload() {
   const [micDevices, setMicDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedMicId, setSelectedMicId] = useState("");
 
-  const [status, setStatus] = useState<
-    "idle" | "loading" | "done" | "error"
-  >("idle");
+  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
-  const [result, setResult] = useState<{
-    detectedHz: number;
-    targetHz: number;
-    cents: number;
-    label: string;
-    score: number;
-    validFrames: number;
-    totalFrames: number;
-    sampleRateHz: number;
-  } | null>(null);
-
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
@@ -214,15 +128,45 @@ export function IntonationUpload() {
 
   const resetSession = useCallback(() => {
     setStatus("idle");
-    setResult(null);
     setMessage(null);
   }, []);
 
-  const clearResultOnly = useCallback(() => {
-    setResult(null);
-    setStatus("idle");
-    setMessage(null);
-  }, []);
+  const handleAudioFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const f = e.target.files?.[0] ?? null;
+      if (!f) {
+        setFile(null);
+        setUploadProcessing(false);
+        resetSession();
+        return;
+      }
+      const token = ++uploadTokenRef.current;
+      setFile(f);
+      resetSession();
+      setUploadProcessing(true);
+      const reduced =
+        typeof window !== "undefined" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const minMs = reduced
+        ? UPLOAD_PROCESSING_MIN_MS_REDUCED
+        : UPLOAD_PROCESSING_MIN_MS;
+      void (async () => {
+        try {
+          await Promise.all([
+            new Promise<void>((r) => setTimeout(r, minMs)),
+            f.slice(0, Math.min(f.size, 65536)).arrayBuffer(),
+          ]);
+        } catch {
+          /* ignore */
+        } finally {
+          if (uploadTokenRef.current === token) {
+            setUploadProcessing(false);
+          }
+        }
+      })();
+    },
+    [resetSession],
+  );
 
   const setMode = (mode: InputMode) => {
     if (mode === inputMode) return;
@@ -236,6 +180,8 @@ export function IntonationUpload() {
       setRecordedBlob(null);
     } else {
       setFile(null);
+      setUploadProcessing(false);
+      uploadTokenRef.current += 1;
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
@@ -243,7 +189,6 @@ export function IntonationUpload() {
   const startRecording = useCallback(async () => {
     setMessage(null);
     setRecordedBlob(null);
-    setResult(null);
     setRecordSeconds(0);
     cleanupRecordingMeter();
 
@@ -434,7 +379,6 @@ export function IntonationUpload() {
 
     setStatus("loading");
     setMessage(null);
-    setResult(null);
 
     try {
       const ctx = createAudioContext();
@@ -471,7 +415,7 @@ export function IntonationUpload() {
       const cents = centsFromTarget(medianHz, targetHz);
       const label = intonationLabel(cents);
 
-      setResult({
+      persistIntonationResult({
         detectedHz: medianHz,
         targetHz,
         cents,
@@ -480,8 +424,10 @@ export function IntonationUpload() {
         validFrames,
         totalFrames,
         sampleRateHz,
+        targetNoteLabel: formatNoteLabel(midi),
       });
-      setStatus("done");
+      setStatus("idle");
+      router.push("/results");
     } catch (e) {
       setStatus("error");
       setMessage(
@@ -490,11 +436,13 @@ export function IntonationUpload() {
           : "Could not read that audio. Try another file or format.",
       );
     }
-  }, [file, inputMode, midi, recordedBlob]);
+  }, [file, inputMode, midi, recordedBlob, router]);
 
   const canAnalyze =
     status !== "loading" &&
-    (inputMode === "upload" ? !!file : !!recordedBlob);
+    (inputMode === "upload"
+      ? !!file && !uploadProcessing
+      : !!recordedBlob);
 
   const pill =
     "flex-1 rounded-full py-2.5 text-sm font-medium transition-colors duration-200";
@@ -502,106 +450,24 @@ export function IntonationUpload() {
   return (
     <section className="w-full max-w-[440px] space-y-8 sm:space-y-10">
       {status === "loading" && (
-        <div className="flex flex-col items-center rounded-3xl border border-white/[0.1] bg-white/[0.035] px-6 py-14 shadow-[0_12px_40px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.07)] backdrop-blur-xl">
-          <div
-            className="h-40 w-40 rounded-full border-2 border-white/[0.08] border-t-emerald-400/75 motion-safe:animate-spin motion-reduce:animate-none"
-            aria-hidden
-          />
-          <p className="mt-8 text-sm font-medium text-zinc-400">
+        <div
+          className="flex flex-col items-center rounded-3xl border border-white/[0.1] bg-white/[0.035] px-6 py-14 shadow-[0_12px_40px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.07)] backdrop-blur-xl"
+          role="status"
+          aria-live="polite"
+          aria-label="Analyzing audio"
+        >
+          <AudioActivityVisualizer variant="prominent" className="mt-2" />
+          <p className="mt-10 text-sm font-medium text-zinc-300">
             Analyzing your take
           </p>
-          <p className="mt-1 text-xs text-zinc-600">This usually takes a moment</p>
-        </div>
-      )}
-
-      {result && status === "done" && (
-        <div className="space-y-6 rounded-3xl border border-white/[0.1] bg-white/[0.04] px-5 py-8 text-center shadow-[0_16px_48px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-xl sm:px-8 sm:py-10">
-          <ScoreRing score={result.score} size={220} label="Match" />
-
-          <div className="space-y-2 px-1">
-            <p className="text-xl font-semibold tracking-tight text-white">
-              {titleCaseVerdict(result.label)}
-            </p>
-            <p className="mx-auto max-w-[300px] text-sm leading-relaxed text-zinc-500">
-              {verdictSummary(result.label)}
-            </p>
-          </div>
-
-          <div className="mx-auto flex max-w-xs items-center justify-center gap-5 rounded-2xl border border-white/[0.08] bg-black/15 px-5 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
-            <span
-              className={
-                result.cents > 3
-                  ? "text-amber-400/95"
-                  : result.cents < -3
-                    ? "text-sky-400/95"
-                    : "text-emerald-400/95"
-              }
-            >
-              {result.cents > 0
-                ? "Sharp"
-                : result.cents < 0
-                  ? "Flat"
-                  : "Centered"}
-            </span>
-            <span className="h-3 w-px bg-white/15" aria-hidden />
-            <span className="tabular-nums text-zinc-400">
-              {result.cents >= 0 ? "+" : ""}
-              {result.cents.toFixed(1)} cents
-            </span>
-          </div>
-
-          <details className="group w-full max-w-sm rounded-2xl border border-white/[0.1] bg-black/20 text-left shadow-inner transition-colors open:bg-black/25">
-            <summary className="cursor-pointer list-none px-4 py-3.5 text-sm font-medium text-zinc-300 marker:hidden [&::-webkit-details-marker]:hidden">
-              <span className="flex items-center justify-between gap-2">
-                Technical details
-                <span className="text-zinc-500 transition group-open:rotate-180">
-                  ▼
-                </span>
-              </span>
-            </summary>
-            <dl className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2.5 border-t border-white/[0.08] px-4 py-4 font-mono text-[11px] leading-relaxed text-zinc-500">
-              <dt className="text-zinc-600">Target</dt>
-              <dd className="text-right text-zinc-400">
-                {formatNoteLabel(midi)} at {result.targetHz.toFixed(2)} Hz
-              </dd>
-              <dt className="text-zinc-600">Detected</dt>
-              <dd className="text-right text-zinc-400">
-                {result.detectedHz.toFixed(2)} Hz
-              </dd>
-              <dt className="text-zinc-600">Offset</dt>
-              <dd className="text-right text-zinc-400">
-                {result.cents >= 0 ? "+" : ""}
-                {result.cents.toFixed(2)} cents
-              </dd>
-              <dt className="text-zinc-600">Model score</dt>
-              <dd className="text-right text-zinc-400">{result.score}%</dd>
-              <dt className="text-zinc-600">Sample rate</dt>
-              <dd className="text-right text-zinc-400">
-                {Math.round(result.sampleRateHz)} Hz
-              </dd>
-              <dt className="text-zinc-600">Windows</dt>
-              <dd className="text-right text-zinc-400">
-                {result.validFrames} clear of {result.totalFrames} total
-              </dd>
-            </dl>
-          </details>
-
-          <button
-            type="button"
-            onClick={clearResultOnly}
-            className="text-sm font-medium text-zinc-500 underline-offset-4 transition hover:text-emerald-400/90 hover:underline"
-          >
-            Dismiss results
-          </button>
+          <p className="mt-1.5 text-xs text-zinc-500">
+            Listening to pitch and timing…
+          </p>
         </div>
       )}
 
       <div
-        className={`${
-          result && status === "done"
-            ? "space-y-8 border-t border-white/[0.08] pt-10"
-            : "space-y-8"
-        } ${status === "loading" ? "pointer-events-none opacity-40" : ""}`}
+        className={`space-y-8 ${status === "loading" ? "pointer-events-none opacity-40" : ""}`}
       >
         <StepShell
           step={1}
@@ -621,51 +487,126 @@ export function IntonationUpload() {
         >
           <div className="mb-6 flex justify-center">
             <div className="inline-flex w-full max-w-[280px] rounded-full border border-white/[0.1] bg-black/25 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-sm">
-            <button
-              type="button"
-              onClick={() => setMode("record")}
-              className={`${pill} ${
-                inputMode === "record"
-                  ? "bg-white text-zinc-950 shadow-md shadow-black/20"
-                  : "text-zinc-500 hover:text-zinc-300"
-              }`}
-            >
-              Record
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("upload")}
-              className={`${pill} ${
-                inputMode === "upload"
-                  ? "bg-white text-zinc-950 shadow-md shadow-black/20"
-                  : "text-zinc-500 hover:text-zinc-300"
-              }`}
-            >
-              Upload
-            </button>
+              <button
+                type="button"
+                onClick={() => setMode("record")}
+                className={`${pill} ${
+                  inputMode === "record"
+                    ? "bg-white text-zinc-950 shadow-md shadow-black/20"
+                    : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                Record
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("upload")}
+                className={`${pill} ${
+                  inputMode === "upload"
+                    ? "bg-white text-zinc-950 shadow-md shadow-black/20"
+                    : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                Upload
+              </button>
             </div>
           </div>
 
           {inputMode === "upload" ? (
-            <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-white/[0.14] bg-white/[0.03] px-4 py-10 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-sky-400/35 hover:bg-white/[0.05]">
-              <span className="text-sm font-semibold text-zinc-200">
-                Choose an audio file
-              </span>
-              <span className="mt-2 text-center text-xs leading-relaxed text-zinc-500">
-                WAV, MP3, M4A, and other common formats
-              </span>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="audio/*,.wav,.mp3,.m4a,.ogg,.webm,.flac"
-                className="sr-only"
-                onChange={(e) => {
-                  const f = e.target.files?.[0] ?? null;
-                  setFile(f);
-                  resetSession();
-                }}
-              />
-            </label>
+            <div
+              className={`overflow-hidden rounded-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-[border-color,background-color,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
+                uploadProcessing
+                  ? "border border-sky-400/30 bg-gradient-to-b from-sky-500/[0.09] to-white/[0.02] shadow-[0_0_48px_rgba(56,189,248,0.12),inset_0_1px_0_rgba(255,255,255,0.08)]"
+                  : file
+                    ? "border border-emerald-500/20 bg-white/[0.045] shadow-[0_0_32px_rgba(16,185,129,0.06),inset_0_1px_0_rgba(255,255,255,0.07)]"
+                    : "border border-dashed border-white/[0.14] bg-white/[0.03] hover:border-sky-400/35 hover:bg-white/[0.05]"
+              }`}
+            >
+              {file ? (
+                <div className="relative min-h-[268px]">
+                  <div
+                    className={`absolute inset-0 flex flex-col items-center justify-center px-4 py-10 transition-[opacity,transform,filter] duration-[550ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:duration-200 motion-reduce:transition-opacity ${
+                      uploadProcessing
+                        ? "z-10 translate-y-0 opacity-100"
+                        : "pointer-events-none z-0 translate-y-2 opacity-0 blur-[1px] motion-reduce:blur-none"
+                    }`}
+                    aria-hidden={!uploadProcessing}
+                    aria-busy={uploadProcessing}
+                    aria-label="Processing selected audio file"
+                  >
+                    <AudioActivityVisualizer
+                      variant="compact"
+                      className="mb-2"
+                    />
+                    <span className="text-sm font-semibold tracking-tight text-sky-100/95">
+                      Reading your waveform…
+                    </span>
+                    <span className="mt-2 max-w-full truncate px-2 text-center text-xs text-zinc-400">
+                      {file.name}
+                    </span>
+                    <span className="mt-2 text-center text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">
+                      Decoding audio buffer
+                    </span>
+                  </div>
+                  <label
+                    className={`group flex cursor-pointer flex-col items-center justify-center px-4 py-10 transition-[opacity,transform,filter] duration-[550ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:duration-200 motion-reduce:transition-opacity ${
+                      uploadProcessing
+                        ? "pointer-events-none relative z-0 min-h-[268px] -translate-y-2 opacity-0 blur-[1px] motion-reduce:blur-none"
+                        : "relative z-10 min-h-[268px] translate-y-0 opacity-100"
+                    } hover:bg-white/[0.03]`}
+                  >
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400/95 ring-1 ring-emerald-400/25 transition-transform duration-500 ease-out motion-reduce:transition-none group-hover:scale-[1.06]">
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="h-5 w-5"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                        aria-hidden
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                    </span>
+                    <span className="mt-4 text-sm font-semibold text-emerald-200/95">
+                      Audio ready
+                    </span>
+                    <span className="mt-2 max-w-full truncate px-2 text-center text-xs text-zinc-400">
+                      {file.name}
+                    </span>
+                    <span className="mt-3 text-center text-[11px] text-zinc-500">
+                      Tap to replace this file
+                    </span>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="audio/*,.wav,.mp3,.m4a,.ogg,.webm,.flac"
+                      className="sr-only"
+                      onChange={handleAudioFileChange}
+                    />
+                  </label>
+                </div>
+              ) : (
+                <label className="flex cursor-pointer flex-col items-center justify-center px-4 py-10 transition-colors duration-300 hover:bg-white/[0.04]">
+                  <span className="text-sm font-semibold text-zinc-200">
+                    Choose an audio file
+                  </span>
+                  <span className="mt-2 text-center text-xs leading-relaxed text-zinc-500">
+                    WAV, MP3, M4A, and other common formats
+                  </span>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="audio/*,.wav,.mp3,.m4a,.ogg,.webm,.flac"
+                    className="sr-only"
+                    onChange={handleAudioFileChange}
+                  />
+                </label>
+              )}
+            </div>
           ) : (
             <div className="rounded-2xl border border-white/[0.1] bg-black/20 px-4 py-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-sm sm:px-6 sm:py-10">
               <div className="mx-auto mb-6 w-full max-w-sm">
@@ -781,11 +722,6 @@ export function IntonationUpload() {
             </div>
           )}
 
-          {inputMode === "upload" && file && (
-            <p className="mt-4 truncate text-center text-xs text-zinc-500">
-              {file.name}
-            </p>
-          )}
         </StepShell>
 
         <StepShell

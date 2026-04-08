@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { IntonationUpload } from "@/components/IntonationUpload";
 
 export default function Home() {
@@ -15,6 +16,12 @@ export default function Home() {
             Hear your target, record your line, get a clear intonation readout in
             three steps.
           </p>
+          <Link
+            href="/practice/scale"
+            className="mt-6 inline-flex items-center justify-center rounded-full border border-sky-400/25 bg-sky-500/10 px-5 py-2.5 text-xs font-semibold text-sky-200/95 shadow-[0_0_24px_rgba(56,189,248,0.12)] transition hover:border-sky-400/40 hover:bg-sky-500/15"
+          >
+            Scale practice · structured data
+          </Link>
         </div>
       </header>
 
