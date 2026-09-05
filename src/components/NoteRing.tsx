@@ -32,6 +32,8 @@ import {
 type NoteRingProps = {
   value: number;
   onChange: (midi: number) => void;
+  /** Replaces the default `mx-auto w-full max-w-[min(100%,320px)]` wrapper when set. */
+  className?: string;
 };
 
 const CX = 120;
@@ -47,9 +49,9 @@ const GLASS = {
   idleFill: "rgba(255,255,255,0.085)",
   idleStroke: "rgba(255,255,255,0.16)",
   hoverFill: "rgba(255,255,255,0.14)",
-  selectedFill: "rgba(255,255,255,0.2)",
+  selectedFill: "rgba(255,255,255,0.32)",
   selectedStroke: "rgba(255,255,255,1)",
-  selectedStrokeW: 2.1,
+  selectedStrokeW: 2.45,
   idleStrokeW: 0.75,
   /** Pointer / key hold (temporary sustain) */
   heldFill: "rgba(56, 189, 248, 0.26)",
@@ -115,7 +117,7 @@ function wedgePath(
   ].join(" ");
 }
 
-export function NoteRing({ value, onChange }: NoteRingProps) {
+export function NoteRing({ value, onChange, className }: NoteRingProps) {
   const gradId = useId().replace(/:/g, "");
   const rimGradId = `rim-${gradId}`;
   const hubGradId = `hub-${gradId}`;
@@ -271,7 +273,7 @@ export function NoteRing({ value, onChange }: NoteRingProps) {
 
   return (
     <div
-      className="mx-auto w-full max-w-[min(100%,320px)]"
+      className={className ?? "mx-auto w-full max-w-[min(100%,320px)]"}
       role="group"
       aria-label="Target note picker"
     >
@@ -390,8 +392,29 @@ export function NoteRing({ value, onChange }: NoteRingProps) {
                   strokeW = GLASS.idleStrokeW;
                 }
 
+                const selectedAccent =
+                  selected &&
+                  !isHeldHere &&
+                  !isLatchedHere &&
+                  interactive;
+
                 return (
-                  <g key={i}>
+                  <g
+                    key={i}
+                    style={
+                      selectedAccent
+                        ? {
+                            transform: "scale(1.045)",
+                            transformOrigin: `${CX}px ${CY}px`,
+                          }
+                        : undefined
+                    }
+                    className={
+                      selectedAccent
+                        ? "transition-transform duration-200 ease-out motion-reduce:transition-none"
+                        : undefined
+                    }
+                  >
                     <path
                       d={wedgePath(start, end, R_IN, R_OUT)}
                       fill={fill}
@@ -399,6 +422,14 @@ export function NoteRing({ value, onChange }: NoteRingProps) {
                       strokeWidth={strokeW}
                       strokeLinejoin="round"
                       vectorEffect="non-scaling-stroke"
+                      style={
+                        selectedAccent
+                          ? {
+                              filter:
+                                "drop-shadow(0 0 10px rgba(255,255,255,0.42)) drop-shadow(0 0 22px rgba(52, 211, 153, 0.2))",
+                            }
+                          : undefined
+                      }
                       className={
                         interactive
                           ? "musai-note-wedge cursor-pointer outline-none transition-[fill,stroke,opacity] duration-200 ease-out focus:outline-none focus-visible:outline-none"
@@ -491,7 +522,7 @@ export function NoteRing({ value, onChange }: NoteRingProps) {
                             : isLatchedHere
                               ? "0 0 12px rgba(232, 121, 249, 0.5)"
                               : selected
-                                ? "0 0 14px rgba(255,255,255,0.45)"
+                                ? "0 0 18px rgba(255,255,255,0.55), 0 0 28px rgba(52, 211, 153, 0.25)"
                                 : "0 1px 2px rgba(0,0,0,0.8)",
                       }}
                     >

@@ -13,6 +13,7 @@ import {
   nearestViolinMidiInOctave,
   nearestViolinMidiWithPitchClass,
   pitchClassLabel,
+  matchHzToPitchClass,
   scoreAccentColor,
   splitMidi,
   validPitchClassesInOctave,
@@ -150,18 +151,20 @@ describe("centsFromTarget", () => {
 describe("intonationLabel", () => {
   it("buckets by magnitude", () => {
     expect(intonationLabel(0)).toBe("in tune");
-    expect(intonationLabel(10)).toBe("slightly sharp");
-    expect(intonationLabel(-10)).toBe("slightly flat");
-    expect(intonationLabel(30)).toBe("sharp");
-    expect(intonationLabel(-30)).toBe("flat");
-    expect(intonationLabel(50)).toBe("very sharp");
+    expect(intonationLabel(10)).toBe("in tune");
+    expect(intonationLabel(-10)).toBe("in tune");
+    expect(intonationLabel(30)).toBe("slightly sharp");
+    expect(intonationLabel(-30)).toBe("slightly flat");
+    expect(intonationLabel(50)).toBe("sharp");
+    expect(intonationLabel(80)).toBe("very sharp");
   });
 });
 
 describe("intonationScore", () => {
-  it("clamps 0 to 100", () => {
+  it("is generous for small errors and octave-wraps", () => {
     expect(intonationScore(0)).toBe(100);
-    expect(intonationScore(100)).toBe(0);
+    expect(intonationScore(5)).toBeGreaterThanOrEqual(98);
+    expect(intonationScore(1200)).toBe(100);
     expect(intonationScore(1000)).toBe(0);
   });
 });
@@ -191,5 +194,22 @@ describe("pitchClassLabel", () => {
 describe("midiFromOctavePitch", () => {
   it("matches scientific convention used in module", () => {
     expect(midiFromOctavePitch(4, 9)).toBe(69);
+  });
+});
+
+describe("matchHzToPitchClass", () => {
+  it("scores exact A4 as 100", () => {
+    const m = matchHzToPitchClass(440, 9);
+    expect(m.targetMidi).toBe(69);
+    expect(m.score).toBe(100);
+    expect(Math.abs(m.cents)).toBeLessThan(0.5);
+  });
+
+  it("treats A5 as A against an A4 pitch class", () => {
+    const a5 = midiToHz(81);
+    const m = matchHzToPitchClass(a5, 9);
+    expect(m.targetMidi).toBe(81);
+    expect(m.score).toBe(100);
+    expect(Math.abs(m.cents)).toBeLessThan(1);
   });
 });

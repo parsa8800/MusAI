@@ -1,67 +1,99 @@
 "use client";
 
-import { useId } from "react";
+import { animate } from "animejs";
+import { useEffect, useRef } from "react";
+import { InfoPopover, InfoPopoverScanLines } from "@/components/InfoPopover";
 import { useScalePracticeInfo } from "@/components/scalePracticeInfoContext";
 import { ScaleTrebleStaff } from "@/components/ScaleTrebleStaff";
 import type { ScalePracticeGuideModel } from "@/lib/scalePracticeGuide";
 import type { ScaleKind } from "@/lib/scales";
+import { MUSAI_DUR, MUSAI_EASE, prefersReducedMotion } from "@/lib/motion";
 
 const INFO_ID = "scale-guide";
+
+const SCALE_QUICK_TIPS = [
+  "Up to the top, then down",
+  "Keep the beat steady",
+  "Don’t skip notes",
+];
 
 export function ScaleGuidePanel({
   guide,
   exerciseMidis,
   tonicPitchClass,
   scaleKind,
+  octaveSpan,
 }: {
   guide: ScalePracticeGuideModel;
   exerciseMidis: number[];
   tonicPitchClass: number;
   scaleKind: ScaleKind;
+  octaveSpan: 1 | 2;
 }) {
   const ascendingMidis = exerciseMidis.slice(0, guide.ascendingCount);
   const descendingMidis = exerciseMidis.slice(guide.ascendingCount);
-  const { openOrToggle, isOpen } = useScalePracticeInfo();
+  const { openOrToggle, isOpen, close } = useScalePracticeInfo();
   const infoOpen = isOpen(INFO_ID);
-  const infoId = useId();
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const prevLabel = useRef(guide.scaleLabel);
+
+  useEffect(() => {
+    if (prevLabel.current === guide.scaleLabel) return;
+    prevLabel.current = guide.scaleLabel;
+    const el = titleRef.current;
+    if (!el || prefersReducedMotion()) return;
+
+    const anim = animate(el, {
+      opacity: [0.35, 1],
+      y: [6, 0],
+      duration: MUSAI_DUR.fast,
+      ease: MUSAI_EASE.out,
+    });
+
+    return () => {
+      try {
+        (anim as { pause: () => void; revert?: () => void }).pause();
+        (anim as { revert?: () => void }).revert?.();
+      } catch {
+        /* cleanup */
+      }
+    };
+  }, [guide.scaleLabel]);
+
+  const kindWord = scaleKind === "major" ? "Major" : "Minor";
+  const spanWord = octaveSpan === 2 ? "2 octaves" : "1 octave";
 
   return (
-    <div data-scale-info-root={INFO_ID} className="space-y-10 sm:space-y-14">
-      <div className="relative flex min-h-[3.25rem] items-start justify-center px-10 sm:px-12">
-        <h2 className="text-center text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+    <div data-scale-info-root={INFO_ID} className="space-y-5 sm:space-y-6">
+      <div className="relative flex min-h-[3.5rem] flex-col items-center justify-center px-10 sm:px-12">
+        <h2
+          ref={titleRef}
+          className="text-center text-2xl font-semibold tracking-tight text-white sm:text-[1.85rem]"
+        >
           {guide.scaleLabel}
         </h2>
-        <div className="absolute right-0 top-0 shrink-0">
-          <button
-            type="button"
-            aria-expanded={infoOpen}
-            aria-controls={infoId}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-[11px] font-semibold text-zinc-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:bg-white/[0.06] hover:text-zinc-200"
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              openOrToggle(INFO_ID);
+        <p className="mt-1.5 text-[11px] font-medium uppercase tracking-[0.2em] text-zinc-500">
+          {kindWord} · {spanWord}
+        </p>
+        <div
+          className="absolute right-0 top-0 shrink-0"
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <InfoPopover
+            title="Tips"
+            titleAccent="zinc"
+            ariaLabel="Scale practice details"
+            open={infoOpen}
+            onOpenChange={(next) => {
+              if (next === infoOpen) return;
+              if (next) openOrToggle(INFO_ID);
+              else close();
             }}
+            stopTriggerPointerDown
           >
-            i
-          </button>
-          {infoOpen ? (
-            <div
-              id={infoId}
-              className="absolute right-0 top-10 z-30 w-[min(300px,90vw)] rounded-2xl border border-white/10 bg-zinc-950/90 p-4 text-left shadow-[0_24px_64px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl"
-              role="dialog"
-              aria-label="Scale practice details"
-            >
-              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
-                Quick tips
-              </p>
-              <ul className="mt-2 list-disc space-y-1.5 pl-4 text-xs text-zinc-400">
-                <li>Play up to the top note, then come back down.</li>
-                <li>Keep steady timing — one note per beat is ideal.</li>
-                <li>Avoid skipping notes.</li>
-              </ul>
-            </div>
-          ) : null}
+            <InfoPopoverScanLines lines={SCALE_QUICK_TIPS} />
+          </InfoPopover>
         </div>
       </div>
 

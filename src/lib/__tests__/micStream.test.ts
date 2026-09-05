@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getMicStream } from "../micStream";
+import {
+  describeMicOpenError,
+  getMicStream,
+  MicUnavailableError,
+} from "../micStream";
 
 describe("getMicStream", () => {
   const fakeStream = { id: "mock-stream" } as unknown as MediaStream;
@@ -22,7 +26,10 @@ describe("getMicStream", () => {
     );
     const s = await getMicStream(null);
     expect(s).toBe(fakeStream);
-    expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalled();
+    expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({
+      audio: true,
+      video: false,
+    });
   });
 
   it("retries with looser constraints after failure", async () => {
@@ -44,7 +51,7 @@ describe("getMicStream", () => {
       .calls[0]![0] as MediaStreamConstraints;
     expect(firstArg.audio).toEqual(
       expect.objectContaining({
-        deviceId: { exact: "device-abc" },
+        deviceId: { ideal: "device-abc" },
       }),
     );
   });
@@ -53,5 +60,27 @@ describe("getMicStream", () => {
     const err = new DOMException("denied", "NotAllowedError");
     vi.mocked(navigator.mediaDevices.getUserMedia).mockRejectedValue(err);
     await expect(getMicStream(null)).rejects.toBe(err);
+  });
+
+  it("throws MicUnavailableError when getUserMedia is missing", async () => {
+    vi.stubGlobal("navigator", { mediaDevices: {} });
+    Object.defineProperty(window, "isSecureContext", {
+      configurable: true,
+      value: true,
+    });
+    await expect(getMicStream(null)).rejects.toBeInstanceOf(MicUnavailableError);
+  });
+});
+
+describe("describeMicOpenError", () => {
+  it("explains permission denial", () => {
+    expect(
+      describeMicOpenError(new DOMException("denied", "NotAllowedError")),
+    ).toMatch(/blocked/i);
+  });
+
+  it("uses MicUnavailableError message", () => {
+    const err = new MicUnavailableError("Open Chrome.", "unsupported");
+    expect(describeMicOpenError(err)).toBe("Open Chrome.");
   });
 });

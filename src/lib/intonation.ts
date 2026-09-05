@@ -1,4 +1,11 @@
-/** Equal-temperament MIDI note → Hz (A4 = 440). */
+import {
+  nearestMidiOfPitchClass,
+  SCALE_CLEAR_MISS_CENTS,
+  SCALE_IN_TUNE_CENTS,
+  scoreForAbsCents,
+  unwrapOctaveCents,
+} from "@/lib/intonationScore";
+
 export function midiToHz(midi: number): number {
   return 440 * Math.pow(2, (midi - 69) / 12);
 }
@@ -178,18 +185,38 @@ export function centsFromTarget(detectedHz: number, targetHz: number): number {
   return (1200 * Math.log2(detectedHz / targetHz));
 }
 
+/** Score a heard pitch against the closest octave of a pitch class (A4 vs A5 is still A). */
+export function matchHzToPitchClass(
+  detectedHz: number,
+  pitchClass: number,
+): {
+  targetMidi: number;
+  targetHz: number;
+  cents: number;
+  score: number;
+} {
+  const targetMidi = nearestMidiOfPitchClass(detectedHz, pitchClass);
+  const targetHz = midiToHz(targetMidi);
+  const cents = unwrapOctaveCents(centsFromTarget(detectedHz, targetHz));
+  return {
+    targetMidi,
+    targetHz,
+    cents,
+    score: scoreForAbsCents(Math.abs(cents)),
+  };
+}
+
 export function intonationLabel(cents: number): string {
   const a = Math.abs(cents);
-  if (a <= 8) return "in tune";
-  if (a <= 20) return cents > 0 ? "slightly sharp" : "slightly flat";
-  if (a <= 45) return cents > 0 ? "sharp" : "flat";
+  if (a <= SCALE_IN_TUNE_CENTS) return "in tune";
+  if (a <= SCALE_CLEAR_MISS_CENTS) return cents > 0 ? "slightly sharp" : "slightly flat";
+  if (a <= 70) return cents > 0 ? "sharp" : "flat";
   return cents > 0 ? "very sharp" : "very flat";
 }
 
-/** Simple 0–100 score from how far off in cents (tunable later). */
+/** 0–100 score; uses the same generous curve as scale studio, octave-wrapped. */
 export function intonationScore(cents: number): number {
-  const a = Math.abs(cents);
-  return Math.max(0, Math.min(100, Math.round(100 - a * 1.8)));
+  return scoreForAbsCents(Math.abs(unwrapOctaveCents(cents)));
 }
 
 /** Short coaching line for the main results view (not technical). */

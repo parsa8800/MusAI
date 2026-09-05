@@ -65,4 +65,6 @@ export type ScalePracticeSessionV1 = {
   sampleRateHz: number;
   notes: ScalePracticeNoteRow[];
   summary: ScalePracticeSummary;
+  /** How the expected scale was chosen. Older sessions omit this. */
+  scaleSource?: "selected" | "detected";
 };

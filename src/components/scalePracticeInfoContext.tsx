@@ -31,6 +31,8 @@ export function ScalePracticeInfoProvider({ children }: { children: ReactNode })
   useEffect(() => {
     if (!activeId) return;
     const onDoc = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest?.("[data-musai-info-popover]")) return;
       const el = e.target as Node;
       const root = document.querySelector(
         `[data-scale-info-root="${activeId}"]`,

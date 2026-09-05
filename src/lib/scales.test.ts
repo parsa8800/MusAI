@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  accidentalBadge,
+  accidentalMarks,
   buildAscendingScaleMidis,
   buildExerciseScaleMidis,
   scaleIdFor,
+  scaleDisplayLabel,
+  tonicAccidentalRows,
   validateScaleMidisInViolinRange,
 } from "@/lib/scales";
 
@@ -40,6 +44,36 @@ describe("validateScaleMidisInViolinRange", () => {
     expect(
       validateScaleMidisInViolinRange(buildAscendingScaleMidis(55, "major", 1)),
     ).toBe(true);
+  });
+});
+
+describe("tonicAccidentalRows", () => {
+  it("starts major at C, then F/G for one accidental", () => {
+    const rows = tonicAccidentalRows("major");
+    expect(rows[0]!.keys.map((k) => k.label)).toEqual(["C"]);
+    expect(rows[1]!.keys.map((k) => k.label)).toEqual(["F", "G"]);
+    expect(accidentalBadge(rows[0]!.keys[0]!)).toBe("natural");
+    expect(accidentalBadge(rows[1]!.keys[0]!)).toBe("1 flat");
+    expect(accidentalBadge(rows[1]!.keys[1]!)).toBe("1 sharp");
+    expect(accidentalMarks(rows[1]!.keys[0]!)).toBe("♭");
+    expect(accidentalMarks(rows[1]!.keys[1]!)).toBe("♯");
+    expect(accidentalMarks(rows[2]!.keys[0]!)).toBe("♭♭");
+    expect(rows.flatMap((r) => r.keys).map((k) => k.pitchClass).sort((a, b) => a - b)).toEqual(
+      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+    );
+  });
+
+  it("starts minor at A, then D/E for one accidental", () => {
+    const rows = tonicAccidentalRows("natural_minor");
+    expect(rows[0]!.keys.map((k) => k.label)).toEqual(["A"]);
+    expect(rows[1]!.keys.map((k) => k.label)).toEqual(["D", "E"]);
+  });
+});
+
+describe("scaleDisplayLabel", () => {
+  it("uses sidebar spellings for sharp and flat minors", () => {
+    expect(scaleDisplayLabel(8, "natural_minor")).toBe("G♯ natural minor");
+    expect(scaleDisplayLabel(3, "natural_minor")).toBe("E♭ natural minor");
   });
 });
 

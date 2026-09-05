@@ -149,8 +149,8 @@ export function medianHzPerEqualWindow(
   if (noteCount <= 0) return [];
   if (frames.length === 0) return Array.from({ length: noteCount }, () => null);
 
-  const t0 = frames[0].timeSec;
-  const t1 = frames[frames.length - 1].timeSec;
+  const t0 = frames[0]!.timeSec;
+  const t1 = frames[frames.length - 1]!.timeSec;
   const span = Math.max(t1 - t0, 1e-6);
   const buckets: (number | null)[] = [];
 
@@ -174,4 +174,139 @@ export function medianHzPerEqualWindow(
   }
 
   return buckets;
+}
+
+const STABLE_RUN_SEMI_TOL = 0.55;
+const STABLE_RUN_MIN_FRAMES = 2;
+
+type HzRun = { hz: number[]; midiCenter: number };
+
+/**
+ * Group consecutive pitch frames into stable pitch runs (note-like plateaus).
+ * Returns null when segmentation is too weak to trust (caller should fall back).
+ */
+export function collectStablePitchRuns(frames: PitchFrame[]): HzRun[] {
+  if (frames.length === 0) return [];
+
+  const runs: HzRun[] = [];
+  let hzBuf: number[] = [frames[0]!.hz];
+  let midiSum = hzToMidi(frames[0]!.hz);
+  let midiCount = 1;
+  let center = midiSum;
+
+  const flush = () => {
+    if (hzBuf.length >= STABLE_RUN_MIN_FRAMES) {
+      runs.push({ hz: hzBuf, midiCenter: midiSum / midiCount });
+    }
+  };
+
+  for (let i = 1; i < frames.length; i++) {
+    const m = hzToMidi(frames[i]!.hz);
+    if (Math.abs(m - center) <= STABLE_RUN_SEMI_TOL) {
+      hzBuf.push(frames[i]!.hz);
+      midiSum += m;
+      midiCount += 1;
+      center = midiSum / midiCount;
+    } else {
+      flush();
+      hzBuf = [frames[i]!.hz];
+      midiSum = m;
+      midiCount = 1;
+      center = m;
+    }
+  }
+  flush();
+  return runs;
+}
+
+/**
+ * Map stable pitch runs onto `noteCount` steps (merge extras, reject if too few).
+ * Better than equal windows when the player holds some notes longer than others.
+ */
+export function medianHzPerStableRuns(
+  frames: PitchFrame[],
+  noteCount: number,
+): (number | null)[] | null {
+  if (noteCount <= 0) return [];
+  if (frames.length === 0) return null;
+
+  const runs = collectStablePitchRuns(frames);
+  const minRuns = Math.max(3, Math.floor(noteCount * 0.65));
+  if (runs.length < minRuns) return null;
+
+  // Merge shortest run into nearest neighbour until count matches.
+  while (runs.length > noteCount) {
+    let shortest = 0;
+    for (let i = 1; i < runs.length; i++) {
+      if (runs[i]!.hz.length < runs[shortest]!.hz.length) shortest = i;
+    }
+    const mergeInto =
+      shortest === 0
+        ? 1
+        : shortest === runs.length - 1
+          ? shortest - 1
+          : runs[shortest - 1]!.hz.length <= runs[shortest + 1]!.hz.length
+            ? shortest - 1
+            : shortest + 1;
+    const keep = Math.min(shortest, mergeInto);
+    const drop = Math.max(shortest, mergeInto);
+    const a = runs[keep]!;
+    const b = runs[drop]!;
+    const mergedHz = a.hz.concat(b.hz);
+    const midiCenter =
+      (a.midiCenter * a.hz.length + b.midiCenter * b.hz.length) /
+      mergedHz.length;
+    runs[keep] = { hz: mergedHz, midiCenter };
+    runs.splice(drop, 1);
+  }
+
+  if (runs.length < noteCount) return null;
+
+  return runs
+    .slice(0, noteCount)
+    .map((r) => medianHzFromSorted(r.hz));
+}
+
+/** Abs cents folded into one octave so ±1200 (octave error) does not dominate. */
+export function octaveWrappedAbsCents(hz: number, targetHz: number): number {
+  const cents = 1200 * Math.log2(hz / targetHz);
+  const wrapped = cents - 1200 * Math.round(cents / 1200);
+  return Math.abs(wrapped);
+}
+
+/**
+ * Choose equal-window vs stable-run segmentation by lowest total intonation error
+ * against expected MIDI targets.
+ */
+export function medianHzPerScaleSteps(
+  frames: PitchFrame[],
+  expectedMidis: readonly number[],
+): (number | null)[] {
+  const noteCount = expectedMidis.length;
+  if (noteCount <= 0) return [];
+  if (frames.length === 0) return Array.from({ length: noteCount }, () => null);
+
+  const equal = medianHzPerEqualWindow(frames, noteCount);
+  const stable = medianHzPerStableRuns(frames, noteCount);
+
+  const score = (buckets: (number | null)[]): number => {
+    let total = 0;
+    let counted = 0;
+    for (let i = 0; i < noteCount; i++) {
+      const hz = buckets[i];
+      if (hz == null || hz <= 0) {
+        total += 800;
+        continue;
+      }
+      const target = 440 * Math.pow(2, (expectedMidis[i]! - 69) / 12);
+      total += octaveWrappedAbsCents(hz, target);
+      counted += 1;
+    }
+    if (counted === 0) return Number.POSITIVE_INFINITY;
+    // Prefer coverings that actually measured most notes.
+    return total / counted + (noteCount - counted) * 120;
+  };
+
+  if (!stable) return equal;
+  return score(stable) < score(equal) * 0.92 ? stable : equal;
 }
