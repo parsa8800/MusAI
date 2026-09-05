@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { bufferToMono, estimatePitchMedianHz } from "../analyzePitch";
+import {
+  bufferToMono,
+  collectStablePitchRuns,
+  estimatePitchMedianHz,
+  hzToMidi,
+  medianHzPerEqualWindow,
+  medianHzPerScaleSteps,
+  medianHzPerStableRuns,
+  type PitchFrame,
+} from "../analyzePitch";
+import { midiToHz } from "../intonation";
+import { buildExerciseScaleMidis } from "../scales";
 
 function mockAudioBuffer(channels: Float32Array[]): AudioBuffer {
   const length = channels[0]!.length;
@@ -22,6 +33,21 @@ function sineMono(
   const out = new Float32Array(n);
   for (let i = 0; i < n; i++) {
     out[i] = Math.sin((2 * Math.PI * freqHz * i) / sampleRate) * 0.85;
+  }
+  return out;
+}
+
+function framesFromHzTimeline(
+  timeline: Array<{ hz: number; count: number }>,
+  dt = 0.05,
+): PitchFrame[] {
+  const out: PitchFrame[] = [];
+  let t = 0;
+  for (const step of timeline) {
+    for (let i = 0; i < step.count; i++) {
+      out.push({ timeSec: t, hz: step.hz, clarity: 0.95 });
+      t += dt;
+    }
   }
   return out;
 }
@@ -72,5 +98,53 @@ describe("estimatePitchMedianHz", () => {
     const mono = sineMono(330, 44100, 0.05);
     const r = estimatePitchMedianHz(mono, 44100);
     expect(r.totalFrames).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("stable pitch run segmentation", () => {
+  it("collectStablePitchRuns finds one plateau per pitch", () => {
+    const frames = framesFromHzTimeline([
+      { hz: midiToHz(60), count: 6 },
+      { hz: midiToHz(62), count: 6 },
+      { hz: midiToHz(64), count: 6 },
+    ]);
+    const runs = collectStablePitchRuns(frames);
+    expect(runs).toHaveLength(3);
+    expect(Math.round(hzToMidi(runs[0]!.hz[0]!))).toBe(60);
+    expect(Math.round(hzToMidi(runs[2]!.hz[0]!))).toBe(64);
+  });
+
+  it("medianHzPerStableRuns maps plateaus onto expected count", () => {
+    const midis = [60, 62, 64, 65, 67];
+    const frames = framesFromHzTimeline(
+      midis.map((m) => ({ hz: midiToHz(m), count: 5 })),
+    );
+    const buckets = medianHzPerStableRuns(frames, midis.length);
+    expect(buckets).not.toBeNull();
+    expect(buckets).toHaveLength(5);
+    for (let i = 0; i < midis.length; i++) {
+      expect(hzToMidi(buckets![i]!)).toBeCloseTo(midis[i]!, 0);
+    }
+  });
+
+  it("medianHzPerScaleSteps prefers stable runs on uneven timing", () => {
+    const expected = buildExerciseScaleMidis(60, "major", 1);
+    // Alternate 3 vs 10 frames so equal windows smear neighbours.
+    const timeline = expected.map((m, i) => ({
+      hz: midiToHz(m),
+      count: i % 2 === 0 ? 3 : 10,
+    }));
+    const frames = framesFromHzTimeline(timeline, 0.04);
+    const equal = medianHzPerEqualWindow(frames, expected.length);
+    const chosen = medianHzPerScaleSteps(frames, expected);
+
+    const err = (buckets: (number | null)[]) =>
+      buckets.reduce((sum, hz, i) => {
+        if (hz == null) return sum + 500;
+        return sum + Math.abs(hzToMidi(hz) - expected[i]!);
+      }, 0);
+
+    expect(err(chosen)).toBeLessThanOrEqual(err(equal) + 0.01);
+    expect(err(chosen)).toBeLessThan(expected.length * 0.75);
   });
 });

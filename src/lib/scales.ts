@@ -75,21 +75,7 @@ export function scaleIdFor(tonicPitchClass: number, kind: ScaleKind): string {
 }
 
 export function scaleDisplayLabel(tonicPitchClass: number, kind: ScaleKind): string {
-  const names = [
-    "C",
-    "D♭",
-    "D",
-    "E♭",
-    "E",
-    "F",
-    "G♭",
-    "G",
-    "A♭",
-    "A",
-    "B♭",
-    "B",
-  ] as const;
-  const t = names[((tonicPitchClass % 12) + 12) % 12];
+  const t = preferredTonicOption(tonicPitchClass, kind).label;
   return kind === "major" ? `${t} major` : `${t} natural minor`;
 }
 
@@ -160,6 +146,119 @@ export function tonicOptionsForViolin(): { pitchClass: number; label: string }[]
   }
   out.sort((a, b) => a.pitchClass - b.pitchClass);
   return out;
+}
+
+export type TonicAccidentalKind = "natural" | "sharp" | "flat";
+
+export type TonicAccidentalOption = {
+  pitchClass: number;
+  label: string;
+  accidentalCount: number;
+  accidentalKind: TonicAccidentalKind;
+};
+
+export type TonicAccidentalRow = {
+  accidentalCount: number;
+  keys: TonicAccidentalOption[];
+};
+
+function tonicKey(
+  pitchClass: number,
+  label: string,
+  accidentalCount: number,
+  accidentalKind: TonicAccidentalKind,
+): TonicAccidentalOption {
+  return { pitchClass, label, accidentalCount, accidentalKind };
+}
+
+/** Major: C, then F/G, B♭/D… (flats left, sharps right). Minor uses the same signatures. */
+const MAJOR_ACCIDENTAL_ROWS: TonicAccidentalRow[] = [
+  { accidentalCount: 0, keys: [tonicKey(0, "C", 0, "natural")] },
+  {
+    accidentalCount: 1,
+    keys: [tonicKey(5, "F", 1, "flat"), tonicKey(7, "G", 1, "sharp")],
+  },
+  {
+    accidentalCount: 2,
+    keys: [tonicKey(10, "B♭", 2, "flat"), tonicKey(2, "D", 2, "sharp")],
+  },
+  {
+    accidentalCount: 3,
+    keys: [tonicKey(3, "E♭", 3, "flat"), tonicKey(9, "A", 3, "sharp")],
+  },
+  {
+    accidentalCount: 4,
+    keys: [tonicKey(8, "A♭", 4, "flat"), tonicKey(4, "E", 4, "sharp")],
+  },
+  {
+    accidentalCount: 5,
+    keys: [tonicKey(1, "D♭", 5, "flat"), tonicKey(11, "B", 5, "sharp")],
+  },
+  { accidentalCount: 6, keys: [tonicKey(6, "F♯", 6, "sharp")] },
+];
+
+const MINOR_ACCIDENTAL_ROWS: TonicAccidentalRow[] = [
+  { accidentalCount: 0, keys: [tonicKey(9, "A", 0, "natural")] },
+  {
+    accidentalCount: 1,
+    keys: [tonicKey(2, "D", 1, "flat"), tonicKey(4, "E", 1, "sharp")],
+  },
+  {
+    accidentalCount: 2,
+    keys: [tonicKey(7, "G", 2, "flat"), tonicKey(11, "B", 2, "sharp")],
+  },
+  {
+    accidentalCount: 3,
+    keys: [tonicKey(0, "C", 3, "flat"), tonicKey(6, "F♯", 3, "sharp")],
+  },
+  {
+    accidentalCount: 4,
+    keys: [tonicKey(5, "F", 4, "flat"), tonicKey(1, "C♯", 4, "sharp")],
+  },
+  {
+    accidentalCount: 5,
+    keys: [tonicKey(10, "B♭", 5, "flat"), tonicKey(8, "G♯", 5, "sharp")],
+  },
+  { accidentalCount: 6, keys: [tonicKey(3, "E♭", 6, "flat")] },
+];
+
+export function tonicAccidentalRows(kind: ScaleKind): TonicAccidentalRow[] {
+  return kind === "major" ? MAJOR_ACCIDENTAL_ROWS : MINOR_ACCIDENTAL_ROWS;
+}
+
+/** Short key-signature hint under each tonic letter in the sidebar. */
+export function accidentalBadge(option: TonicAccidentalOption): string {
+  if (option.accidentalKind === "natural" || option.accidentalCount === 0) {
+    return "natural";
+  }
+  const n = option.accidentalCount;
+  if (option.accidentalKind === "sharp") {
+    return n === 1 ? "1 sharp" : `${n} sharps`;
+  }
+  return n === 1 ? "1 flat" : `${n} flats`;
+}
+
+/** Compact ♯/♭ marks for the sidebar chip (visual scan). */
+export function accidentalMarks(option: TonicAccidentalOption): string {
+  if (option.accidentalKind === "natural" || option.accidentalCount === 0) {
+    return "♮";
+  }
+  const mark = option.accidentalKind === "sharp" ? "♯" : "♭";
+  const n = Math.min(option.accidentalCount, 6);
+  return mark.repeat(n);
+}
+
+/** Sidebar spelling for this tonic (G♯ minor, not A♭ minor). */
+export function preferredTonicOption(
+  pitchClass: number,
+  kind: ScaleKind,
+): TonicAccidentalOption {
+  const pc = ((pitchClass % 12) + 12) % 12;
+  for (const row of tonicAccidentalRows(kind)) {
+    const hit = row.keys.find((k) => k.pitchClass === pc);
+    if (hit) return hit;
+  }
+  return tonicKey(pc, pitchClassName(pc), 0, "natural");
 }
 
 export function describeRootChoice(rootMidi: number): string {

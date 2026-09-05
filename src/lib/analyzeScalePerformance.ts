@@ -1,10 +1,16 @@
 import {
   collectPitchFrames,
   hzToMidi,
-  medianHzPerEqualWindow,
+  medianHzPerScaleSteps,
   type PitchFrame,
 } from "@/lib/analyzePitch";
 import { centsFromTarget, formatNoteLabel, midiToHz } from "@/lib/intonation";
+import {
+  SCALE_CLEAR_MISS_CENTS,
+  SCALE_IN_TUNE_CENTS,
+  scoreForAbsCents,
+  unwrapOctaveCents,
+} from "@/lib/intonationScore";
 import type {
   ScalePracticeIntonationBucket,
   ScalePracticeNoteRow,
@@ -12,8 +18,12 @@ import type {
   ScalePracticeTrend,
 } from "@/lib/scalePracticeTypes";
 
-/** Cents within this band count as “in tune” for scale rows & % metric. */
-export const SCALE_IN_TUNE_CENTS = 10;
+export {
+  SCALE_CLEAR_MISS_CENTS,
+  SCALE_IN_TUNE_CENTS,
+  scoreForAbsCents,
+  unwrapOctaveCents,
+} from "@/lib/intonationScore";
 
 export function intonationBucketForCents(
   cents: number,
@@ -23,10 +33,6 @@ export function intonationBucketForCents(
   const a = Math.abs(cents);
   if (a <= SCALE_IN_TUNE_CENTS) return "in_tune";
   return cents > 0 ? "sharp" : "flat";
-}
-
-export function scoreForAbsCents(absCents: number): number {
-  return Math.max(0, Math.min(100, Math.round(100 - absCents * 1.6)));
 }
 
 export function computeScaleSummary(
@@ -94,16 +100,13 @@ export type ScaleAnalysisResult = {
   summary: ScalePracticeSummary;
 };
 
-/**
- * Windowed analysis: one temporal window per expected scale tone.
- * Pure function — safe to call from workers or tests with a mono buffer.
- */
-export function analyzeScalePerformance(input: ScaleAnalysisInput): ScaleAnalysisResult {
-  const { mono, sampleRateHz, expectedMidis } = input;
-  const frames = collectPitchFrames(mono, sampleRateHz);
-  const hzBuckets = medianHzPerEqualWindow(frames, expectedMidis.length);
+export function notesFromExpectedMidis(
+  frames: PitchFrame[],
+  expectedMidis: readonly number[],
+): ScalePracticeNoteRow[] {
+  const hzBuckets = medianHzPerScaleSteps(frames, expectedMidis);
 
-  const notes: ScalePracticeNoteRow[] = expectedMidis.map((expectedMidi, i) => {
+  return expectedMidis.map((expectedMidi, i) => {
     const hz = hzBuckets[i];
     const missing = hz === null || hz <= 0;
     const targetHz = midiToHz(expectedMidi);
@@ -117,12 +120,13 @@ export function analyzeScalePerformance(input: ScaleAnalysisInput): ScaleAnalysi
         detectedNoteLabel: "—",
         detectedHz: 0,
         centsDifference: 0,
-        intonationBucket: "unknown",
+        intonationBucket: "unknown" as const,
         missingData: true,
       };
     }
 
-    const cents = centsFromTarget(hz, targetHz);
+    const rawCents = centsFromTarget(hz, targetHz);
+    const cents = unwrapOctaveCents(rawCents);
     const detectedMidi = Math.round(hzToMidi(hz));
 
     return {
@@ -137,7 +141,22 @@ export function analyzeScalePerformance(input: ScaleAnalysisInput): ScaleAnalysi
       missingData: false,
     };
   });
+}
 
-  const summary = computeScaleSummary(notes);
-  return { frames, notes, summary };
+export function analyzeScaleFromFrames(
+  frames: PitchFrame[],
+  expectedMidis: readonly number[],
+): ScaleAnalysisResult {
+  const notes = notesFromExpectedMidis(frames, expectedMidis);
+  return { frames, notes, summary: computeScaleSummary(notes) };
+}
+
+/**
+ * Scale analysis: adaptive note segmentation + octave-unwrapped cents.
+ * Pure function — safe to call from workers or tests with a mono buffer.
+ */
+export function analyzeScalePerformance(input: ScaleAnalysisInput): ScaleAnalysisResult {
+  const { mono, sampleRateHz, expectedMidis } = input;
+  const frames = collectPitchFrames(mono, sampleRateHz);
+  return analyzeScaleFromFrames(frames, expectedMidis);
 }

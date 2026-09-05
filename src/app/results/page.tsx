@@ -20,7 +20,7 @@ export default function ResultsPage() {
       setResult(data);
       setReady(true);
       if (!data) {
-        router.replace("/");
+        router.replace("/practice/single-note");
       }
     });
     return () => cancelAnimationFrame(id);
@@ -28,7 +28,7 @@ export default function ResultsPage() {
 
   const goSetup = () => {
     clearIntonationResult();
-    router.push("/");
+    router.push("/practice/single-note");
   };
 
   if (!ready) {
@@ -49,17 +49,13 @@ export default function ResultsPage() {
 
   return (
     <div className="flex min-h-full flex-col items-center px-5 pb-24 pt-10 sm:px-8 sm:pt-14">
-      <header className="mb-10 w-full max-w-md text-center sm:mb-12">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-emerald-400/85">
+      <header className="mb-9 w-full max-w-md text-center sm:mb-11">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-emerald-400/85">
           Results
         </p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-          Your intonation readout
+          Intonation
         </h1>
-        <p className="mx-auto mt-3 max-w-[320px] text-[13px] leading-relaxed text-zinc-500">
-          Here is how your take matched the target you chose. Start over anytime
-          to practice another note.
-        </p>
       </header>
 
       <IntonationResultsView result={result} onTryAgain={goSetup} />

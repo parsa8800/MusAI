@@ -1,6 +1,7 @@
 import type { ScaleAnalysisResult } from "@/lib/analyzeScalePerformance";
 import {
   buildAscendingScaleMidis,
+  buildExerciseScaleMidis,
   octaveRangeLabel,
   scaleDisplayLabel,
   scaleIdFor,
@@ -19,16 +20,18 @@ export type BuildScaleSessionParams = {
   audioSourceType: ScalePracticeAudioSource;
   sampleRateHz: number;
   analysis: ScaleAnalysisResult;
+  expectedNotesMidi?: readonly number[];
+  scaleSource?: "selected" | "detected";
 };
 
 export function buildScalePracticeSession(
   p: BuildScaleSessionParams,
 ): ScalePracticeSessionV1 {
-  const expectedNotesMidi = buildAscendingScaleMidis(
-    p.rootMidi,
-    p.scaleKind,
-    p.octaveSpan,
-  );
+  // Prefer the analyzed sequence (up, down, or ascent-only) when provided.
+  const expectedNotesMidi = p.expectedNotesMidi
+    ? [...p.expectedNotesMidi]
+    : buildExerciseScaleMidis(p.rootMidi, p.scaleKind, p.octaveSpan);
+  const ascending = buildAscendingScaleMidis(p.rootMidi, p.scaleKind, p.octaveSpan);
   return {
     schemaVersion: SCALE_PRACTICE_SESSION_VERSION,
     sessionId:
@@ -43,8 +46,8 @@ export function buildScalePracticeSession(
     tonicPitchClass: p.tonicPitchClass,
     octaveSpan: p.octaveSpan,
     octaveRangeLabel: octaveRangeLabel(
-      expectedNotesMidi[0]!,
-      expectedNotesMidi[expectedNotesMidi.length - 1]!,
+      ascending[0]!,
+      ascending[ascending.length - 1]!,
     ),
     rootMidi: p.rootMidi,
     expectedNotesMidi,
@@ -52,5 +55,6 @@ export function buildScalePracticeSession(
     sampleRateHz: p.sampleRateHz,
     notes: p.analysis.notes,
     summary: p.analysis.summary,
+    scaleSource: p.scaleSource,
   };
 }
