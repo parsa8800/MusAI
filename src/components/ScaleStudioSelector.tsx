@@ -1,11 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MusaiCaptureDock } from "@/components/MusaiCaptureDock";
 import { MusaiFloatingMiniRecorder } from "@/components/MusaiFloatingMiniRecorder";
 import { PracticeHubBackLink } from "@/components/PracticeHubBackLink";
+import { ScaleChoiceSidebar } from "@/components/ScaleChoiceSidebar";
 import { ScaleDetectAmbiguity } from "@/components/ScaleDetectAmbiguity";
+import { ScaleGuidePanel } from "@/components/ScaleGuidePanel";
 import { ScalePracticeInfoProvider } from "@/components/scalePracticeInfoContext";
 import { ScaleProgressPanel } from "@/components/ScaleProgressPanel";
 import { useFloatingMiniRecorder } from "@/hooks/useFloatingMiniRecorder";
@@ -22,18 +24,31 @@ import {
   sessionFromDetectedCandidate,
   workspaceHrefForCandidate,
 } from "@/lib/scaleDetectSession";
+import { buildScalePracticeGuideModel } from "@/lib/scalePracticeGuide";
 import { persistScalePracticeSession } from "@/lib/scalePracticeSession";
 import type { ScaleProgressJourneyV1 } from "@/lib/scaleProgressHistory";
-import { scaleWorkspaceHref } from "@/lib/scaleWorkspace";
+import {
+  buildExerciseScaleMidis,
+  defaultRootMidiForTonic,
+  type ScaleKind,
+} from "@/lib/scales";
+import {
+  identityFromSelection,
+  scaleWorkspaceHref,
+} from "@/lib/scaleWorkspace";
 
 type CaptureMode = "record" | "upload";
+type HomeView = "play" | "notes";
 
 /**
- * Scale Studio home — play any scale; we detect it, save progress, and open
- * that scale’s pad. No select-then-record.
+ * Scale Studio home — play first (kid-clear). Optional: pick a scale to see notes while recording.
  */
 export function ScaleStudioSelector() {
   const router = useRouter();
+  const [homeView, setHomeView] = useState<HomeView>("play");
+  const [tonicPc, setTonicPc] = useState(0);
+  const [scaleKind, setScaleKind] = useState<ScaleKind>("major");
+  const [octaveSpan, setOctaveSpan] = useState<1 | 2>(1);
   const [captureMode, setCaptureModeState] = useState<CaptureMode>("record");
   const [file, setFile] = useState<File | null>(null);
   const [uploadProcessing, setUploadProcessing] = useState(false);
@@ -163,6 +178,19 @@ export function ScaleStudioSelector() {
         if (token !== autoAnalyzeToken.current) return;
 
         if (detected.ok && detected.ambiguous) {
+          const preferred =
+            homeView === "notes"
+              ? detected.alternatives.find(
+                  (c) =>
+                    c.tonicPitchClass === tonicPc &&
+                    c.scaleKind === scaleKind &&
+                    c.octaveSpan === octaveSpan,
+                )
+              : undefined;
+          if (preferred) {
+            openDetected(preferred, sampleRateHz, audioSourceType);
+            return;
+          }
           setPendingDetect({
             alternatives: detected.alternatives,
             sampleRateHz,
@@ -192,7 +220,7 @@ export function ScaleStudioSelector() {
         );
       }
     },
-    [captureMode, file, openDetected, recordedBlob],
+    [captureMode, file, homeView, octaveSpan, openDetected, recordedBlob, scaleKind, tonicPc],
   );
 
   const resetCaptureSession = useCallback(() => {
@@ -344,6 +372,30 @@ export function ScaleStudioSelector() {
     );
   };
 
+  const rootMidi = useMemo(
+    () => defaultRootMidiForTonic(tonicPc),
+    [tonicPc],
+  );
+  const guideIdentity = useMemo(
+    () => identityFromSelection(tonicPc, scaleKind, octaveSpan),
+    [octaveSpan, scaleKind, tonicPc],
+  );
+  const expectedMidis = useMemo(
+    () => buildExerciseScaleMidis(rootMidi, scaleKind, octaveSpan),
+    [octaveSpan, rootMidi, scaleKind],
+  );
+  const guideModel = useMemo(
+    () =>
+      buildScalePracticeGuideModel(tonicPc, scaleKind, rootMidi, octaveSpan),
+    [octaveSpan, rootMidi, scaleKind, tonicPc],
+  );
+
+  const openPickedScale = () => {
+    router.push(
+      scaleWorkspaceHref(guideIdentity.scaleId, guideIdentity.octaveSpan),
+    );
+  };
+
   return (
     <ScalePracticeInfoProvider>
       <div className="relative flex h-[100dvh] max-h-[100dvh] w-full flex-col overflow-hidden">
@@ -360,69 +412,126 @@ export function ScaleStudioSelector() {
             onClick={() => setProgressOpen((v) => !v)}
             aria-expanded={progressOpen}
           >
-            {progressOpen ? "Hide progress" : "In progress"}
+            {progressOpen ? "Hide" : "In progress"}
           </button>
         </header>
 
-        <div className="relative grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-2">
-          <section
-            className="flex min-h-0 flex-col items-center justify-center overflow-hidden px-6 py-4 text-center"
-            aria-label="How Scale studio works"
-          >
-            <p className="font-display text-2xl font-semibold tracking-tight text-[var(--musai-ink)] sm:text-3xl">
-              Play a scale
-            </p>
-            <p className="mt-2 max-w-sm text-[13px] leading-relaxed text-[var(--musai-muted)] sm:text-[14px]">
-              Record any major or minor scale. MusAI detects what you played,
-              opens that scale’s page, and coaches from the take.
-            </p>
-            <ol className="mt-5 max-w-xs space-y-2 text-left text-[12px] leading-snug text-[var(--musai-muted)]">
-              <li className="flex gap-2">
-                <span className="font-semibold tabular-nums text-[var(--musai-ink)]">
-                  1
-                </span>
-                Hit record and play up, then down
-              </li>
-              <li className="flex gap-2">
-                <span className="font-semibold tabular-nums text-[var(--musai-ink)]">
-                  2
-                </span>
-                We open the matching scale page with feedback
-              </li>
-              <li className="flex gap-2">
-                <span className="font-semibold tabular-nums text-[var(--musai-ink)]">
-                  3
-                </span>
-                Record again there — a new scale starts a new page
-              </li>
-            </ol>
-          </section>
+        <div className="relative min-h-0 flex-1 overflow-hidden">
+          {homeView === "play" ? (
+            <section
+              className="flex h-full min-h-0 flex-col items-center justify-center gap-6 px-6 py-6 text-center"
+              aria-label="Play a scale"
+            >
+              {status === "loading" ? (
+                <div className="flex flex-col items-center gap-3">
+                  <div
+                    className="h-10 w-10 rounded-full border-2 border-[var(--musai-border)] border-t-[var(--musai-accent)] motion-safe:animate-spin motion-reduce:animate-none"
+                    aria-hidden
+                  />
+                  <p className="text-[15px] font-medium text-[var(--musai-ink)]">
+                    Listening…
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <p className="font-display text-3xl font-semibold tracking-tight text-[var(--musai-ink)] sm:text-4xl">
+                      Play a scale
+                    </p>
+                    <p className="text-[16px] font-medium text-[var(--musai-muted)] sm:text-[17px]">
+                      Press record · play up · then down
+                    </p>
+                  </div>
 
-          <section
-            className="flex min-h-0 flex-col items-center justify-center overflow-hidden border-t border-[var(--musai-border)] px-6 py-4 text-center md:border-l md:border-t-0"
-            aria-label="Ready to record"
-          >
-            {status === "loading" ? (
-              <div className="flex flex-col items-center gap-3">
-                <div
-                  className="h-10 w-10 rounded-full border-2 border-[var(--musai-border)] border-t-[var(--musai-accent)] motion-safe:animate-spin motion-reduce:animate-none"
-                  aria-hidden
-                />
-                <p className="text-[13px] text-[var(--musai-muted)]">
-                  Listening for your scale…
+                  <ol className="flex flex-wrap items-center justify-center gap-3 text-[13px] font-semibold text-[var(--musai-ink)] sm:gap-4">
+                    <li className="inline-flex items-center gap-2 rounded-full border border-[var(--musai-border)] bg-[var(--musai-surface)] px-3 py-1.5">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--musai-accent-soft)] text-[12px] text-[var(--musai-ok)]">
+                        1
+                      </span>
+                      Record
+                    </li>
+                    <li className="inline-flex items-center gap-2 rounded-full border border-[var(--musai-border)] bg-[var(--musai-surface)] px-3 py-1.5">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--musai-accent-soft)] text-[12px] text-[var(--musai-ok)]">
+                        2
+                      </span>
+                      We find it
+                    </li>
+                    <li className="inline-flex items-center gap-2 rounded-full border border-[var(--musai-border)] bg-[var(--musai-surface)] px-3 py-1.5">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--musai-accent-soft)] text-[12px] text-[var(--musai-ok)]">
+                        3
+                      </span>
+                      Get tips
+                    </li>
+                  </ol>
+
+                  <button
+                    type="button"
+                    onClick={() => setHomeView("notes")}
+                    className="musai-btn-secondary mt-1 px-4 py-2 text-[13px]"
+                  >
+                    Need notes? Pick a scale
+                  </button>
+                </>
+              )}
+            </section>
+          ) : (
+            <div className="flex h-full min-h-0 flex-col overflow-hidden">
+              <div className="flex shrink-0 items-center gap-3 border-b border-[var(--musai-border)] px-4 py-2 sm:px-5">
+                <button
+                  type="button"
+                  onClick={() => setHomeView("play")}
+                  className="text-[13px] font-medium text-[var(--musai-muted)] underline decoration-[var(--musai-border)] underline-offset-2 hover:text-[var(--musai-ink)]"
+                >
+                  Back
+                </button>
+                <p className="min-w-0 flex-1 truncate text-[13px] font-semibold text-[var(--musai-ink)]">
+                  Read these notes · then record
                 </p>
+                <button
+                  type="button"
+                  onClick={openPickedScale}
+                  className="musai-btn-secondary shrink-0 px-3 py-1.5 text-[12px]"
+                >
+                  Open page
+                </button>
               </div>
-            ) : (
-              <>
-                <p className="font-display text-xl font-semibold text-[var(--musai-ink)]">
-                  Ready when you are
-                </p>
-                <p className="mt-2 max-w-xs text-[13px] leading-relaxed text-[var(--musai-muted)]">
-                  Use the record bar below. No need to pick a key first.
-                </p>
-              </>
-            )}
-          </section>
+
+              <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[minmax(11rem,16rem)_minmax(0,1fr)]">
+                <div className="min-h-0 overflow-y-auto border-b border-[var(--musai-border)] px-3 py-3 md:border-b-0 md:border-r">
+                  <ScaleChoiceSidebar
+                    tonicPc={tonicPc}
+                    onTonicPc={setTonicPc}
+                    scaleKind={scaleKind}
+                    onScaleKind={setScaleKind}
+                    octaveSpan={octaveSpan}
+                    onOctaveSpan={setOctaveSpan}
+                  />
+                </div>
+                <div className="min-h-0 overflow-hidden px-3 py-3 sm:px-5">
+                  {status === "loading" ? (
+                    <div className="flex h-full flex-col items-center justify-center gap-3">
+                      <div
+                        className="h-10 w-10 rounded-full border-2 border-[var(--musai-border)] border-t-[var(--musai-accent)] motion-safe:animate-spin motion-reduce:animate-none"
+                        aria-hidden
+                      />
+                      <p className="text-[15px] font-medium text-[var(--musai-ink)]">
+                        Listening…
+                      </p>
+                    </div>
+                  ) : (
+                    <ScaleGuidePanel
+                      guide={guideModel}
+                      exerciseMidis={expectedMidis}
+                      tonicPitchClass={tonicPc}
+                      scaleKind={scaleKind}
+                      octaveSpan={octaveSpan}
+                      compact
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {pendingDetect ? (
             <ScaleDetectAmbiguity
