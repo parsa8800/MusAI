@@ -1,11 +1,21 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ScaleKind, TonicAccidentalOption } from "@/lib/scales";
 import { vexKeySignatureSpec } from "@/lib/vexflowScaleSpelling";
 
-const NOTATION_FILL = "#1c1917";
-const NOTATION_STROKE = "#a8a29e";
+function notationColors() {
+  if (typeof window === "undefined") {
+    return { fill: "#1c1917", stroke: "#b7aea3" };
+  }
+  const s = getComputedStyle(document.documentElement);
+  const read = (name: string, fallback: string) =>
+    s.getPropertyValue(name).trim() || fallback;
+  return {
+    fill: read("--musai-notation", read("--musai-ink", "#1c1917")),
+    stroke: read("--musai-staff-line", "#b7aea3"),
+  };
+}
 
 /**
  * Real VexFlow treble clef + key signature — same engraving as the staff notes.
@@ -22,10 +32,26 @@ export function KeySignatureMini({
   size?: "sm" | "md" | "lg";
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
+  const [themeKey, setThemeKey] = useState("light");
   const width = size === "lg" ? 148 : size === "md" ? 118 : 72;
   const height = size === "lg" ? 64 : size === "md" ? 52 : 36;
   const lineSpacing = size === "lg" ? 7.4 : size === "md" ? 6.2 : 4.2;
   const staveY = size === "lg" ? 4 : size === "md" ? 2 : 1;
+
+  useEffect(() => {
+    const sync = () => {
+      setThemeKey(
+        document.documentElement.dataset.theme === "dark" ? "dark" : "light",
+      );
+    };
+    sync();
+    const mo = new MutationObserver(sync);
+    mo.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+    return () => mo.disconnect();
+  }, []);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -49,14 +75,15 @@ export function KeySignatureMini({
         /* ignore */
       }
 
+      const { fill, stroke } = notationColors();
       host.innerHTML = "";
       const keySig = vexKeySignatureSpec(option.pitchClass, scaleKind);
       const { Renderer, Stave } = VF;
       const renderer = new Renderer(host, Renderer.Backends.SVG);
       renderer.resize(width, height);
       const ctx = renderer.getContext();
-      ctx.setFillStyle(NOTATION_FILL);
-      ctx.setStrokeStyle(NOTATION_STROKE);
+      ctx.setFillStyle(fill);
+      ctx.setStrokeStyle(stroke);
       ctx.setBackgroundFillStyle("transparent");
 
       const stave = new Stave(2, staveY, width - 6, {
@@ -64,7 +91,7 @@ export function KeySignatureMini({
         spaceAboveStaffLn: 0.45,
         spaceBelowStaffLn: 0.45,
       });
-      stave.setStyle({ fillStyle: NOTATION_FILL, strokeStyle: NOTATION_STROKE });
+      stave.setStyle({ fillStyle: fill, strokeStyle: stroke });
       stave.addClef("treble");
       stave.addKeySignature(keySig);
       stave.setContext(ctx).draw();
@@ -75,6 +102,16 @@ export function KeySignatureMini({
         svg.setAttribute("height", "100%");
         svg.style.display = "block";
         svg.style.overflow = "visible";
+        svg.querySelectorAll("[fill], [stroke]").forEach((el) => {
+          const f = el.getAttribute("fill");
+          const st = el.getAttribute("stroke");
+          if (f === "#000" || f === "#000000" || f === "black") {
+            el.setAttribute("fill", fill);
+          }
+          if (st === "#000" || st === "#000000" || st === "black") {
+            el.setAttribute("stroke", fill);
+          }
+        });
         try {
           const box = svg.getBBox();
           if (box.width > 0 && box.height > 0) {
@@ -95,7 +132,15 @@ export function KeySignatureMini({
       cancelled = true;
       host.innerHTML = "";
     };
-  }, [height, lineSpacing, option.pitchClass, scaleKind, staveY, width]);
+  }, [
+    height,
+    lineSpacing,
+    option.pitchClass,
+    scaleKind,
+    staveY,
+    themeKey,
+    width,
+  ]);
 
   const boxClass =
     size === "lg"

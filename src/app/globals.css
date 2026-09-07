@@ -27,6 +27,9 @@
   --musai-wash: #ffffff;
   --musai-radius: 0.75rem;
   --musai-radius-lg: 0.875rem;
+  /* Engraving: noteheads/stems vs staff lines */
+  --musai-notation: #1c1917;
+  --musai-staff-line: #b7aea3;
   --musai-shadow: 0 1px 2px rgba(28, 25, 23, 0.04),
     0 8px 24px rgba(28, 25, 23, 0.05);
   --musai-drawer-shadow: -14px 0 36px rgba(28, 25, 23, 0.1);
@@ -64,6 +67,8 @@ html[data-theme="dark"] {
   --musai-shadow: 0 1px 2px rgba(0, 0, 0, 0.28),
     0 10px 28px rgba(0, 0, 0, 0.35);
   --musai-drawer-shadow: -14px 0 40px rgba(0, 0, 0, 0.45);
+  --musai-notation: #f4efe6;
+  --musai-staff-line: #8a8278;
   --musai-grain-blend: soft-light;
   --musai-grain-opacity: 0.07;
 }
@@ -133,7 +138,29 @@ html[data-theme="dark"] {
   }
 }
 
-/* My scales drawer — compact professional strip */
+/* Draft Just-play staff — readable silhouette in both themes */
+.musai-draft-staff {
+  opacity: 0.48;
+  filter: grayscale(0.28);
+}
+
+html[data-theme="dark"] .musai-draft-staff {
+  opacity: 0.78;
+  filter: none;
+}
+
+/* Note ring hub — less white glass wash in dark mode */
+html[data-theme="dark"] .musai-note-ring-shell {
+  box-shadow: var(--musai-shadow);
+}
+
+html[data-theme="dark"] .musai-note-ring-shell .musai-note-ring-face {
+  box-shadow: inset 0 0 0 1px var(--musai-border);
+}
+
+html[data-theme="dark"] .musai-note-ring-shell .musai-note-ring-sheen {
+  opacity: 0.12;
+}
 .musai-scales-drawer {
   position: absolute;
   inset-block: 0;

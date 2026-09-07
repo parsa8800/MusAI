@@ -27,7 +27,7 @@ export function DraftNotesFrame({ className = "" }: { className?: string }) {
       className={`${draftFrameClass} max-w-[18rem] px-2.5 py-2.5 sm:max-w-[19rem] ${className}`.trim()}
       aria-hidden
     >
-      <div className="pointer-events-none select-none opacity-[0.4] grayscale-[0.35]">
+      <div className="pointer-events-none select-none musai-draft-staff">
         <ScaleTrebleStaff
           ascendingMidis={ascending}
           descendingMidis={[]}

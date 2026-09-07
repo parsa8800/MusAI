@@ -51,13 +51,13 @@ function pitchClassHue(pc: number): number {
 function wedgePalette(pc: number) {
   const h = pitchClassHue(pc);
   return {
-    idleFill: `hsla(${h}, 36%, 48%, 0.11)`,
-    idleStroke: `hsla(${h}, 22%, 42%, 0.22)`,
-    hoverFill: `hsla(${h}, 40%, 46%, 0.2)`,
-    selectedFill: `hsla(${h}, 42%, 42%, 0.28)`,
-    selectedStroke: `hsla(${h}, 48%, 36%, 0.92)`,
-    heldFill: `hsla(${h}, 44%, 40%, 0.32)`,
-    heldStroke: `hsla(${h}, 50%, 34%, 0.95)`,
+    idleFill: `hsla(${h}, 38%, 58%, 0.16)`,
+    idleStroke: `hsla(${h}, 28%, 52%, 0.32)`,
+    hoverFill: `hsla(${h}, 42%, 55%, 0.26)`,
+    selectedFill: `hsla(${h}, 44%, 48%, 0.34)`,
+    selectedStroke: `hsla(${h}, 48%, 46%, 0.95)`,
+    heldFill: `hsla(${h}, 46%, 50%, 0.38)`,
+    heldStroke: `hsla(${h}, 50%, 48%, 0.98)`,
   };
 }
 
@@ -288,10 +288,10 @@ export function NoteRing({ value, onChange, className }: NoteRingProps) {
     >
       {/* Warm paper chassis */}
       <div className="musai-note-ring-shell relative rounded-full border border-[var(--musai-border)] bg-[var(--musai-surface)] p-[1.5px] shadow-[var(--musai-shadow)]">
-        <div className="relative overflow-hidden rounded-full bg-[var(--musai-surface-2)] shadow-[inset_0_1px_0_rgba(255,255,255,0.75),inset_0_0_0_1px_var(--musai-border)]">
+        <div className="musai-note-ring-face relative overflow-hidden rounded-full bg-[var(--musai-surface-2)] shadow-[inset_0_1px_0_rgba(255,255,255,0.75),inset_0_0_0_1px_var(--musai-border)]">
           {/* Soft top highlight */}
           <div
-            className="pointer-events-none absolute inset-0 rounded-full opacity-40"
+            className="musai-note-ring-sheen pointer-events-none absolute inset-0 rounded-full opacity-40"
             style={{
               background:
                 "radial-gradient(ellipse 95% 42% at 50% -5%, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.08) 35%, transparent 62%)",
@@ -515,24 +515,19 @@ export function NoteRing({ value, onChange, className }: NoteRingProps) {
                       className="pointer-events-none select-none text-[11px] font-semibold tracking-tight"
                       fill={
                         !interactive
-                          ? "rgba(28,25,23,0.18)"
+                          ? "color-mix(in srgb, var(--musai-muted) 45%, transparent)"
                           : isHeldHere
-                            ? "#2f6f5e"
+                            ? "var(--musai-accent)"
                             : isLatchedHere
-                              ? "#c45c4a"
+                              ? "var(--musai-accent-2)"
                               : selected
-                                ? "#1c1917"
-                                : "rgba(28,25,23,0.55)"
+                                ? "var(--musai-ink)"
+                                : "var(--musai-muted)"
                       }
                       style={{
-                        textShadow:
-                          isHeldHere
-                            ? "0 0 8px rgba(47,111,94,0.25)"
-                            : isLatchedHere
-                              ? "0 0 8px rgba(196,92,74,0.2)"
-                              : selected
-                                ? "0 0 10px rgba(47,111,94,0.15)"
-                                : "none",
+                        textShadow: selected
+                          ? "0 0 10px color-mix(in srgb, var(--musai-surface) 70%, transparent)"
+                          : "none",
                       }}
                     >
                       {pitchClassLabel(i)}
