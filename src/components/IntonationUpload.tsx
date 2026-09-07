@@ -4,10 +4,8 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AudioActivityVisualizer } from "@/components/AudioActivityVisualizer";
 import { NoteRing } from "@/components/NoteRing";
-import { IntonationRecordingHelpButton } from "@/components/IntonationRecordingHelpButton";
 import { MusaiCaptureDock } from "@/components/MusaiCaptureDock";
 import { MusaiFloatingMiniRecorder } from "@/components/MusaiFloatingMiniRecorder";
-import { ReferenceToneHelpButton } from "@/components/ReferenceToneHelpButton";
 import { useFloatingMiniRecorder } from "@/hooks/useFloatingMiniRecorder";
 import { useSyncedRecorderUi } from "@/hooks/useSyncedRecorderUi";
 import { createAudioContext } from "@/lib/audioContext";
@@ -27,7 +25,7 @@ import { persistIntonationResult } from "@/lib/musaiResultSession";
 type InputMode = "upload" | "record";
 
 /** Brief import feedback — keep light so recording stays the focus. */
-const UPLOAD_PROCESSING_MIN_MS = 400;
+const UPLOAD_PROCESSING_MIN_MS = 280;
 const UPLOAD_PROCESSING_MIN_MS_REDUCED = 0;
 
 export function IntonationUpload() {
@@ -320,7 +318,7 @@ export function IntonationUpload() {
         sampleRateHz,
         targetNoteLabel: formatNoteLabel(match.targetMidi),
       });
-      setStatus("idle");
+      // Keep loading until navigation unmounts — resetting to idle flashes the form.
       router.push("/results");
     } catch (e) {
       setStatus("error");
@@ -340,30 +338,36 @@ export function IntonationUpload() {
 
   return (
     <section className="w-full max-w-[min(1000px,100%)] space-y-7 sm:space-y-9">
-      {status === "loading" && (
-        <div
-          className="musai-glass-surface relative flex flex-col items-center overflow-visible px-6 py-10 sm:py-12"
-          role="status"
-          aria-live="polite"
-          aria-label="Analyzing audio"
-        >
-          <AudioActivityVisualizer variant="prominent" />
-          <p className="mt-7 text-sm font-medium text-[var(--musai-ink)]">Analyzing…</p>
-        </div>
-      )}
-
-      <div
-        className={`${status === "loading" ? "pointer-events-none opacity-35" : ""}`}
-      >
-        <div className="musai-glass-surface relative overflow-visible">
+      <div className="musai-glass-surface relative overflow-visible">
+        {status === "loading" ? (
           <div
-            className="pointer-events-none absolute inset-0 overflow-hidden rounded-[1.5rem]"
-            aria-hidden
+            className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-[inherit] bg-[color-mix(in_srgb,var(--musai-surface)_88%,transparent)] px-6 backdrop-blur-[6px]"
+            role="status"
+            aria-live="polite"
+            aria-label="Analyzing audio"
           >
-            <div className="absolute bottom-4 left-3 top-4 w-[2px] rounded-full bg-gradient-to-b from-[var(--musai-accent)] via-[color-mix(in_srgb,var(--musai-accent)_60%,var(--musai-accent-2))] to-[var(--musai-accent-2)]" />
+            <AudioActivityVisualizer variant="prominent" />
+            <p className="mt-7 text-sm font-medium text-[var(--musai-ink)]">
+              Analyzing…
+            </p>
           </div>
+        ) : null}
 
-          <div className="relative z-[2] grid gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.08fr)]">
+        <div
+          className={`pointer-events-none absolute inset-0 overflow-hidden rounded-[1.5rem] ${
+            status === "loading" ? "opacity-40" : ""
+          }`}
+          aria-hidden
+        >
+          <div className="absolute bottom-4 left-3 top-4 w-[2px] rounded-full bg-gradient-to-b from-[var(--musai-accent)] via-[color-mix(in_srgb,var(--musai-accent)_60%,var(--musai-accent-2))] to-[var(--musai-accent-2)]" />
+        </div>
+
+        <div
+          className={`relative z-[2] grid gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.08fr)] ${
+            status === "loading" ? "pointer-events-none select-none" : ""
+          }`}
+          aria-hidden={status === "loading"}
+        >
             {/* Target pitch */}
             <div className="flex flex-col overflow-visible border-b border-[var(--musai-border)] p-6 pt-7 sm:p-8 sm:pt-9 lg:border-b-0 lg:border-r lg:border-[var(--musai-border)]">
               <div className="flex items-start justify-between gap-3 pr-1 pt-0.5">
@@ -371,13 +375,15 @@ export function IntonationUpload() {
                   <h2 className="text-base font-semibold tracking-tight text-[var(--musai-ink)]">
                     Target
                   </h2>
+                  <p className="mt-1 text-[12px] text-[var(--musai-muted)]">
+                    Hold a wedge to hear the reference
+                  </p>
                 </div>
-                <ReferenceToneHelpButton />
               </div>
 
               <div className="relative mt-7 flex min-h-0 flex-1 items-center justify-center py-4 sm:py-6">
                 <div
-                  className="pointer-events-none absolute left-1/2 top-1/2 h-[min(92vw,380px)] w-[min(92vw,380px)] max-w-full -translate-x-1/2 -translate-y-1/2 rounded-full bg-[color-mix(in_srgb,var(--musai-accent)_9%,transparent)] blur-[72px]"
+                  className="pointer-events-none absolute left-1/2 top-1/2 h-[min(92vw,380px)] w-[min(92vw,380px)] max-w-full -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,color-mix(in_srgb,var(--musai-accent)_14%,transparent)_0%,color-mix(in_srgb,var(--musai-accent-2)_8%,transparent)_45%,transparent_70%)] blur-[64px]"
                   aria-hidden
                 />
                 <div className="relative z-[1] flex w-full justify-center">
@@ -392,11 +398,13 @@ export function IntonationUpload() {
 
             {/* Capture + analyze — same dock as Scale Studio */}
             <div className="flex flex-col justify-center p-6 sm:p-8">
-              <div className="mb-4 flex items-center justify-between gap-3">
+              <div className="mb-4">
                 <h2 className="text-base font-semibold tracking-tight text-[var(--musai-ink)]">
-                  Record
+                  Your take
                 </h2>
-                <IntonationRecordingHelpButton />
+                <p className="mt-1 text-[12px] text-[var(--musai-muted)]">
+                  Record or import one sustained note
+                </p>
               </div>
               <MusaiCaptureDock
                 selectId="musai-mic-tuning"
@@ -431,7 +439,6 @@ export function IntonationUpload() {
               />
             </div>
           </div>
-        </div>
       </div>
 
       <MusaiFloatingMiniRecorder

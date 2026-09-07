@@ -12,19 +12,18 @@ import {
 
 export default function ResultsPage() {
   const router = useRouter();
-  const [result, setResult] = useState<StoredIntonationResult | null>(null);
-  const [ready, setReady] = useState(false);
+  const [result, setResult] = useState<StoredIntonationResult | null>(() =>
+    typeof window === "undefined" ? null : readIntonationResult(),
+  );
+  const [ready, setReady] = useState(() => typeof window !== "undefined");
 
   useEffect(() => {
-    const id = requestAnimationFrame(() => {
-      const data = readIntonationResult();
-      setResult(data);
-      setReady(true);
-      if (!data) {
-        router.replace("/practice/single-note");
-      }
-    });
-    return () => cancelAnimationFrame(id);
+    const data = readIntonationResult();
+    setResult(data);
+    setReady(true);
+    if (!data) {
+      router.replace("/practice/single-note");
+    }
   }, [router]);
 
   const goSetup = () => {
@@ -32,7 +31,7 @@ export default function ResultsPage() {
     router.push("/practice/single-note");
   };
 
-  if (!ready) {
+  if (!ready || !result) {
     return (
       <div className="flex min-h-full flex-col items-center justify-center px-5 pb-24 pt-14 sm:px-8">
         <div
@@ -42,10 +41,6 @@ export default function ResultsPage() {
         <p className="mt-6 text-sm text-[var(--musai-muted)]">Loading…</p>
       </div>
     );
-  }
-
-  if (!result) {
-    return null;
   }
 
   return (
@@ -58,7 +53,7 @@ export default function ResultsPage() {
         />
         <header className="mb-8 text-center sm:mb-9">
           <h1 className="font-display text-2xl font-semibold tracking-tight text-[var(--musai-ink)] sm:text-3xl">
-            Tuning results
+            Results
           </h1>
         </header>
         <IntonationResultsView result={result} onTryAgain={goSetup} />

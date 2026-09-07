@@ -43,24 +43,33 @@ const R_IN = 64;
 /** Matches SVG hub circle — HTML hub stays inside this (no overlap with wedges). */
 const HUB_FRAC = (2 * (R_IN - 2)) / 240;
 
+/** Soft chromatic tints around the wheel (C=0 … B=11). */
+function pitchClassHue(pc: number): number {
+  return (pc * 30 + 8) % 360;
+}
+
+function wedgePalette(pc: number) {
+  const h = pitchClassHue(pc);
+  return {
+    idleFill: `hsla(${h}, 36%, 48%, 0.11)`,
+    idleStroke: `hsla(${h}, 22%, 42%, 0.22)`,
+    hoverFill: `hsla(${h}, 40%, 46%, 0.2)`,
+    selectedFill: `hsla(${h}, 42%, 42%, 0.28)`,
+    selectedStroke: `hsla(${h}, 48%, 36%, 0.92)`,
+    heldFill: `hsla(${h}, 44%, 40%, 0.32)`,
+    heldStroke: `hsla(${h}, 50%, 34%, 0.95)`,
+  };
+}
+
 const GLASS = {
-  invalidFill: "rgba(28, 25, 23, 0.04)",
-  invalidStroke: "rgba(28, 25, 23, 0.08)",
-  idleFill: "rgba(28, 25, 23, 0.05)",
-  idleStroke: "rgba(231, 226, 218, 1)",
-  hoverFill: "rgba(47, 111, 94, 0.08)",
-  selectedFill: "rgba(47, 111, 94, 0.16)",
-  selectedStroke: "rgba(47, 111, 94, 0.9)",
-  selectedStrokeW: 2.2,
-  idleStrokeW: 0.75,
-  /** Pointer / key hold (temporary sustain) */
-  heldFill: "rgba(47, 111, 94, 0.2)",
-  heldStroke: "rgba(47, 111, 94, 0.92)",
-  heldStrokeW: 2,
-  /** Double-click / double-tap latched drone */
-  latchedFill: "rgba(196, 92, 74, 0.12)",
-  latchedStroke: "rgba(196, 92, 74, 0.88)",
+  invalidFill: "color-mix(in srgb, var(--musai-ink) 4%, transparent)",
+  invalidStroke: "color-mix(in srgb, var(--musai-ink) 8%, transparent)",
+  latchedFill: "color-mix(in srgb, var(--musai-accent-2) 14%, transparent)",
+  latchedStroke: "color-mix(in srgb, var(--musai-accent-2) 88%, transparent)",
   latchedStrokeW: 2.2,
+  selectedStrokeW: 2.2,
+  idleStrokeW: 0.85,
+  heldStrokeW: 2,
 } as const;
 
 function polar(cx: number, cy: number, r: number, angleDeg: number) {
@@ -358,23 +367,24 @@ export function NoteRing({ value, onChange, className }: NoteRingProps) {
                 let fill: string;
                 let stroke: string;
                 let strokeW: number;
+                const tint = wedgePalette(i);
                 if (!interactive) {
                   fill = GLASS.invalidFill;
                   stroke = GLASS.invalidStroke;
                   strokeW = 0.55;
                 } else if (isHeldHere) {
-                  fill = GLASS.heldFill;
+                  fill = tint.heldFill;
                   stroke = isLatchedHere
                     ? GLASS.latchedStroke
-                    : GLASS.heldStroke;
+                    : tint.heldStroke;
                   strokeW = isLatchedHere
                     ? GLASS.latchedStrokeW
                     : GLASS.heldStrokeW;
                 } else if (selected) {
-                  fill = GLASS.selectedFill;
+                  fill = tint.selectedFill;
                   stroke = isLatchedHere
                     ? GLASS.latchedStroke
-                    : GLASS.selectedStroke;
+                    : tint.selectedStroke;
                   strokeW = isLatchedHere
                     ? GLASS.latchedStrokeW
                     : GLASS.selectedStrokeW;
@@ -383,12 +393,12 @@ export function NoteRing({ value, onChange, className }: NoteRingProps) {
                   stroke = GLASS.latchedStroke;
                   strokeW = GLASS.latchedStrokeW;
                 } else if (hoveredWedge === i) {
-                  fill = GLASS.hoverFill;
-                  stroke = GLASS.idleStroke;
+                  fill = tint.hoverFill;
+                  stroke = tint.idleStroke;
                   strokeW = GLASS.idleStrokeW;
                 } else {
-                  fill = GLASS.idleFill;
-                  stroke = GLASS.idleStroke;
+                  fill = tint.idleFill;
+                  stroke = tint.idleStroke;
                   strokeW = GLASS.idleStrokeW;
                 }
 
@@ -425,8 +435,7 @@ export function NoteRing({ value, onChange, className }: NoteRingProps) {
                       style={
                         selectedAccent
                           ? {
-                              filter:
-                                "drop-shadow(0 0 6px rgba(47,111,94,0.2)) drop-shadow(0 0 12px rgba(47,111,94,0.12))",
+                              filter: `drop-shadow(0 0 7px hsla(${pitchClassHue(i)}, 42%, 42%, 0.28))`,
                             }
                           : undefined
                       }
