@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { CoachChatPanel } from "@/components/CoachChatPanel";
-import { AnimatedReveal } from "@/components/motion/AnimatedReveal";
 import {
   buildAttemptProgress,
   buildLoopAttemptMeta,
@@ -25,15 +24,16 @@ function formatDeltaPct(delta: number): string {
 }
 
 /**
- * Compact coaching + progress that sits under the staff on a scale workspace.
- * Does not replace notation or the record control.
+ * Side-panel coaching for the pad layout — fills height, no page scroll.
  */
 export function ScaleInlineFeedback({
   session,
   loopAttempts,
+  compact = false,
 }: {
   session: ScalePracticeSessionV1;
   loopAttempts: ScalePracticeSessionV1[];
+  compact?: boolean;
 }) {
   const template = useMemo(() => buildScaleCoachingFeedback(session), [session]);
   const [tip, setTip] = useState(template.tip);
@@ -112,69 +112,73 @@ export function ScaleInlineFeedback({
         : "text-[var(--musai-muted)]";
 
   return (
-    <AnimatedReveal
+    <div
       key={session.sessionId}
-      className="space-y-4"
-      delay={40}
+      className={`flex h-full min-h-0 flex-col gap-2 ${compact ? "" : "gap-3"}`}
     >
-      <div className="musai-glass-panel space-y-3 px-4 py-4 sm:px-5">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full border border-[var(--musai-border)] bg-[var(--musai-surface-2)] px-2.5 py-1 text-[11px] font-semibold tabular-nums text-[var(--musai-ink)]">
+      <div className="shrink-0 space-y-1.5 rounded-[var(--musai-radius)] border border-[var(--musai-border)] bg-[var(--musai-surface)] px-3 py-2">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="rounded-full border border-[var(--musai-border)] bg-[var(--musai-surface-2)] px-2 py-0.5 text-[10px] font-semibold tabular-nums text-[var(--musai-ink)]">
             Take {loopMeta.attemptNumber}
           </span>
-          <span className="text-[12px] font-medium text-[var(--musai-muted)]">
+          <span className="text-[11px] font-medium text-[var(--musai-muted)]">
             {stage.label}
           </span>
           {loopMeta.deltaPct != null && loopMeta.deltaPct !== 0 ? (
             <span
-              className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold tabular-nums ${
+              className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold tabular-nums ${
                 loopMeta.deltaPct > 0
                   ? "border-[color-mix(in_srgb,var(--musai-ok)_28%,var(--musai-border))] bg-[var(--musai-accent-soft)] text-[var(--musai-ok)]"
                   : "border-[var(--musai-border)] bg-[var(--musai-surface-2)] text-[var(--musai-muted)]"
               }`}
             >
-              {formatDeltaPct(loopMeta.deltaPct)} from previous
+              {formatDeltaPct(loopMeta.deltaPct)}
             </span>
           ) : null}
           {loopMeta.isNewBest ? (
-            <span className="rounded-full border border-[color-mix(in_srgb,var(--musai-ok)_28%,var(--musai-border))] bg-[var(--musai-accent-soft)] px-2.5 py-1 text-[11px] font-semibold text-[var(--musai-ok)]">
+            <span className="rounded-full border border-[color-mix(in_srgb,var(--musai-ok)_28%,var(--musai-border))] bg-[var(--musai-accent-soft)] px-2 py-0.5 text-[10px] font-semibold text-[var(--musai-ok)]">
               New best
             </span>
           ) : null}
-          <span className="text-[11px] tabular-nums text-[var(--musai-muted)]">
-            Best {Math.round(loopMeta.bestAccuracy)}%
-          </span>
-        </div>
-        <p className={`text-[14px] font-semibold leading-snug ${progressTone}`}>
-          {progress.line}
-        </p>
-        <div className="grid gap-2 sm:grid-cols-2">
-          <div className="rounded-[var(--musai-radius)] border border-[color-mix(in_srgb,var(--musai-ok)_18%,var(--musai-border))] bg-[var(--musai-accent-soft)] px-3 py-2.5">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--musai-ok)]">
-              Strongest
-            </p>
-            <p className="mt-0.5 text-[13px] font-medium text-[var(--musai-ink)]">
-              {strengthLine}
-            </p>
-          </div>
-          <div className="rounded-[var(--musai-radius)] border border-[color-mix(in_srgb,var(--musai-key-sharp)_22%,var(--musai-border))] bg-[var(--musai-key-sharp-soft)] px-3 py-2.5">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--musai-key-sharp)]">
-              Next
-            </p>
-            <p className="mt-0.5 text-[13px] font-medium text-[var(--musai-ink)]">
-              {improveLine}
-            </p>
-          </div>
-        </div>
-        <p className="text-[12px] tabular-nums text-[var(--musai-muted)]">
-          This take{" "}
-          <span className="font-medium text-[var(--musai-ink)]">
+          <span className="ml-auto text-[11px] tabular-nums text-[var(--musai-muted)]">
+            Best {Math.round(loopMeta.bestAccuracy)}% · This{" "}
             {Math.round(session.summary.inTunePercent)}%
           </span>
+        </div>
+        <p className={`text-[12px] font-semibold leading-snug ${progressTone}`}>
+          {progress.line}
         </p>
+        {compact ? (
+          <p className="text-[11px] leading-snug text-[var(--musai-muted)]">
+            <span className="font-medium text-[var(--musai-ok)]">Strong:</span>{" "}
+            {strengthLine}
+            <span className="mx-1.5 text-[var(--musai-border)]">·</span>
+            <span className="font-medium text-[var(--musai-key-sharp)]">Next:</span>{" "}
+            {improveLine}
+          </p>
+        ) : (
+          <div className="grid grid-cols-2 gap-1.5">
+            <div className="rounded-[var(--musai-radius)] bg-[var(--musai-accent-soft)] px-2 py-1.5">
+              <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--musai-ok)]">
+                Strongest
+              </p>
+              <p className="mt-0.5 text-[12px] font-medium leading-snug text-[var(--musai-ink)]">
+                {strengthLine}
+              </p>
+            </div>
+            <div className="rounded-[var(--musai-radius)] bg-[var(--musai-key-sharp-soft)] px-2 py-1.5">
+              <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--musai-key-sharp)]">
+                Next
+              </p>
+              <p className="mt-0.5 text-[12px] font-medium leading-snug text-[var(--musai-ink)]">
+                {improveLine}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
-      <div className="musai-glass-panel min-h-[14rem] px-4 py-4 sm:px-5 sm:py-5">
+      <div className="musai-glass-panel flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-3">
         {coachReady ? (
           <CoachChatPanel
             embed
@@ -186,7 +190,7 @@ export function ScaleInlineFeedback({
             session={session}
           />
         ) : (
-          <div className="flex min-h-[12rem] flex-col items-center justify-center gap-2 text-center">
+          <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
             <div
               className="h-7 w-7 rounded-full border-2 border-[var(--musai-border)] border-t-[var(--musai-accent)] motion-safe:animate-spin motion-reduce:animate-none"
               aria-hidden
@@ -197,6 +201,6 @@ export function ScaleInlineFeedback({
           </div>
         )}
       </div>
-    </AnimatedReveal>
+    </div>
   );
 }

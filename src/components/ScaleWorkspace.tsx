@@ -5,26 +5,22 @@ import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MusaiCaptureDock } from "@/components/MusaiCaptureDock";
 import { MusaiFloatingMiniRecorder } from "@/components/MusaiFloatingMiniRecorder";
-import { AnimatedReveal } from "@/components/motion/AnimatedReveal";
 import { PracticeHubBackLink } from "@/components/PracticeHubBackLink";
-import { PracticeStageRing } from "@/components/PracticeStageRing";
 import { ScaleGuidePanel } from "@/components/ScaleGuidePanel";
 import { ScaleInlineFeedback } from "@/components/ScaleInlineFeedback";
 import { ScalePracticeInfoProvider } from "@/components/scalePracticeInfoContext";
-import { ScaleStudioHeader } from "@/components/ScaleStudioHeader";
 import { useFloatingMiniRecorder } from "@/hooks/useFloatingMiniRecorder";
 import { useSyncedRecorderUi } from "@/hooks/useSyncedRecorderUi";
 import { analyzeScalePerformance } from "@/lib/analyzeScalePerformance";
 import { bufferToMono } from "@/lib/analyzePitch";
 import {
   alignAnalysisToDetectedOctave,
-  alignExpectedMidisToDetectedOctave,
+  staffFeedbackFromSession,
 } from "@/lib/alignScaleOctave";
 import { createAudioContext } from "@/lib/audioContext";
 import { buildScalePracticeSession } from "@/lib/buildScalePracticeSession";
 import { createMediaRecorder, startMediaRecorder } from "@/lib/mediaRecorderMime";
 import { describeMicOpenError, getMicStream } from "@/lib/micStream";
-import { practiceStageFromSummary } from "@/lib/scalePracticeProgress";
 import {
   getScaleProgressJourney,
   persistScalePracticeSession,
@@ -34,54 +30,15 @@ import type { ScalePracticeSessionV1 } from "@/lib/scalePracticeTypes";
 import {
   buildExerciseScaleMidis,
   defaultRootMidiForTonic,
-  describeRootChoice,
   validateScaleMidisInViolinRange,
-  violinRootsForTonic,
 } from "@/lib/scales";
 import type { ScaleWorkspaceIdentity } from "@/lib/scaleWorkspace";
 import { workspaceTitle } from "@/lib/scaleWorkspace";
 
 type CaptureMode = "record" | "upload";
 
-function masteryFill(bestPercent: number): number {
-  if (bestPercent >= 90) return 1;
-  if (bestPercent >= 75) return 0.78;
-  if (bestPercent >= 55) return 0.58;
-  if (bestPercent >= 30) return 0.38;
-  if (bestPercent > 0) return 0.18;
-  return 0.08;
-}
-
-function centsFromSession(session: ScalePracticeSessionV1): {
-  ascendingCents: (number | null)[];
-  descendingCents: (number | null)[];
-  displayMidis: number[];
-} {
-  const displayMidis = alignExpectedMidisToDetectedOctave(
-    session.expectedNotesMidi,
-    session.notes,
-  );
-  const n = displayMidis.length;
-  const looksRoundTrip = n >= 3 && displayMidis[0] === displayMidis[n - 1];
-  const ascendingSteps = looksRoundTrip ? (n + 1) / 2 : n;
-  const ascNotes = session.notes.slice(0, ascendingSteps);
-  const descNotes = looksRoundTrip
-    ? session.notes.slice(ascendingSteps)
-    : [];
-  return {
-    displayMidis,
-    ascendingCents: ascNotes.map((r) =>
-      r.missingData ? null : r.centsDifference,
-    ),
-    descendingCents: descNotes.map((r) =>
-      r.missingData ? null : r.centsDifference,
-    ),
-  };
-}
-
 /**
- * Persistent practice workspace for one scale · octave.
- * Same studio grid as Scale Studio home — notation stays visible while recording.
+ * Persistent practice workspace — one pad screen: notes | coach, record pinned.
  */
 export function ScaleWorkspace({
   identity,
@@ -89,11 +46,10 @@ export function ScaleWorkspace({
   identity: ScaleWorkspaceIdentity;
 }) {
   const searchParams = useSearchParams();
-  const defaultRoot = useMemo(
+  const rootMidi = useMemo(
     () => defaultRootMidiForTonic(identity.tonicPitchClass),
     [identity.tonicPitchClass],
   );
-  const [rootMidi, setRootMidi] = useState(defaultRoot);
   const [loopAttempts, setLoopAttempts] = useState<ScalePracticeSessionV1[]>(
     [],
   );
@@ -101,23 +57,18 @@ export function ScaleWorkspace({
   const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   useEffect(() => {
-    const rootParam = searchParams.get("root");
-    const fromQuery = rootParam ? Number(rootParam) : NaN;
+    void searchParams;
     const journey = getScaleProgressJourney(identity.progressKey);
     if (journey) {
       setLoopAttempts(journey.attempts);
       setBestAccuracy(journey.bestInTunePercent);
-      setRootMidi(
-        Number.isFinite(fromQuery) ? fromQuery : journey.lastRootMidi,
-      );
       setFeedbackOpen(journey.attempts.length > 0);
     } else {
       setLoopAttempts([]);
       setBestAccuracy(0);
-      setRootMidi(Number.isFinite(fromQuery) ? fromQuery : defaultRoot);
       setFeedbackOpen(false);
     }
-  }, [defaultRoot, identity.progressKey, searchParams]);
+  }, [identity.progressKey, searchParams]);
 
   const [captureMode, setCaptureModeState] = useState<CaptureMode>("record");
   const [file, setFile] = useState<File | null>(null);
@@ -137,7 +88,6 @@ export function ScaleWorkspace({
   const chunksRef = useRef<Blob[]>([]);
   const discardRecordingRef = useRef(false);
   const mainRecorderRef = useRef<HTMLDivElement | null>(null);
-  const feedbackAnchorRef = useRef<HTMLDivElement | null>(null);
 
   const { elapsedLabel, lastTakeLabel, levelBars } = useSyncedRecorderUi(
     isRecording,
@@ -198,15 +148,10 @@ export function ScaleWorkspace({
     [identity.octaveSpan, identity.scaleKind, identity.tonicPitchClass, rootMidi],
   );
 
-  const rootChoices = useMemo(
-    () => violinRootsForTonic(identity.tonicPitchClass),
-    [identity.tonicPitchClass],
-  );
-
   const latestAttempt = loopAttempts[loopAttempts.length - 1] ?? null;
   const staffFeedback = useMemo(() => {
     if (!latestAttempt || !feedbackOpen) return null;
-    return centsFromSession(latestAttempt);
+    return staffFeedbackFromSession(latestAttempt);
   }, [feedbackOpen, latestAttempt]);
 
   const staffMidis = staffFeedback?.displayMidis ?? expectedMidis;
@@ -228,12 +173,6 @@ export function ScaleWorkspace({
     setRecordedBlob(null);
     setFile(null);
     setFeedbackOpen(true);
-    window.requestAnimationFrame(() => {
-      feedbackAnchorRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "nearest",
-      });
-    });
   }, []);
 
   const runAnalyze = useCallback(
@@ -481,166 +420,113 @@ export function ScaleWorkspace({
   );
 
   const title = workspaceTitle(identity.scaleLabel, identity.octaveSpan);
-  const stage = practiceStageFromSummary({
-    overallScore0to100: bestAccuracy,
-    averageAbsCents: 0,
-    inTunePercent: bestAccuracy,
-    weakestNoteIndices: [],
-    trend: "balanced",
-    meanSignedCents: 0,
-    notesAnalyzed: bestAccuracy > 0 ? 1 : 0,
-    notesMissing: 0,
-  });
 
   return (
     <ScalePracticeInfoProvider>
-      <div className="w-full max-w-[min(1280px,100%)]">
-        <PracticeHubBackLink
-          href="/practice/scale"
-          label="Scale studio"
-          ariaLabel="Back to Scale studio"
-        />
-      </div>
-      <ScaleStudioHeader />
+      <div className="flex h-[100dvh] max-h-[100dvh] w-full flex-col overflow-hidden">
+        <header className="flex shrink-0 items-center gap-3 border-b border-[var(--musai-border)] px-4 py-2.5 sm:px-6">
+          <PracticeHubBackLink
+            href="/practice/scale"
+            label="Scale studio"
+            ariaLabel="Back to Scale studio"
+          />
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-[15px] font-semibold tracking-tight text-[var(--musai-ink)] sm:text-[16px]">
+              {title}
+            </h1>
+          </div>
+          {bestAccuracy > 0 ? (
+            <span
+              className="musai-chip musai-chip--on shrink-0 tabular-nums"
+              title="Best in-tune"
+            >
+              Best {Math.round(bestAccuracy)}%
+            </span>
+          ) : null}
+          <Link
+            href="/practice/scale"
+            className="shrink-0 text-[12px] font-medium text-[var(--musai-muted)] underline decoration-[var(--musai-border)] underline-offset-2 hover:text-[var(--musai-ink)]"
+          >
+            Change scale
+          </Link>
+        </header>
 
-      <AnimatedReveal className="w-full max-w-[min(1280px,100%)] space-y-6 sm:space-y-8">
-        <p
-          data-anime-enter
-          className="mx-auto max-w-xl text-center text-[14px] leading-relaxed text-[var(--musai-muted)]"
-        >
-          {title}
-          {loopAttempts.length > 0
-            ? ` · ${loopAttempts.length} attempt${loopAttempts.length === 1 ? "" : "s"}`
-            : " · read the notes, then record"}
-        </p>
-
-        <div className="musai-workspace relative mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-6">
-          <div className="musai-studio-layout">
-            <div className="musai-studio-layout__keys relative z-10">
-              <aside
-                className="musai-glass-panel space-y-4 px-3.5 py-4"
-                aria-label="Scale progress"
-              >
-                <div className="flex flex-col items-center gap-3 text-center">
-                  <PracticeStageRing
-                    fill={masteryFill(bestAccuracy)}
-                    label={bestAccuracy > 0 ? stage.label : "Ready"}
-                    size={88}
-                  />
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--musai-muted)]">
-                      Best
-                    </p>
-                    <p className="mt-0.5 text-[18px] font-semibold tabular-nums text-[var(--musai-ink)]">
-                      {bestAccuracy > 0 ? `${Math.round(bestAccuracy)}%` : "—"}
-                    </p>
-                    {latestAttempt ? (
-                      <p className="mt-1 text-[11px] tabular-nums text-[var(--musai-muted)]">
-                        Last{" "}
-                        {Math.round(latestAttempt.summary.inTunePercent)}%
-                      </p>
-                    ) : (
-                      <p className="mt-1 text-[11px] text-[var(--musai-muted)]">
-                        First take starts here
-                      </p>
-                    )}
-                  </div>
-                </div>
-                {rootChoices.length > 1 ? (
-                  <div className="space-y-1.5 border-t border-[var(--musai-border)] pt-3">
-                    <p className="text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--musai-muted)]">
-                      Start
-                    </p>
-                    <div className="flex flex-wrap justify-center gap-1.5">
-                      {rootChoices.map((midi) => (
-                        <button
-                          key={midi}
-                          type="button"
-                          disabled={isRecording || status === "loading"}
-                          onClick={() => setRootMidi(midi)}
-                          className={
-                            midi === rootMidi
-                              ? "musai-chip musai-chip--on"
-                              : "musai-chip musai-chip--off"
-                          }
-                        >
-                          {describeRootChoice(midi)}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-                <Link
-                  href="/practice/scale"
-                  className="block text-center text-[11px] font-medium text-[var(--musai-muted)] underline decoration-[var(--musai-border)] underline-offset-2 hover:text-[var(--musai-ink)]"
-                >
-                  Change scale
-                </Link>
-              </aside>
-            </div>
-
-            <div className="musai-studio-layout__notes min-w-0">
-              <div className="mx-auto w-full max-w-3xl space-y-5">
-                <ScaleGuidePanel
-                  guide={guideModel}
-                  exerciseMidis={staffMidis}
-                  tonicPitchClass={identity.tonicPitchClass}
-                  scaleKind={identity.scaleKind}
-                  octaveSpan={identity.octaveSpan}
-                  ascendingCents={staffFeedback?.ascendingCents}
-                  descendingCents={staffFeedback?.descendingCents}
-                />
-
-                <div ref={feedbackAnchorRef}>
-                  {feedbackOpen && latestAttempt ? (
-                    <ScaleInlineFeedback
-                      session={latestAttempt}
-                      loopAttempts={loopAttempts}
-                    />
-                  ) : null}
-                </div>
-              </div>
-            </div>
-
-            <div className="musai-studio-layout__capture">
-              <MusaiCaptureDock
-                selectId="musai-mic-scale-workspace"
-                captureMode={captureMode}
-                onCaptureMode={setCaptureMode}
-                isRecording={isRecording}
-                recordedBlob={recordedBlob}
-                file={file}
-                uploadProcessing={uploadProcessing}
-                fileInputRef={fileInputRef}
-                onFileChange={handleFileChange}
-                mainRecorderRef={mainRecorderRef}
-                micDevices={micDevices}
-                selectedMicId={selectedMicId}
-                onMicChange={setSelectedMicId}
-                onMicRefresh={refreshMicDevices}
-                onDiscardClip={() => {
-                  setRecordedBlob(null);
-                  resetCaptureSession();
-                }}
-                onStartRecording={() => void startRecording()}
-                onStopRecording={stopRecording}
-                streamRef={streamRef}
-                elapsedLabel={elapsedLabel}
-                levelBars={levelBars}
-                lastTakeLabel={
-                  lastTakeLabel ??
-                  (loopAttempts.length > 0
-                    ? `Take ${loopAttempts.length + 1}`
-                    : null)
-                }
-                message={message}
-                status={status}
-                canAnalyze={canAnalyze}
-                onAnalyze={() => void runAnalyze()}
-                hideAnalyze
+        <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-2">
+          <section
+            className="flex min-h-0 flex-col overflow-hidden px-4 py-3 sm:px-5"
+            aria-label="Scale notes"
+          >
+            <div className="min-h-0 flex-1 overflow-hidden">
+              <ScaleGuidePanel
+                guide={guideModel}
+                exerciseMidis={staffMidis}
+                tonicPitchClass={identity.tonicPitchClass}
+                scaleKind={identity.scaleKind}
+                octaveSpan={identity.octaveSpan}
+                ascendingCents={staffFeedback?.ascendingCents}
+                descendingCents={staffFeedback?.descendingCents}
+                compact
               />
             </div>
-          </div>
+          </section>
+
+          <section
+            className="flex min-h-0 flex-col overflow-hidden border-t border-[var(--musai-border)] md:border-l md:border-t-0"
+            aria-label="Coach feedback"
+          >
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 py-3 sm:px-5">
+              {feedbackOpen && latestAttempt ? (
+                <ScaleInlineFeedback
+                  session={latestAttempt}
+                  loopAttempts={loopAttempts}
+                  compact
+                />
+              ) : (
+                <p className="py-8 text-center text-[13px] text-[var(--musai-muted)]">
+                  Record to hear feedback
+                </p>
+              )}
+            </div>
+          </section>
+        </div>
+
+        <div className="shrink-0 border-t border-[var(--musai-border)] px-3 py-2 sm:px-4">
+          <MusaiCaptureDock
+            selectId="musai-mic-scale-workspace"
+            captureMode={captureMode}
+            onCaptureMode={setCaptureMode}
+            isRecording={isRecording}
+            recordedBlob={recordedBlob}
+            file={file}
+            uploadProcessing={uploadProcessing}
+            fileInputRef={fileInputRef}
+            onFileChange={handleFileChange}
+            mainRecorderRef={mainRecorderRef}
+            micDevices={micDevices}
+            selectedMicId={selectedMicId}
+            onMicChange={setSelectedMicId}
+            onMicRefresh={refreshMicDevices}
+            onDiscardClip={() => {
+              setRecordedBlob(null);
+              resetCaptureSession();
+            }}
+            onStartRecording={() => void startRecording()}
+            onStopRecording={stopRecording}
+            streamRef={streamRef}
+            elapsedLabel={elapsedLabel}
+            levelBars={levelBars}
+            lastTakeLabel={
+              lastTakeLabel ??
+              (loopAttempts.length > 0
+                ? `Take ${loopAttempts.length + 1}`
+                : null)
+            }
+            message={message}
+            status={status}
+            canAnalyze={canAnalyze}
+            onAnalyze={() => void runAnalyze()}
+            hideAnalyze
+          />
         </div>
 
         <MusaiFloatingMiniRecorder
@@ -652,7 +538,7 @@ export function ScaleWorkspace({
           elapsedLabel={elapsedLabel}
           levelBars={levelBars}
         />
-      </AnimatedReveal>
+      </div>
     </ScalePracticeInfoProvider>
   );
 }

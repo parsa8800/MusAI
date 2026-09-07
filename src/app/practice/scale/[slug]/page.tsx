@@ -6,7 +6,7 @@ import { parseScaleWorkspaceSlug } from "@/lib/scaleWorkspace";
 
 function WorkspaceFallback() {
   return (
-    <div className="flex w-full max-w-[min(1280px,100%)] flex-col items-center py-16">
+    <div className="flex h-[100dvh] w-full flex-col items-center justify-center overflow-hidden">
       <div
         className="h-10 w-10 rounded-full border-2 border-[var(--musai-border)] border-t-[var(--musai-accent)] motion-safe:animate-spin motion-reduce:animate-none"
         aria-hidden
@@ -25,7 +25,7 @@ export default async function ScaleWorkspacePage({
 
   if (!identity) {
     return (
-      <div className="flex min-h-full flex-col items-center gap-5 px-6 py-24 text-center">
+      <div className="flex h-[100dvh] flex-col items-center justify-center gap-5 overflow-hidden px-6 text-center">
         <PracticeHubBackLink
           href="/practice/scale"
           label="Scale studio"
@@ -42,7 +42,7 @@ export default async function ScaleWorkspacePage({
   }
 
   return (
-    <div className="flex min-h-full flex-col items-center px-4 pb-24 pt-10 sm:px-8 sm:pt-12">
+    <div className="h-[100dvh] overflow-hidden p-0">
       <Suspense fallback={<WorkspaceFallback />}>
         <ScaleWorkspace identity={identity} />
       </Suspense>

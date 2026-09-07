@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useId, useRef, useState } from "react";
 import {
   localCoachChatReply,
   buildScaleCoachChatContext,
+  coachSuggestedQuestions,
 } from "@/lib/scaleCoachChat";
 import { ensureBulletFeedback, sanitizeCoachFeedback } from "@/lib/scalePracticeCopy";
 import type { ScalePracticeSessionV1 } from "@/lib/scalePracticeTypes";
@@ -305,7 +306,11 @@ export function CoachChatPanel({
     e.preventDefault();
     const userText = sanitizeCoachFeedback(draft.trim());
     if (!userText || busy || !bootDone) return;
+    setDraft("");
+    await sendUserMessage(userText);
+  }
 
+  async function sendUserMessage(userText: string) {
     const userMsg: UserMsg = {
       id: `u-${Date.now()}`,
       role: "user",
@@ -316,7 +321,6 @@ export function CoachChatPanel({
       text: m.text,
     }));
 
-    setDraft("");
     setBusy(true);
     setAwaitingReply(true);
     setMessages((prev) => [...prev, userMsg]);
@@ -370,6 +374,10 @@ export function CoachChatPanel({
 
   const canSend = bootDone && !busy && Boolean(draft.trim());
   const showPreviewDot = coachSource !== "llm";
+  const suggestions = coachSuggestedQuestions(
+    buildScaleCoachChatContext(session, tip, trendLine),
+  );
+  const showSuggestions = bootDone && !busy && messages.length <= 1;
 
   return (
     <div
@@ -426,6 +434,26 @@ export function CoachChatPanel({
         {awaitingReply ? (
           <div className="px-1">
             <ThinkingIndicator />
+          </div>
+        ) : null}
+
+        {showSuggestions ? (
+          <div
+            className="flex flex-wrap gap-1.5 px-1 pt-1"
+            role="group"
+            aria-label="Suggested questions"
+          >
+            {suggestions.map((q) => (
+              <button
+                key={q}
+                type="button"
+                disabled={!bootDone || busy}
+                onClick={() => void sendUserMessage(q)}
+                className="rounded-full border border-[var(--musai-border)] bg-[var(--musai-surface-2)] px-2.5 py-1 text-left text-[11px] font-medium leading-snug text-[var(--musai-ink)] transition hover:border-[var(--musai-accent)] hover:bg-[var(--musai-accent-soft)] disabled:opacity-40"
+              >
+                {q}
+              </button>
+            ))}
           </div>
         ) : null}
 

@@ -95,12 +95,13 @@ export function violinRootsForTonic(tonicPitchClass: number): number[] {
 }
 
 /**
- * Pick a default root in violin range for the tonic (prefers D-string neighbourhood).
+ * Pick a default root in violin range for the tonic.
+ * Prefers the first octave around C4 (MIDI 60 neighbourhood) — not high starts.
  */
 export function defaultRootMidiForTonic(tonicPitchClass: number): number {
   const roots = violinRootsForTonic(tonicPitchClass);
   if (roots.length === 0) return VIOLIN_MIDI_MIN;
-  const prefer = midiFromOctavePitch(3, tonicPitchClass);
+  const prefer = midiFromOctavePitch(4, tonicPitchClass);
   let best = roots[0]!;
   let bestDist = 999;
   for (const r of roots) {

@@ -337,19 +337,6 @@ export function ScalePracticeFlow() {
     setPhase("studio");
   }, [loopAttempts.length]);
 
-  const changeScale = useCallback(() => {
-    setLoopAttempts([]);
-    setRecordedBlob(null);
-    setFile(null);
-    setUploadProcessing(false);
-    uploadTokenRef.current += 1;
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    setPendingDetect(null);
-    setStatus("idle");
-    setMessage(null);
-    setPhase("studio");
-  }, []);
-
   const persistDetected = useCallback(
     (
       candidate: ScaleCandidate,
@@ -391,7 +378,7 @@ export function ScalePracticeFlow() {
 
     if (!validateScaleMidisInViolinRange(expectedMidis)) {
       setMessage(
-        "This range leaves the violin span. Open Range and choose a lower start or one octave.",
+        "This range leaves the violin span. Try one octave, or choose a lower key.",
       );
       setStatus("error");
       return;
@@ -516,7 +503,6 @@ export function ScalePracticeFlow() {
           session={latestAttempt}
           loopAttempts={loopAttempts}
           onTryAgain={prepareNextTake}
-          onChangeScale={changeScale}
         />
       </ScalePracticeInfoProvider>
     );
@@ -579,12 +565,6 @@ export function ScalePracticeFlow() {
                 onScaleKind={selectScaleKind}
                 octaveSpan={octaveSpan}
                 onOctaveSpan={setAdvSpan}
-                rootMidi={rootMidi}
-                onRootMidi={setAdvRoot}
-                onResetRange={() => {
-                  setAdvRoot(null);
-                  setAdvSpan(null);
-                }}
               />
             </div>
 

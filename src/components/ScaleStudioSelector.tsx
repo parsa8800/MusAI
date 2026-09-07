@@ -29,23 +29,19 @@ export function ScaleStudioSelector() {
   const router = useRouter();
   const [tonicPc, setTonicPc] = useState(0);
   const [scaleKind, setScaleKind] = useState<ScaleKind>("major");
-  const defaultRoot = useMemo(
+  const rootMidi = useMemo(
     () => defaultRootMidiForTonic(tonicPc),
     [tonicPc],
   );
-  const [advRoot, setAdvRoot] = useState<number | null>(null);
   const [advSpan, setAdvSpan] = useState<1 | 2>(1);
 
   const selectTonicPc = (pc: number) => {
     setTonicPc(pc);
-    setAdvRoot(null);
   };
   const selectScaleKind = (kind: ScaleKind) => {
     setScaleKind(kind);
-    setAdvRoot(null);
   };
 
-  const rootMidi = advRoot ?? defaultRoot;
   const octaveSpan = advSpan;
   const identity = identityFromSelection(tonicPc, scaleKind, octaveSpan);
   const expectedMidis = useMemo(
@@ -58,18 +54,12 @@ export function ScaleStudioSelector() {
   );
 
   const openWorkspace = () => {
-    router.push(
-      scaleWorkspaceHref(identity.scaleId, identity.octaveSpan, rootMidi),
-    );
+    router.push(scaleWorkspaceHref(identity.scaleId, identity.octaveSpan));
   };
 
   const continueJourney = (journey: ScaleProgressJourneyV1) => {
     router.push(
-      scaleWorkspaceHref(
-        journey.scaleId,
-        journey.lastOctaveSpan,
-        journey.lastRootMidi,
-      ),
+      scaleWorkspaceHref(journey.scaleId, journey.lastOctaveSpan),
     );
   };
 
@@ -102,9 +92,6 @@ export function ScaleStudioSelector() {
                 onScaleKind={selectScaleKind}
                 octaveSpan={octaveSpan}
                 onOctaveSpan={setAdvSpan}
-                rootMidi={rootMidi}
-                onRootMidi={setAdvRoot}
-                onResetRange={() => setAdvRoot(null)}
               />
             </div>
 

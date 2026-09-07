@@ -88,6 +88,9 @@ describe("CoachChatPanel", () => {
 
     expect(screen.getByText(/Trending sharp/i)).toBeInTheDocument();
     expect(screen.getByText(/Work A4 next/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("group", { name: /Suggested questions/i }),
+    ).toBeInTheDocument();
   });
 
   it("shows Preview coaching tooltip on the status dot", async () => {

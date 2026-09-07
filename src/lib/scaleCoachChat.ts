@@ -101,6 +101,20 @@ export function scaleCoachChatDataMessage(ctx: ScaleCoachChatContext): string {
   ].join("\n");
 }
 
+/** Short prompts shown beside feedback so students don't hunt for what to ask. */
+export function coachSuggestedQuestions(ctx: ScaleCoachChatContext): string[] {
+  const weak = ctx.weakNotes[0];
+  const prompts = [
+    weak ? `How do I fix ${weak}?` : "What should I practice next?",
+    "Why was this take marked that way?",
+    "Give me a short bow drill",
+  ];
+  if (ctx.trend === "sharp" || ctx.trend === "flat") {
+    prompts[1] = ctx.trend === "sharp" ? "Why am I sharp?" : "Why am I flat?";
+  }
+  return prompts.slice(0, 3);
+}
+
 /** Local conversational replies when no LLM key is available. */
 export function localCoachChatReply(
   question: string,

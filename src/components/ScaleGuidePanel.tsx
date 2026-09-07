@@ -25,6 +25,7 @@ export function ScaleGuidePanel({
   octaveSpan,
   ascendingCents,
   descendingCents,
+  compact = false,
 }: {
   guide: ScalePracticeGuideModel;
   exerciseMidis: number[];
@@ -34,6 +35,8 @@ export function ScaleGuidePanel({
   /** Optional intonation colouring from the latest take. */
   ascendingCents?: (number | null)[];
   descendingCents?: (number | null)[];
+  /** Pad workspace: tighter chrome so staff + coach fit one viewport. */
+  compact?: boolean;
 }) {
   const ascendingMidis = exerciseMidis.slice(0, guide.ascendingCount);
   const descendingMidis = exerciseMidis.slice(guide.ascendingCount);
@@ -71,16 +74,31 @@ export function ScaleGuidePanel({
     ascendingCents != null || descendingCents != null;
 
   return (
-    <div data-scale-info-root={INFO_ID} className="space-y-4 sm:space-y-5">
-      <div className="relative flex items-start justify-center px-8 sm:px-10">
+    <div
+      data-scale-info-root={INFO_ID}
+      className={
+        compact
+          ? "flex h-full min-h-0 flex-col gap-2"
+          : "space-y-4 sm:space-y-5"
+      }
+    >
+      <div
+        className={`relative flex shrink-0 items-start justify-center ${
+          compact ? "px-6" : "px-8 sm:px-10"
+        }`}
+      >
         <div className="min-w-0 text-center">
           <h2
             ref={titleRef}
-            className="font-display text-xl font-semibold tracking-tight text-[var(--musai-ink)] sm:text-2xl"
+            className={`font-display font-semibold tracking-tight text-[var(--musai-ink)] ${
+              compact
+                ? "text-lg sm:text-xl"
+                : "text-xl sm:text-2xl"
+            }`}
           >
             {guide.scaleLabel}
           </h2>
-          <p className="mt-1 text-[12px] font-medium text-[var(--musai-muted)]">
+          <p className="mt-0.5 text-[11px] font-medium text-[var(--musai-muted)] sm:text-[12px]">
             {kindWord}
             <span className="text-[var(--musai-border)]"> · </span>
             {spanWord}
@@ -109,7 +127,11 @@ export function ScaleGuidePanel({
       </div>
 
       {showFeedbackLegend ? (
-        <div className="flex flex-wrap items-center justify-center gap-3 text-[11px] text-[var(--musai-muted)]">
+        <div
+          className={`flex shrink-0 flex-wrap items-center justify-center gap-3 text-[11px] text-[var(--musai-muted)] ${
+            compact ? "gap-2" : ""
+          }`}
+        >
           <span className="inline-flex items-center gap-1.5">
             <span className="h-2 w-2 rounded-full bg-[var(--musai-ok)]" /> On pitch
           </span>
@@ -125,7 +147,13 @@ export function ScaleGuidePanel({
         </div>
       ) : null}
 
-      <div className="-mx-1 px-1 sm:-mx-2 sm:px-2">
+      <div
+        className={`min-h-0 ${
+          compact
+            ? "flex-1 overflow-hidden -mx-1 px-1"
+            : "-mx-1 px-1 sm:-mx-2 sm:px-2"
+        }`}
+      >
         <ScaleTrebleStaff
           ascendingMidis={ascendingMidis}
           descendingMidis={descendingMidis}
