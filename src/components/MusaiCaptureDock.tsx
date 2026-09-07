@@ -135,7 +135,7 @@ export function MusaiCaptureDock({
 
       {captureMode === "upload" ? (
         <div
-          className={`overflow-hidden rounded-[var(--musai-radius)] transition-[border-color,background-color] duration-300 ${
+          className={`mx-auto w-full max-w-[15rem] overflow-hidden rounded-[var(--musai-radius)] transition-[border-color,background-color] duration-300 ${
             uploadProcessing
               ? "border border-[color-mix(in_srgb,var(--musai-accent)_35%,var(--musai-border))] bg-[var(--musai-accent-soft)]"
               : file
