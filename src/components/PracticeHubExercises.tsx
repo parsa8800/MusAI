@@ -62,14 +62,17 @@ export function PracticeHubExercises() {
 
         <div
           data-anime-enter
-          className="musai-exercise-card musai-exercise-card--piece sm:col-span-2"
+          className="musai-exercise-card musai-exercise-card--soon sm:col-span-2"
           aria-disabled="true"
         >
-          <p className="font-display text-xl font-semibold tracking-tight text-[var(--musai-ink)]">
-            Piece studio
-          </p>
-          <p className="mt-1.5 text-[13px] font-medium text-[var(--musai-muted)]">
-            Coming soon · play a piece, get feedback
+          <div className="flex flex-wrap items-center gap-2.5">
+            <p className="musai-exercise-card__soon-title font-display text-xl font-semibold tracking-tight">
+              Piece studio
+            </p>
+            <span className="musai-exercise-card__soon-badge">Coming soon</span>
+          </div>
+          <p className="musai-exercise-card__soon-copy mt-2 text-[13px] leading-snug">
+            Play a piece and get feedback — not available yet.
           </p>
         </div>
       </div>

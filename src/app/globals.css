@@ -341,23 +341,43 @@ body.musai-app-body {
   --musai-exercise-tone: #c45c4a;
 }
 
-.musai-exercise-card--piece {
+/* Placeholder — clearly not a live exercise */
+.musai-exercise-card--soon {
   border-style: dashed;
-  background:
-    linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--musai-exercise-tone) 7%, transparent) 0%,
-      transparent 40%
-    ),
-    var(--musai-surface-2);
+  border-color: color-mix(in srgb, var(--musai-muted) 28%, var(--musai-border));
+  background: color-mix(in srgb, var(--musai-surface-2) 70%, transparent);
   box-shadow: none;
   cursor: default;
-  --musai-exercise-tone: #6e5a8a;
+  opacity: 0.78;
+  padding-block: 1.55rem;
 }
 
-.musai-exercise-card--piece::before {
-  opacity: 0.55;
-  width: 3px;
+.musai-exercise-card--soon::before {
+  display: none;
+}
+
+.musai-exercise-card__soon-title {
+  color: color-mix(in srgb, var(--musai-ink) 55%, var(--musai-muted));
+}
+
+.musai-exercise-card__soon-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--musai-muted) 30%, var(--musai-border));
+  background: color-mix(in srgb, var(--musai-wash) 55%, var(--musai-surface-2));
+  padding: 0.2rem 0.55rem;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--musai-muted);
+}
+
+.musai-exercise-card__soon-copy {
+  max-width: 22rem;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--musai-muted) 88%, transparent);
 }
 
 a.musai-exercise-card:hover {
