@@ -432,7 +432,10 @@ export function ScaleTrebleStaff({
     return () => ro.disconnect();
   }, [pad]);
 
-  const staveWidth = Math.max(280, Math.floor(usableW - 8));
+  const staveWidth = Math.max(
+    pad ? 340 : 300,
+    Math.floor(usableW - (pad ? 4 : 8)),
+  );
 
   // Stable dependency keys so cents updates always redraw.
   const ascMidiKey = ascendingMidis.join(",");
@@ -466,7 +469,7 @@ export function ScaleTrebleStaff({
 
       const maxPerRow = maxNotesPerStaffRow(
         usableW,
-        pad && bothDirections ? 24 : undefined,
+        pad ? (bothDirections ? 30 : 40) : undefined,
       );
       const keySig = vexKeySignatureSpec(tonicPitchClass, scaleKind);
 

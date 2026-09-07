@@ -24,7 +24,7 @@ export function DraftNotesFrame({ className = "" }: { className?: string }) {
 
   return (
     <div
-      className={`${draftFrameClass} max-w-[18rem] px-2.5 py-2.5 sm:max-w-[19rem] ${className}`.trim()}
+      className={`${draftFrameClass} max-w-[22rem] px-3 py-3 sm:max-w-[26rem] sm:px-4 ${className}`.trim()}
       aria-hidden
     >
       <div className="pointer-events-none select-none musai-draft-staff">
@@ -44,7 +44,7 @@ export function DraftNotesFrame({ className = "" }: { className?: string }) {
 export function DraftTipsFrame({ className = "" }: { className?: string }) {
   return (
     <div
-      className={`${draftFrameClass} flex min-h-[10rem] max-w-[18rem] flex-col justify-center gap-3 px-5 py-5 sm:max-w-[19rem] ${className}`.trim()}
+      className={`${draftFrameClass} flex min-h-[10rem] max-w-[22rem] flex-col justify-center gap-3 px-5 py-5 sm:max-w-[26rem] ${className}`.trim()}
       aria-hidden
     >
       <div className="w-full space-y-2.5">

@@ -1865,7 +1865,7 @@ a.musai-exercise-card:active {
 }
 
 .musai-staff-card__inner--pad {
-  padding: 0.45rem 0.5rem 0.5rem;
+  padding: 0.55rem 0.65rem 0.6rem;
 }
 
 @media (min-width: 640px) {
@@ -1874,7 +1874,7 @@ a.musai-exercise-card:active {
   }
 
   .musai-staff-card__inner--pad {
-    padding: 0.55rem 0.7rem 0.6rem;
+    padding: 0.7rem 0.9rem 0.75rem;
   }
 }
 
