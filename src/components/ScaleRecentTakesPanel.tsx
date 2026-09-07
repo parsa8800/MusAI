@@ -43,22 +43,22 @@ function scoreTone(score: number): {
 } {
   if (score >= 85) {
     return {
-      row: "border-emerald-400/35 bg-emerald-500/[0.12] hover:bg-emerald-500/[0.18]",
-      score: "text-emerald-300",
-      dot: "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.55)]",
+      row: "border-[color-mix(in_srgb,var(--musai-ok)_28%,var(--musai-border))] bg-[var(--musai-accent-soft)] hover:brightness-[0.98]",
+      score: "text-[var(--musai-ok)]",
+      dot: "bg-[var(--musai-ok)]",
     };
   }
   if (score >= 60) {
     return {
-      row: "border-amber-400/35 bg-amber-500/[0.12] hover:bg-amber-500/[0.18]",
-      score: "text-amber-300",
-      dot: "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.45)]",
+      row: "border-[color-mix(in_srgb,var(--musai-warn)_28%,var(--musai-border))] bg-[color-mix(in_srgb,var(--musai-warn)_10%,white)] hover:brightness-[0.98]",
+      score: "text-[var(--musai-warn)]",
+      dot: "bg-[var(--musai-warn)]",
     };
   }
   return {
-    row: "border-rose-400/35 bg-rose-500/[0.12] hover:bg-rose-500/[0.18]",
-    score: "text-rose-300",
-    dot: "bg-rose-400 shadow-[0_0_8px_rgba(251,113,133,0.45)]",
+    row: "border-[color-mix(in_srgb,var(--musai-accent-2)_28%,var(--musai-border))] bg-[color-mix(in_srgb,var(--musai-accent-2)_10%,white)] hover:brightness-[0.98]",
+    score: "text-[var(--musai-accent-2)]",
+    dot: "bg-[var(--musai-accent-2)]",
   };
 }
 
@@ -78,11 +78,11 @@ export function ScaleRecentTakesPanel() {
 
   return (
     <section
-      className="musai-glass-inset w-full border border-sky-400/20 bg-sky-400/[0.04] px-3.5 py-3.5 sm:px-4"
+      className="w-full border border-[var(--musai-border)] bg-[var(--musai-surface)] px-3.5 py-3.5 sm:px-4 rounded-[var(--musai-radius-lg)] shadow-[var(--musai-shadow)]"
       aria-label="Recent takes"
     >
       <div className="text-center">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-sky-300/90">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--musai-muted)]">
           Recent
         </p>
       </div>
@@ -94,7 +94,7 @@ export function ScaleRecentTakesPanel() {
             <li key={s.sessionId} className="group relative">
               <button
                 type="button"
-                className={`flex w-full flex-col items-center gap-0.5 rounded-xl border px-3 py-2.5 pr-7 text-center transition-colors duration-200 ${tone.row}`}
+                className={`flex w-full flex-col items-center gap-0.5 rounded-[var(--musai-radius)] border px-3 py-2.5 pr-7 text-center transition-colors duration-200 ${tone.row}`}
                 onClick={() => {
                   persistScalePracticeSession(s);
                   router.push(
@@ -107,7 +107,7 @@ export function ScaleRecentTakesPanel() {
                     className={`h-1.5 w-1.5 shrink-0 rounded-full ${tone.dot}`}
                     aria-hidden
                   />
-                  <span className="truncate text-[13px] font-semibold text-zinc-50">
+                  <span className="truncate text-[13px] font-semibold text-[var(--musai-ink)]">
                     {s.scaleLabel}
                   </span>
                 </span>
@@ -116,14 +116,14 @@ export function ScaleRecentTakesPanel() {
                 >
                   {score}
                 </span>
-                <span className="text-[10px] text-zinc-500">
+                <span className="text-[10px] text-[var(--musai-muted)]">
                   {formatWhen(s.recordedAt)}
                 </span>
               </button>
               <button
                 type="button"
                 aria-label={`Delete ${s.scaleLabel} take`}
-                className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/45 text-zinc-300 opacity-100 transition-[opacity,background-color,color] duration-150 hover:bg-rose-500/80 hover:text-white focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-rose-300/60 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+                className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-[var(--musai-surface-2)] text-[var(--musai-muted)] opacity-100 transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--musai-accent-2)_18%,white)] hover:text-[var(--musai-accent-2)] focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--musai-accent-2)] md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();

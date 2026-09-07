@@ -57,7 +57,7 @@ function useTypedText(full: string, active: boolean, msPerChar = 16): string {
 function StreamingCaret() {
   return (
     <span
-      className="musai-chat-caret ml-0.5 inline-block h-[1.05em] w-[2px] translate-y-[0.12em] bg-white align-baseline"
+      className="musai-chat-caret ml-0.5 inline-block h-[1.05em] w-[2px] translate-y-[0.12em] bg-[var(--musai-accent)] align-baseline"
       aria-hidden
     />
   );
@@ -95,7 +95,7 @@ type ThreadMsg = AssistantMsg | UserMsg;
 function UserBubble({ text }: { text: string }) {
   return (
     <div className="flex justify-end px-1">
-      <div className="max-w-[85%] rounded-[22px] bg-[#303030] px-[18px] py-[10px] text-[15px] leading-6 text-white sm:max-w-[70%]">
+      <div className="max-w-[85%] rounded-[22px] border border-[var(--musai-border)] bg-[var(--musai-accent-soft)] px-[18px] py-[10px] text-[15px] leading-6 text-[var(--musai-ink)] sm:max-w-[70%]">
         {text}
       </div>
     </div>
@@ -114,14 +114,14 @@ function SourceBadge({
     <div className="mt-2 space-y-1">
       <p
         className={`text-[11px] font-medium tracking-wide ${
-          isAi ? "text-emerald-400/80" : "text-amber-400/90"
+          isAi ? "text-[var(--musai-ok)]" : "text-[var(--musai-warn)]"
         }`}
       >
         {isAi ? "AI" : "Template"}
         {!isAi ? " · not live AI" : null}
       </p>
       {!isAi && error ? (
-        <p className="text-[11px] leading-snug text-amber-200/70">
+        <p className="text-[11px] leading-snug text-[var(--musai-muted)]">
           {/quota|429|billing/i.test(error)
             ? "OpenAI quota or billing blocked the AI. Add billing at platform.openai.com, then retry."
             : error.slice(0, 160)}
@@ -182,13 +182,13 @@ function AssistantTurn({
         <ThinkingIndicator />
       ) : (
         <>
-          <ul className="list-none space-y-2 text-[16px] leading-7 text-white">
+          <ul className="list-none space-y-2.5 text-[16px] leading-7 text-[var(--musai-ink)]">
             {lines.map((line, i) => {
               const body = line.replace(/^•\s*/, "");
               const isLast = i === lines.length - 1;
               return (
                 <li key={`${i}-${body.slice(0, 12)}`} className="flex gap-2.5">
-                  <span className="mt-[0.55em] h-1.5 w-1.5 shrink-0 rounded-full bg-white/85" aria-hidden />
+                  <span className="mt-[0.55em] h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--musai-accent)]" aria-hidden />
                   <span className="min-w-0 flex-1 whitespace-pre-wrap">
                     {body}
                     {typing && isLast ? <StreamingCaret /> : null}
@@ -211,6 +211,8 @@ type Props = {
   source: "template" | "llm";
   session: ScalePracticeSessionV1;
   initialError?: string | null;
+  /** Embed beside the staff on results (fills column, no top rule). */
+  embed?: boolean;
 };
 
 /**
@@ -223,6 +225,7 @@ export function CoachChatPanel({
   source: initialSource,
   session,
   initialError = null,
+  embed = false,
 }: Props) {
   const reduce = usePrefersReducedMotion();
   const formId = useId();
@@ -351,15 +354,30 @@ export function CoachChatPanel({
 
   return (
     <div
-      className="musai-rv-actions mx-auto mt-10 w-full max-w-[48rem] text-left"
+      className={
+        embed
+          ? "flex h-full min-h-0 w-full flex-col text-left"
+          : "musai-rv-actions mx-auto mt-10 w-full max-w-[48rem] text-left"
+      }
       data-testid="coach-chat"
       role="log"
       aria-live="polite"
       aria-relevant="additions"
     >
-      <div className="space-y-7 border-t border-white/[0.06] pt-8">
+      <div
+        className={
+          embed
+            ? "flex min-h-0 flex-1 flex-col space-y-5 overflow-y-auto px-1"
+            : "space-y-7 border-t border-[var(--musai-border)] pt-8"
+        }
+      >
+        {embed ? (
+          <p className="font-display text-lg font-semibold tracking-tight text-[var(--musai-ink)]">
+            Coach
+          </p>
+        ) : null}
         {bannerError ? (
-          <div className="rounded-xl border border-amber-400/25 bg-amber-400/10 px-3.5 py-2.5 text-[12px] leading-snug text-amber-100/90">
+          <div className="rounded-[var(--musai-radius)] border border-[color-mix(in_srgb,var(--musai-warn)_35%,var(--musai-border))] bg-[color-mix(in_srgb,var(--musai-warn)_10%,white)] px-3.5 py-2.5 text-[12px] leading-snug text-[var(--musai-warn)]">
             {/quota|429|billing/i.test(bannerError)
               ? "Live AI is off: OpenAI says this key is out of quota. Add billing at platform.openai.com/account/billing, then send another message."
               : `Live AI is off: ${bannerError.slice(0, 180)}`}
@@ -399,9 +417,14 @@ export function CoachChatPanel({
         ) : null}
 
         <div ref={bottomRef} />
+      </div>
 
-        <form id={formId} onSubmit={onSubmit} className="sticky bottom-0 pt-3">
-          <div className="flex items-center gap-2 rounded-[28px] bg-[#303030] px-3 py-2">
+        <form
+          id={formId}
+          onSubmit={onSubmit}
+          className={embed ? "mt-3 shrink-0 pt-2" : "sticky bottom-0 pt-3"}
+        >
+          <div className="flex items-center gap-2 rounded-[28px] border border-[var(--musai-border)] bg-[var(--musai-surface-2)] px-3 py-2 shadow-[var(--musai-shadow)]">
             <label className="sr-only" htmlFor={`${formId}-input`}>
               Message
             </label>
@@ -418,13 +441,13 @@ export function CoachChatPanel({
                   e.currentTarget.form?.requestSubmit();
                 }
               }}
-              className="max-h-32 min-h-[36px] flex-1 resize-none bg-transparent py-2 text-[15px] leading-6 text-white outline-none placeholder:text-[#8e8e8e] disabled:opacity-50"
+              className="max-h-32 min-h-[36px] flex-1 resize-none bg-transparent py-2 text-[15px] leading-6 text-[var(--musai-ink)] outline-none placeholder:text-[var(--musai-muted)] disabled:opacity-50"
             />
             <button
               type="submit"
               disabled={!canSend}
               aria-label="Send"
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#3b82f6] text-white transition enabled:hover:bg-[#4b8ff7] disabled:bg-[#3b82f6]/45 disabled:text-white/70"
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--musai-accent)] text-[#fffcf8] transition enabled:hover:brightness-105 disabled:opacity-40"
             >
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden>
                 <path d="M12 19V5M12 5l-5 5M12 5l5 5" strokeLinecap="round" strokeLinejoin="round" />
@@ -432,7 +455,6 @@ export function CoachChatPanel({
             </button>
           </div>
         </form>
-      </div>
     </div>
   );
 }

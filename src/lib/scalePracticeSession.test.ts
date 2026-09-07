@@ -135,9 +135,9 @@ describe("scalePracticeSession history", () => {
     expect(listScalePracticeHistory().map((s) => s.sessionId)).toEqual(["keep"]);
   });
 
-  it("formats heard-from-take subtitle for results", () => {
+  it("formats take subtitle without repeating the scale name", () => {
     expect(formatScaleTakeSubtitle(makeSession())).toBe(
-      "Heard from your take · C major · 1 octave",
+      "Detected · 1 octave",
     );
   });
 

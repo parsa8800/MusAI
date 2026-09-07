@@ -30,7 +30,7 @@ export function MusaiFloatingMiniRecorder({
       }`}
       aria-hidden={!visible}
     >
-      <div className="rounded-xl border border-white/[0.05] bg-black/12 p-2 shadow-[0_10px_28px_rgba(0,0,0,0.28)] backdrop-blur-2xl">
+      <div className="rounded-xl border border-[var(--musai-border)] bg-[var(--musai-surface)] p-2 shadow-[var(--musai-shadow)]">
         <MusaiRecorderControls
           size="mini"
           variant="dock"

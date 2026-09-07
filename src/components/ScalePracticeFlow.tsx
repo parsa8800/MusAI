@@ -58,7 +58,7 @@ export function ScalePracticeFlow() {
   const octaveSpan = advSpan ?? 1;
 
   const [captureMode, setCaptureModeState] = useState<CaptureMode>("record");
-  const [showWrittenGuide, setShowWrittenGuide] = useState(false);
+  const [showWrittenGuide, setShowWrittenGuide] = useState(true);
   const [pendingDetect, setPendingDetect] = useState<{
     alternatives: ScaleCandidate[];
     sampleRateHz: number;
@@ -427,54 +427,45 @@ export function ScalePracticeFlow() {
 
       <div
         data-anime-enter
-        className={`space-y-7 transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none sm:space-y-8 ${
+        className={`space-y-6 transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none sm:space-y-7 ${
           status === "loading" ? "pointer-events-none opacity-35" : ""
         }`}
       >
-        {!pendingDetect ? (
+        {!pendingDetect && !isRecording ? (
           <div className="mx-auto w-full max-w-md lg:hidden">
             <ScaleRecentTakesPanel />
           </div>
         ) : null}
 
-        {!showWrittenGuide ? (
-          <div
-            data-anime-enter
-            className={`mx-auto flex max-w-md justify-center transition-opacity duration-300 motion-reduce:transition-none ${
-              isRecording ? "pointer-events-none opacity-45" : ""
-            }`}
-          >
-            <button
-              type="button"
-              onClick={() => setShowWrittenGuide(true)}
-              className="musai-chip musai-chip--off border border-white/12 px-4 py-2 text-sm font-medium text-zinc-300"
-            >
-              Notes
-            </button>
+        <div className="musai-workspace relative mx-auto w-full max-w-5xl px-4 py-5 sm:px-6 sm:py-6">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            {!isRecording ? (
+              <button
+                type="button"
+                onClick={() => setShowWrittenGuide((v) => !v)}
+                className={`musai-chip ${showWrittenGuide ? "musai-chip--on" : "musai-chip--off"} text-sm font-medium`}
+              >
+                {showWrittenGuide ? "Hide notes" : "Notes"}
+              </button>
+            ) : (
+              <span className="musai-studio-status musai-studio-status--live">
+                <span className="musai-studio-status__dot" aria-hidden />
+                Recording
+              </span>
+            )}
+            <p className="rounded-full bg-[var(--musai-accent-soft)] px-3 py-1 text-sm font-semibold text-[var(--musai-accent)]">
+              {guideModel.scaleLabel}
+              {octaveSpan === 2 ? " · 2 oct" : " · 1 oct"}
+            </p>
           </div>
-        ) : (
-          <div
-            className={`w-full text-center transition-opacity duration-300 motion-reduce:transition-none ${
-              isRecording ? "pointer-events-none opacity-45" : ""
-            }`}
-          >
-            <button
-              type="button"
-              onClick={() => setShowWrittenGuide(false)}
-              className="musai-chip musai-chip--off mx-auto inline-flex items-center justify-center border border-white/15 px-4 py-2 text-sm font-medium"
-            >
-              Hide notes
-            </button>
+
+          {!isRecording && showWrittenGuide ? (
             <AnimatedReveal
               key="written-guide"
-              className="relative mt-5 lg:px-[12.75rem]"
+              className="relative lg:grid lg:grid-cols-[11rem_minmax(0,1fr)] lg:gap-6"
               delay={40}
             >
-              {/* Sits in the left gutter; equal right gutter keeps notes page-centred. */}
-              <div
-                data-anime-enter
-                className="mb-4 lg:absolute lg:left-0 lg:top-0 lg:z-10 lg:mb-0 lg:w-[11.25rem]"
-              >
+              <div data-anime-enter className="mb-4 lg:mb-0">
                 <ScaleChoiceSidebar
                   tonicPc={tonicPc}
                   onTonicPc={setTonicPc}
@@ -500,209 +491,197 @@ export function ScalePracticeFlow() {
                 />
               </div>
             </AnimatedReveal>
-          </div>
-        )}
-
-        <div className="relative mx-auto w-full max-w-md">
-        <section
-          data-anime-enter
-          className={`musai-glass-surface relative w-full overflow-visible transition-[box-shadow,border-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
-            isRecording
-              ? "border-rose-400/25 shadow-[0_0_48px_rgba(255,59,48,0.12),inset_0_1px_0_rgba(255,255,255,0.08)]"
-              : recordedBlob && captureMode === "record"
-                ? "border-emerald-400/15 shadow-[0_0_36px_rgba(16,185,129,0.08)]"
-                : ""
-          }`}
-        >
-          <div className="px-4 py-4 sm:px-5 sm:py-5">
-            <div className="flex items-center justify-between gap-3">
-              <span
-                className={`musai-studio-status ${
-                  isRecording
-                    ? "musai-studio-status--live"
-                    : (captureMode === "record" && recordedBlob) ||
-                        (captureMode === "upload" && file)
-                      ? "musai-studio-status--ready"
-                      : "musai-studio-status--idle"
-                }`}
-              >
-                <span className="musai-studio-status__dot" aria-hidden />
-                {isRecording
-                  ? "Live"
-                  : (captureMode === "record" && recordedBlob) ||
-                      (captureMode === "upload" && file)
-                    ? "Ready"
-                    : "Idle"}
-              </span>
-              <MusaiSegmentedControl<CaptureMode>
-                ariaLabel="Capture source"
-                value={captureMode}
-                onChange={setCaptureMode}
-                options={[
-                  { value: "record", label: "Record" },
-                  { value: "upload", label: "Import" },
-                ]}
-                className={`max-w-[12.5rem] ${isRecording ? "pointer-events-none opacity-50" : ""}`}
-                size="compact"
-              />
-            </div>
-
-          {captureMode === "upload" ? (
-            <div
-              className={`mt-3 overflow-hidden rounded-xl transition-[border-color,background-color,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
-                uploadProcessing
-                  ? "border border-sky-400/30 bg-sky-400/[0.055] shadow-[0_0_48px_rgba(56,189,248,0.12),inset_0_1px_0_rgba(255,255,255,0.08)]"
-                  : file
-                    ? "border border-emerald-500/20 bg-white/[0.045] shadow-[0_0_32px_rgba(16,185,129,0.06),inset_0_1px_0_rgba(255,255,255,0.07)]"
-                    : "border border-dashed border-white/[0.14] bg-white/[0.03] hover:border-sky-400/35 hover:bg-white/[0.05]"
-              }`}
-            >
-              {file ? (
-                <div className="relative min-h-[7.5rem]">
-                  <div
-                    className={`absolute inset-0 flex flex-col items-center justify-center px-4 py-4 transition-[opacity,transform,filter] duration-[550ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:duration-200 motion-reduce:transition-opacity ${
-                      uploadProcessing
-                        ? "z-10 translate-y-0 opacity-100"
-                        : "pointer-events-none z-0 translate-y-2 opacity-0 blur-[1px] motion-reduce:blur-none"
-                    }`}
-                    aria-hidden={!uploadProcessing}
-                    aria-busy={uploadProcessing}
-                    aria-label="Processing selected audio file"
-                  >
-                    <AudioActivityVisualizer variant="compact" className="mb-2" />
-                    <span className="text-sm font-semibold tracking-tight text-sky-100/95">
-                      Reading your waveform…
-                    </span>
-                    <span className="mt-2 max-w-full truncate px-2 text-center text-xs text-zinc-400">
-                      {file.name}
-                    </span>
-                    <span className="mt-2 text-center text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">
-                      Decoding audio buffer
-                    </span>
-                  </div>
-                  <label
-                    className={`group flex cursor-pointer flex-col items-center justify-center px-4 py-4 transition-[opacity,transform,filter] duration-[550ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:duration-200 motion-reduce:transition-opacity ${
-                      uploadProcessing
-                        ? "pointer-events-none relative z-0 min-h-[7.5rem] -translate-y-2 opacity-0 blur-[1px] motion-reduce:blur-none"
-                        : "relative z-10 min-h-[7.5rem] translate-y-0 opacity-100"
-                    } hover:bg-white/[0.03]`}
-                  >
-                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400/95 ring-1 ring-emerald-400/25 transition-transform duration-500 ease-out motion-reduce:transition-none group-hover:scale-[1.06]">
-                      <svg
-                        viewBox="0 0 24 24"
-                        className="h-5 w-5"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                        aria-hidden
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                    </span>
-                    <span className="mt-2 text-sm font-semibold text-emerald-200/95">
-                      Audio ready
-                    </span>
-                    <span className="mt-1 max-w-full truncate px-2 text-center text-xs text-zinc-400">
-                      {file.name}
-                    </span>
-                    <span className="mt-1.5 text-center text-[11px] text-zinc-500">
-                      Tap to replace this file
-                    </span>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="audio/*,.wav,.mp3,.m4a,.ogg,.webm,.flac"
-                      className="sr-only"
-                      onChange={handleFileChange}
-                    />
-                  </label>
-                </div>
-              ) : (
-                <label className="flex cursor-pointer flex-col items-center justify-center px-4 py-5 transition-colors duration-300 hover:bg-white/[0.04]">
-                  <span className="text-sm font-semibold text-zinc-200">
-                    Choose an audio file
-                  </span>
-                  <span className="mt-2 text-center text-xs leading-relaxed text-zinc-500">
-                    WAV, MP3, M4A, and other common formats
-                  </span>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="audio/*,.wav,.mp3,.m4a,.ogg,.webm,.flac"
-                    className="sr-only"
-                    onChange={handleFileChange}
-                  />
-                </label>
-              )}
-            </div>
-          ) : (
-            <div className="mt-3" ref={mainRecorderRef}>
-              <MusaiMicCapturePanel
-                selectId="musai-mic-scale"
-                micDevices={micDevices}
-                selectedMicId={selectedMicId}
-                onMicChange={setSelectedMicId}
-                onMicRefresh={refreshMicDevices}
-                isRecording={isRecording}
-                hasSavedClip={!!recordedBlob}
-                density="compact"
-                experience="studio"
-                onDiscardClip={() => {
-                  setRecordedBlob(null);
-                  resetCaptureSession();
-                }}
-                onStartRecording={() => void startRecording()}
-                onStopRecording={stopRecording}
-                streamRef={streamRef}
-                elapsedLabelOverride={elapsedLabel}
-                levelBarsOverride={levelBars}
-                lastTakeLabelOverride={lastTakeLabel}
-              />
-            </div>
-          )}
-
-          {message && status === "error" ? (
-            <AnimatedReveal
-              className="musai-glass-inset mt-5 border-rose-500/20 bg-rose-500/[0.06] px-4 py-3 text-center text-sm text-rose-100/90"
-              role="alert"
-              aria-live="assertive"
-              delay={20}
-            >
-              <p data-anime-enter>{message}</p>
-            </AnimatedReveal>
           ) : null}
 
-          <div className="mt-3 flex justify-center">
-            <button
-              type="button"
-              disabled={!canAnalyze}
-              onClick={() => void runAnalyze()}
-              className={`musai-btn-primary w-auto min-w-[9.5rem] max-w-[11.5rem] px-8 py-2.5 transition-[box-shadow,transform,filter] duration-300 ${
-                captureMode === "record" && recordedBlob
-                  ? "ring-1 ring-emerald-300/25 shadow-[0_0_32px_rgba(16,185,129,0.22)]"
-                  : ""
+          {!isRecording && !showWrittenGuide ? (
+            <div className="musai-studio-notes-prompt mx-auto max-w-xl px-5 py-5 text-center">
+              <p className="text-xs font-medium uppercase tracking-[0.14em] text-[var(--musai-muted)]">
+                Notes closed
+              </p>
+            </div>
+          ) : null}
+
+          <div className="relative mx-auto mt-6 w-full max-w-md">
+            <section
+              data-anime-enter
+              className={`relative w-full overflow-visible rounded-[var(--musai-radius-lg)] border border-[var(--musai-border)] bg-[var(--musai-surface-2)] transition-[border-color] duration-300 ${
+                isRecording
+                  ? "border-[color-mix(in_srgb,var(--musai-accent-2)_45%,var(--musai-border))]"
+                  : recordedBlob && captureMode === "record"
+                    ? "border-[color-mix(in_srgb,var(--musai-ok)_35%,var(--musai-border))]"
+                    : ""
               }`}
             >
-              {status === "loading" ? "…" : "Analyse"}
-            </button>
-          </div>
-          </div>
-        </section>
+              <div className="px-4 py-4 sm:px-5 sm:py-5">
+                {!isRecording ? (
+                  <div className="flex items-center justify-between gap-3">
+                    {(captureMode === "record" && recordedBlob) ||
+                    (captureMode === "upload" && file) ? (
+                      <span className="musai-studio-status musai-studio-status--ready">
+                        <span className="musai-studio-status__dot" aria-hidden />
+                        Ready
+                      </span>
+                    ) : (
+                      <span />
+                    )}
+                    <MusaiSegmentedControl<CaptureMode>
+                      ariaLabel="Capture source"
+                      value={captureMode}
+                      onChange={setCaptureMode}
+                      options={[
+                        { value: "record", label: "Record" },
+                        { value: "upload", label: "Import" },
+                      ]}
+                      className="max-w-[12.5rem]"
+                      size="compact"
+                    />
+                  </div>
+                ) : null}
 
-        {!pendingDetect ? (
-          <aside
-            data-anime-enter
-            className="pointer-events-none absolute top-0 left-[calc(100%+1.25rem)] hidden w-[14.5rem] lg:block"
-          >
-            <div className="pointer-events-auto sticky top-24">
-              <ScaleRecentTakesPanel />
-            </div>
-          </aside>
-        ) : null}
+              {captureMode === "upload" ? (
+                <div
+                  className={`mt-3 overflow-hidden rounded-[var(--musai-radius)] transition-[border-color,background-color] duration-300 ${
+                    uploadProcessing
+                      ? "border border-[color-mix(in_srgb,var(--musai-accent)_35%,var(--musai-border))] bg-[var(--musai-accent-soft)]"
+                      : file
+                        ? "border border-[color-mix(in_srgb,var(--musai-ok)_30%,var(--musai-border))] bg-[var(--musai-surface)]"
+                        : "border border-dashed border-[var(--musai-border)] bg-[var(--musai-surface)] hover:border-[color-mix(in_srgb,var(--musai-accent)_40%,var(--musai-border))]"
+                  }`}
+                >
+                  {file ? (
+                    <div className="relative min-h-[7.5rem]">
+                      <div
+                        className={`absolute inset-0 flex flex-col items-center justify-center px-4 py-4 transition-opacity duration-300 ${
+                          uploadProcessing
+                            ? "z-10 opacity-100"
+                            : "pointer-events-none z-0 opacity-0"
+                        }`}
+                        aria-hidden={!uploadProcessing}
+                        aria-busy={uploadProcessing}
+                        aria-label="Processing selected audio file"
+                      >
+                        <AudioActivityVisualizer variant="compact" className="mb-2" />
+                        <span className="text-sm font-semibold tracking-tight text-[var(--musai-ink)]">
+                          Reading…
+                        </span>
+                        <span className="mt-2 max-w-full truncate px-2 text-center text-xs text-[var(--musai-muted)]">
+                          {file.name}
+                        </span>
+                      </div>
+                      <label
+                        className={`group flex cursor-pointer flex-col items-center justify-center px-4 py-4 transition-opacity duration-300 ${
+                          uploadProcessing
+                            ? "pointer-events-none relative z-0 min-h-[7.5rem] opacity-0"
+                            : "relative z-10 min-h-[7.5rem] opacity-100"
+                        }`}
+                      >
+                        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--musai-accent-soft)] text-[var(--musai-ok)] ring-1 ring-[color-mix(in_srgb,var(--musai-ok)_25%,transparent)]">
+                          <svg
+                            viewBox="0 0 24 24"
+                            className="h-5 w-5"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                            aria-hidden
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                        </span>
+                          <span className="mt-2 text-sm font-semibold text-[var(--musai-ok)]">
+                            Audio ready
+                          </span>
+                          <span className="mt-1 max-w-full truncate px-2 text-center text-xs text-[var(--musai-muted)]">
+                            {file.name}
+                          </span>
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="audio/*,.wav,.mp3,.m4a,.ogg,.webm,.flac"
+                            className="sr-only"
+                            onChange={handleFileChange}
+                          />
+                        </label>
+                      </div>
+                    ) : (
+                      <label className="flex cursor-pointer flex-col items-center justify-center px-4 py-5 transition-colors duration-200 hover:bg-[var(--musai-surface-2)]">
+                        <span className="text-sm font-semibold text-[var(--musai-ink)]">
+                          Import audio
+                        </span>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="audio/*,.wav,.mp3,.m4a,.ogg,.webm,.flac"
+                          className="sr-only"
+                          onChange={handleFileChange}
+                        />
+                      </label>
+                    )}
+                </div>
+              ) : (
+                <div className="mt-3" ref={mainRecorderRef}>
+                  <MusaiMicCapturePanel
+                    selectId="musai-mic-scale"
+                    micDevices={micDevices}
+                    selectedMicId={selectedMicId}
+                    onMicChange={setSelectedMicId}
+                    onMicRefresh={refreshMicDevices}
+                    isRecording={isRecording}
+                    hasSavedClip={!!recordedBlob}
+                    density="compact"
+                    experience="studio"
+                    onDiscardClip={() => {
+                      setRecordedBlob(null);
+                      resetCaptureSession();
+                    }}
+                    onStartRecording={() => void startRecording()}
+                    onStopRecording={stopRecording}
+                    streamRef={streamRef}
+                    elapsedLabelOverride={elapsedLabel}
+                    levelBarsOverride={levelBars}
+                    lastTakeLabelOverride={lastTakeLabel}
+                  />
+                </div>
+              )}
+
+              {message && status === "error" ? (
+                <AnimatedReveal
+                  className="musai-glass-inset mt-5 border-[color-mix(in_srgb,var(--musai-accent-2)_30%,var(--musai-border))] bg-[color-mix(in_srgb,var(--musai-accent-2)_8%,white)] px-4 py-3 text-center text-sm text-[var(--musai-accent-2)]"
+                  role="alert"
+                  aria-live="assertive"
+                  delay={20}
+                >
+                  <p data-anime-enter>{message}</p>
+                </AnimatedReveal>
+              ) : null}
+
+              <div className="mt-3 flex justify-center">
+                <button
+                  type="button"
+                  disabled={!canAnalyze}
+                  onClick={() => void runAnalyze()}
+                  className="musai-btn-primary"
+                >
+                  Analyse
+                </button>
+              </div>
+              </div>
+            </section>
+
+            {!pendingDetect && !isRecording ? (
+              <aside
+                data-anime-enter
+                className="pointer-events-none absolute top-0 left-[calc(100%+1.25rem)] hidden w-[14.5rem] lg:block"
+              >
+                <div className="pointer-events-auto sticky top-24">
+                  <ScaleRecentTakesPanel />
+                </div>
+              </aside>
+            ) : null}
+          </div>
         </div>
 
         {pendingDetect ? (
@@ -712,7 +691,7 @@ export function ScalePracticeFlow() {
           >
             <p
               data-anime-enter
-              className="text-[10px] font-semibold uppercase tracking-[0.22em] text-sky-400/90"
+              className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--musai-accent)]"
             >
               Which scale?
             </p>
@@ -738,7 +717,7 @@ export function ScalePracticeFlow() {
             <button
               data-anime-enter
               type="button"
-              className="mt-4 text-[12px] font-medium text-zinc-500 underline decoration-zinc-600/80 underline-offset-2 hover:text-zinc-300"
+              className="mt-4 text-[12px] font-medium text-[var(--musai-muted)] underline decoration-[var(--musai-border)] underline-offset-2 hover:text-[var(--musai-ink)]"
               onClick={() => {
                 setPendingDetect(null);
                 setShowWrittenGuide(true);

@@ -65,16 +65,13 @@ export function ScaleGuidePanel({
 
   return (
     <div data-scale-info-root={INFO_ID} className="space-y-5 sm:space-y-6">
-      <div className="relative flex min-h-[3.5rem] flex-col items-center justify-center px-10 sm:px-12">
+      <div className="relative flex min-h-[2.75rem] flex-col items-center justify-center px-10 sm:px-12">
         <h2
           ref={titleRef}
-          className="text-center text-2xl font-semibold tracking-tight text-white sm:text-[1.85rem]"
+          className="sr-only"
         >
-          {guide.scaleLabel}
+          {guide.scaleLabel} · {kindWord} · {spanWord}
         </h2>
-        <p className="mt-1.5 text-[11px] font-medium uppercase tracking-[0.2em] text-zinc-500">
-          {kindWord} · {spanWord}
-        </p>
         <div
           className="absolute right-0 top-0 shrink-0"
           onClick={(e) => e.stopPropagation()}

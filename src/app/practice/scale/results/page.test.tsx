@@ -17,7 +17,7 @@ vi.mock("@/lib/scalePracticeSession", () => ({
   readScalePracticeHistoryEntry: () => null,
   persistScalePracticeSession: vi.fn(),
   clearScalePracticeSession: vi.fn(),
-  formatScaleTakeSubtitle: () => "Heard from your take · C major · 1 octave",
+  formatScaleTakeSubtitle: () => "Detected · 1 octave",
 }));
 
 vi.mock("@/components/ScalePracticeResultsView", () => ({
@@ -45,10 +45,8 @@ describe("ScalePracticeResultsPage", () => {
   it("shows the empty state when there is no stored session", async () => {
     readScalePracticeSessionMock.mockReturnValue(null);
     render(<ScalePracticeResultsPage />);
-    expect(
-      await screen.findByText(/No scale session found/i),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Scale practice/i })).toHaveAttribute(
+    expect(await screen.findByText(/No take yet/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Scale studio/i })).toHaveAttribute(
       "href",
       "/practice/scale",
     );

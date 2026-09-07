@@ -2,8 +2,7 @@ import Link from "next/link";
 
 const NAV = [
   { href: "/", label: "Practice" },
-  { href: "/#features", label: "Features" },
-  { href: "/#about", label: "About" },
+  { href: "/#features", label: "Exercises" },
 ] as const;
 
 /** Replace with your real profiles when ready. */
@@ -117,7 +116,7 @@ export function SiteFooter() {
 
   return (
     <footer
-      className="relative z-[1] mt-auto border-t border-white/[0.06] bg-black/22 backdrop-blur-xl"
+      className="relative z-[1] mt-auto border-t border-[var(--musai-border)] bg-[var(--musai-surface)]"
       aria-labelledby="site-footer-heading"
     >
       <div className="mx-auto max-w-5xl px-5 py-12 sm:px-8 sm:py-16">
@@ -126,11 +125,11 @@ export function SiteFooter() {
           <div className="max-w-xs shrink-0">
             <p
               id="site-footer-heading"
-              className="text-base font-semibold tracking-tight text-zinc-200"
+              className="font-display text-base font-semibold tracking-tight text-[var(--musai-ink)]"
             >
               MusAI
             </p>
-            <p className="mt-2 text-[13px] leading-relaxed text-zinc-500">
+            <p className="mt-2 text-[13px] leading-relaxed text-[var(--musai-muted)]">
               AI powered music feedback and training.
             </p>
           </div>
@@ -144,7 +143,7 @@ export function SiteFooter() {
               <Link
                 key={item.href}
                 href={item.href}
-                className="text-[13px] font-medium text-zinc-500 transition-[color,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-zinc-300"
+                className="text-[13px] font-medium text-[var(--musai-muted)] transition-colors duration-200 hover:text-[var(--musai-ink)]"
               >
                 {item.label}
               </Link>
@@ -160,7 +159,7 @@ export function SiteFooter() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={name}
-                className="flex h-10 w-10 items-center justify-center rounded-lg text-zinc-500 opacity-70 transition-[color,opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:scale-[1.06] hover:text-zinc-300 hover:opacity-100 motion-reduce:hover:scale-100"
+                className="flex h-10 w-10 items-center justify-center rounded-[var(--musai-radius)] text-[var(--musai-muted)] transition-colors duration-200 hover:text-[var(--musai-ink)]"
               >
                 <Icon className="h-5 w-5" />
               </a>
@@ -168,8 +167,8 @@ export function SiteFooter() {
           </div>
         </div>
 
-        <div className="mt-12 border-t border-white/[0.04] pt-8 text-center">
-          <p className="text-[11px] font-normal tracking-wide text-zinc-600">
+        <div className="mt-12 border-t border-[var(--musai-border)] pt-8 text-center">
+          <p className="text-[11px] font-normal tracking-wide text-[var(--musai-muted)]">
             © {year} MusAI. All rights reserved.
           </p>
         </div>

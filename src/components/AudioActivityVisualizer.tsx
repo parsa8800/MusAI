@@ -40,11 +40,11 @@ export function AudioActivityVisualizer({
         >
           <defs>
             <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="rgba(56,189,248,0)" />
-              <stop offset="35%" stopColor="rgba(56,189,248,0.2)" />
-              <stop offset="50%" stopColor="rgba(186,230,253,0.42)" />
-              <stop offset="65%" stopColor="rgba(56,189,248,0.2)" />
-              <stop offset="100%" stopColor="rgba(56,189,248,0)" />
+              <stop offset="0%" stopColor="rgba(47,111,94,0)" />
+              <stop offset="35%" stopColor="rgba(47,111,94,0.2)" />
+              <stop offset="50%" stopColor="rgba(47,111,94,0.42)" />
+              <stop offset="65%" stopColor="rgba(47,111,94,0.2)" />
+              <stop offset="100%" stopColor="rgba(47,111,94,0)" />
             </linearGradient>
           </defs>
           <g fill="none" strokeLinecap="round" strokeLinejoin="round">
@@ -78,7 +78,7 @@ export function AudioActivityVisualizer({
           return (
             <span
               key={i}
-              className="musai-audio-viz-bar w-px shrink-0 rounded-full bg-gradient-to-t from-white/[0.1] via-sky-400/45 to-cyan-100/55 shadow-[0_0_4px_rgba(56,189,248,0.08)] sm:w-[1.5px]"
+              className="musai-audio-viz-bar w-px shrink-0 rounded-full bg-gradient-to-t from-[color-mix(in_srgb,var(--musai-accent)_10%,transparent)] via-[color-mix(in_srgb,var(--musai-accent)_45%,transparent)] to-[color-mix(in_srgb,var(--musai-accent)_55%,white)] sm:w-[1.5px]"
               style={{
                 height: `${barH}px`,
                 animationDuration: `${dur}s`,

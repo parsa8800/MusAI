@@ -44,23 +44,23 @@ const R_IN = 64;
 const HUB_FRAC = (2 * (R_IN - 2)) / 240;
 
 const GLASS = {
-  invalidFill: "rgba(255,255,255,0.035)",
-  invalidStroke: "rgba(255,255,255,0.1)",
-  idleFill: "rgba(255,255,255,0.085)",
-  idleStroke: "rgba(255,255,255,0.16)",
-  hoverFill: "rgba(255,255,255,0.14)",
-  selectedFill: "rgba(255,255,255,0.32)",
-  selectedStroke: "rgba(255,255,255,1)",
-  selectedStrokeW: 2.45,
+  invalidFill: "rgba(28, 25, 23, 0.04)",
+  invalidStroke: "rgba(28, 25, 23, 0.08)",
+  idleFill: "rgba(28, 25, 23, 0.05)",
+  idleStroke: "rgba(231, 226, 218, 1)",
+  hoverFill: "rgba(47, 111, 94, 0.08)",
+  selectedFill: "rgba(47, 111, 94, 0.16)",
+  selectedStroke: "rgba(47, 111, 94, 0.9)",
+  selectedStrokeW: 2.2,
   idleStrokeW: 0.75,
   /** Pointer / key hold (temporary sustain) */
-  heldFill: "rgba(56, 189, 248, 0.26)",
-  heldStroke: "rgba(125, 211, 252, 0.95)",
+  heldFill: "rgba(47, 111, 94, 0.2)",
+  heldStroke: "rgba(47, 111, 94, 0.92)",
   heldStrokeW: 2,
   /** Double-click / double-tap latched drone */
-  latchedFill: "rgba(168, 85, 247, 0.16)",
-  latchedStroke: "rgba(232, 121, 249, 0.92)",
-  latchedStrokeW: 2.35,
+  latchedFill: "rgba(196, 92, 74, 0.12)",
+  latchedStroke: "rgba(196, 92, 74, 0.88)",
+  latchedStrokeW: 2.2,
 } as const;
 
 function polar(cx: number, cy: number, r: number, angleDeg: number) {
@@ -277,22 +277,22 @@ export function NoteRing({ value, onChange, className }: NoteRingProps) {
       role="group"
       aria-label="Target note picker"
     >
-      {/* Glass chassis: jewelled bezel + frosted bowl */}
-      <div className="musai-note-ring-shell relative rounded-full bg-gradient-to-b from-white/30 via-white/[0.12] to-white/[0.04] p-[1.5px] shadow-[0_2px_4px_rgba(0,0,0,0.2),0_28px_56px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.55),inset_0_-1px_0_rgba(255,255,255,0.08)]">
-        <div className="relative overflow-hidden rounded-full bg-zinc-950/45 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12),inset_0_2px_3px_rgba(255,255,255,0.18),inset_0_-20px_40px_rgba(0,0,0,0.5)] backdrop-blur-[28px] backdrop-saturate-150">
-          {/* Specular highlight — top “lit glass” arc */}
+      {/* Warm paper chassis */}
+      <div className="musai-note-ring-shell relative rounded-full border border-[var(--musai-border)] bg-[var(--musai-surface)] p-[1.5px] shadow-[var(--musai-shadow)]">
+        <div className="relative overflow-hidden rounded-full bg-[var(--musai-surface-2)] shadow-[inset_0_1px_0_rgba(255,255,255,0.75),inset_0_0_0_1px_var(--musai-border)]">
+          {/* Soft top highlight */}
           <div
-            className="pointer-events-none absolute inset-0 rounded-full opacity-[0.55]"
+            className="pointer-events-none absolute inset-0 rounded-full opacity-40"
             style={{
               background:
-                "radial-gradient(ellipse 95% 42% at 50% -5%, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.12) 35%, transparent 62%)",
+                "radial-gradient(ellipse 95% 42% at 50% -5%, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.08) 35%, transparent 62%)",
             }}
           />
           <div
-            className="pointer-events-none absolute inset-0 rounded-full opacity-30"
+            className="pointer-events-none absolute inset-0 rounded-full opacity-20"
             style={{
               background:
-                "radial-gradient(circle at 50% 100%, rgba(255,255,255,0.08) 0%, transparent 45%)",
+                "radial-gradient(circle at 50% 100%, rgba(28,25,23,0.04) 0%, transparent 45%)",
             }}
           />
           <div className="relative aspect-square w-full p-2.5 sm:p-3">
@@ -309,24 +309,24 @@ export function NoteRing({ value, onChange, className }: NoteRingProps) {
                   x2="80%"
                   y2="100%"
                 >
-                  <stop offset="0%" stopColor="rgba(255,255,255,0.65)" />
-                  <stop offset="25%" stopColor="rgba(255,255,255,0.2)" />
-                  <stop offset="55%" stopColor="rgba(255,255,255,0.06)" />
-                  <stop offset="100%" stopColor="rgba(255,255,255,0.15)" />
+                  <stop offset="0%" stopColor="rgba(255,255,255,0.85)" />
+                  <stop offset="25%" stopColor="rgba(231,226,218,0.5)" />
+                  <stop offset="55%" stopColor="rgba(231,226,218,0.2)" />
+                  <stop offset="100%" stopColor="rgba(231,226,218,0.45)" />
                 </linearGradient>
                 <radialGradient id={hubGradId} cx="30%" cy="22%" r="72%">
-                  <stop offset="0%" stopColor="rgba(255,255,255,0.42)" />
-                  <stop offset="22%" stopColor="rgba(255,255,255,0.14)" />
-                  <stop offset="48%" stopColor="rgba(255,255,255,0.04)" />
-                  <stop offset="100%" stopColor="rgba(0,0,0,0.72)" />
+                  <stop offset="0%" stopColor="rgba(255,255,255,0.7)" />
+                  <stop offset="22%" stopColor="rgba(243,239,232,0.35)" />
+                  <stop offset="48%" stopColor="rgba(243,239,232,0.12)" />
+                  <stop offset="100%" stopColor="rgba(231,226,218,0.85)" />
                 </radialGradient>
                 <radialGradient id={hubEdgeId} cx="50%" cy="50%" r="50%">
-                  <stop offset="78%" stopColor="rgba(255,255,255,0)" />
-                  <stop offset="92%" stopColor="rgba(255,255,255,0.35)" />
-                  <stop offset="100%" stopColor="rgba(255,255,255,0.55)" />
+                  <stop offset="78%" stopColor="rgba(231,226,218,0)" />
+                  <stop offset="92%" stopColor="rgba(231,226,218,0.65)" />
+                  <stop offset="100%" stopColor="rgba(196,189,180,0.75)" />
                 </radialGradient>
                 <radialGradient id={domeGradId} cx="50%" cy="35%" r="65%">
-                  <stop offset="0%" stopColor="rgba(255,255,255,0.2)" />
+                  <stop offset="0%" stopColor="rgba(255,255,255,0.35)" />
                   <stop offset="100%" stopColor="rgba(255,255,255,0)" />
                 </radialGradient>
               </defs>
@@ -426,7 +426,7 @@ export function NoteRing({ value, onChange, className }: NoteRingProps) {
                         selectedAccent
                           ? {
                               filter:
-                                "drop-shadow(0 0 10px rgba(255,255,255,0.42)) drop-shadow(0 0 22px rgba(52, 211, 153, 0.2))",
+                                "drop-shadow(0 0 6px rgba(47,111,94,0.2)) drop-shadow(0 0 12px rgba(47,111,94,0.12))",
                             }
                           : undefined
                       }
@@ -506,24 +506,24 @@ export function NoteRing({ value, onChange, className }: NoteRingProps) {
                       className="pointer-events-none select-none text-[11px] font-semibold tracking-tight"
                       fill={
                         !interactive
-                          ? "rgba(255,255,255,0.18)"
+                          ? "rgba(28,25,23,0.18)"
                           : isHeldHere
-                            ? "#e0f2fe"
+                            ? "#2f6f5e"
                             : isLatchedHere
-                              ? "#f5d0fe"
+                              ? "#c45c4a"
                               : selected
-                                ? "#ffffff"
-                                : "rgba(255,255,255,0.48)"
+                                ? "#1c1917"
+                                : "rgba(28,25,23,0.55)"
                       }
                       style={{
                         textShadow:
                           isHeldHere
-                            ? "0 0 12px rgba(56, 189, 248, 0.55)"
+                            ? "0 0 8px rgba(47,111,94,0.25)"
                             : isLatchedHere
-                              ? "0 0 12px rgba(232, 121, 249, 0.5)"
+                              ? "0 0 8px rgba(196,92,74,0.2)"
                               : selected
-                                ? "0 0 18px rgba(255,255,255,0.55), 0 0 28px rgba(52, 211, 153, 0.25)"
-                                : "0 1px 2px rgba(0,0,0,0.8)",
+                                ? "0 0 10px rgba(47,111,94,0.15)"
+                                : "none",
                       }}
                     >
                       {pitchClassLabel(i)}
@@ -552,7 +552,7 @@ export function NoteRing({ value, onChange, className }: NoteRingProps) {
                 strokeWidth={1.2}
                 style={{
                   filter:
-                    "drop-shadow(0 -3px 10px rgba(255,255,255,0.2)) drop-shadow(0 4px 14px rgba(0,0,0,0.45))",
+                    "drop-shadow(0 -2px 6px rgba(255,255,255,0.5)) drop-shadow(0 2px 8px rgba(28,25,23,0.08))",
                 }}
               />
               <circle
@@ -560,7 +560,7 @@ export function NoteRing({ value, onChange, className }: NoteRingProps) {
                 cy={CY}
                 r={R_IN - 3.2}
                 fill="none"
-                stroke="rgba(255,255,255,0.12)"
+                stroke="rgba(28,25,23,0.1)"
                 strokeWidth={0.6}
                 opacity={0.9}
               />
@@ -576,11 +576,11 @@ export function NoteRing({ value, onChange, className }: NoteRingProps) {
                 maxHeight: `${hubSizePct}%`,
               }}
             >
-              <div className="pointer-events-auto flex h-full w-full flex-col items-center justify-center gap-0 rounded-full border border-white/35 bg-gradient-to-b from-white/25 via-white/[0.1] to-white/[0.03] px-1 py-0.5 shadow-[inset_0_2px_3px_rgba(255,255,255,0.65),inset_0_-14px_28px_rgba(0,0,0,0.42),0_0_32px_rgba(255,255,255,0.08)] backdrop-blur-xl backdrop-saturate-150">
-                <span className="leading-none text-[clamp(1.15rem,4.8vw,1.65rem)] font-semibold tracking-tight text-white tabular-nums drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)]">
+              <div className="pointer-events-auto flex h-full w-full flex-col items-center justify-center gap-0 rounded-full border border-[var(--musai-border)] bg-[var(--musai-surface)] px-1 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_1px_3px_rgba(28,25,23,0.06)]">
+                <span className="leading-none text-[clamp(1.15rem,4.8vw,1.65rem)] font-semibold tracking-tight text-[var(--musai-ink)] tabular-nums">
                   {formatNoteLabel(value)}
                 </span>
-                <span className="mt-0.5 text-[9px] tabular-nums leading-none text-white/50">
+                <span className="mt-0.5 text-[9px] tabular-nums leading-none text-[var(--musai-muted)]">
                   {hz.toFixed(1)} Hz
                 </span>
                 <div className="mt-1 flex w-full max-w-[5.5rem] items-center justify-between gap-0.5 px-0.5">
@@ -588,19 +588,19 @@ export function NoteRing({ value, onChange, className }: NoteRingProps) {
                     type="button"
                     disabled={!canOctDown}
                     onClick={() => bumpOctave(-1)}
-                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/40 bg-white/[0.12] text-sm font-light leading-none text-white shadow-[inset_0_2px_3px_rgba(255,255,255,0.45),inset_0_-1px_0_rgba(0,0,0,0.15)] transition hover:border-white/55 hover:bg-white/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-20"
+                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[var(--musai-border)] bg-[var(--musai-surface-2)] text-sm font-light leading-none text-[var(--musai-ink)] shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] transition hover:border-[color-mix(in_srgb,var(--musai-accent)_30%,var(--musai-border))] hover:bg-[var(--musai-accent-soft)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-20"
                     aria-label="Lower octave"
                   >
                     −
                   </button>
-                  <span className="min-w-0 flex-1 text-center text-[8px] font-semibold uppercase leading-tight tracking-[0.12em] text-white/45">
+                  <span className="min-w-0 flex-1 text-center text-[8px] font-semibold uppercase leading-tight tracking-[0.12em] text-[var(--musai-muted)]">
                     Oct&nbsp;{octave}
                   </span>
                   <button
                     type="button"
                     disabled={!canOctUp}
                     onClick={() => bumpOctave(1)}
-                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/40 bg-white/[0.12] text-sm font-light leading-none text-white shadow-[inset_0_2px_3px_rgba(255,255,255,0.45),inset_0_-1px_0_rgba(0,0,0,0.15)] transition hover:border-white/55 hover:bg-white/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-20"
+                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[var(--musai-border)] bg-[var(--musai-surface-2)] text-sm font-light leading-none text-[var(--musai-ink)] shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] transition hover:border-[color-mix(in_srgb,var(--musai-accent)_30%,var(--musai-border))] hover:bg-[var(--musai-accent-soft)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-20"
                     aria-label="Higher octave"
                   >
                     +

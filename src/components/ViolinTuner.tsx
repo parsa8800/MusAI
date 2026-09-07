@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { PitchDetector } from "pitchy";
 import { createAudioContext } from "@/lib/audioContext";
 import { describeMicOpenError, getMicStream } from "@/lib/micStream";
-import { NOTE_TONE_STYLES } from "@/lib/scaleNoteVisual";
 import {
   identifyTunerPitch,
   VIOLIN_STRINGS,
@@ -99,11 +98,10 @@ export function ViolinTuner() {
   }, [stop]);
 
   const tone = reading?.tone ?? "unclear";
-  const styles = NOTE_TONE_STYLES[tone];
   const needleDeg = reading ? centsToNeedleDeg(reading.cents) : 0;
   const directionLabel =
     !reading || reading.direction === "unclear"
-      ? "Play an open string"
+      ? null
       : reading.direction === "in_tune"
         ? "In tune"
         : reading.direction === "high"
@@ -113,15 +111,7 @@ export function ViolinTuner() {
   return (
     <section className="w-full max-w-[min(640px,100%)] space-y-6">
       <div className="musai-glass-surface overflow-hidden px-5 py-8 sm:px-10 sm:py-10">
-        <p className="text-center text-[10px] font-semibold uppercase tracking-[0.26em] text-amber-400/90">
-          Open strings
-        </p>
-        <p className="mx-auto mt-3 max-w-sm text-center text-sm leading-relaxed text-zinc-500">
-          Play G, D, A, or E. MusAI hears the pitch and scores the closest
-          octave of that note.
-        </p>
-
-        <div className="mt-8 flex justify-center gap-2">
+        <div className="flex justify-center gap-2">
           {VIOLIN_STRINGS.map((s) => {
             const on = reading?.stringId === s.id;
             return (
@@ -137,19 +127,19 @@ export function ViolinTuner() {
 
         <div className="relative mx-auto mt-10 h-44 w-full max-w-sm">
           <div
-            className="pointer-events-none absolute inset-x-8 bottom-8 top-2 rounded-t-full border border-white/[0.08] border-b-0 bg-gradient-to-b from-white/[0.04] to-transparent"
+            className="pointer-events-none absolute inset-x-8 bottom-8 top-2 rounded-t-full border border-[var(--musai-border)] border-b-0 bg-gradient-to-b from-[var(--musai-surface-2)] to-transparent"
             aria-hidden
           />
           <div
-            className="absolute bottom-8 left-1/2 h-[7.5rem] w-[3px] origin-bottom rounded-full bg-zinc-200 shadow-[0_0_16px_rgba(255,255,255,0.25)] transition-transform duration-75 ease-out motion-reduce:transition-none"
+            className="absolute bottom-8 left-1/2 h-[7.5rem] w-[3px] origin-bottom rounded-full bg-[var(--musai-ink)] shadow-[0_1px_4px_rgba(28,25,23,0.12)] transition-transform duration-75 ease-out motion-reduce:transition-none"
             style={{ transform: `translateX(-50%) rotate(${needleDeg}deg)` }}
             aria-hidden
           />
-          <div className="absolute bottom-6 left-1/2 h-3 w-3 -translate-x-1/2 rounded-full bg-zinc-100" />
-          <p className="absolute bottom-0 left-0 text-[10px] font-medium uppercase tracking-[0.16em] text-zinc-600">
+          <div className="absolute bottom-6 left-1/2 h-3 w-3 -translate-x-1/2 rounded-full bg-[var(--musai-muted)]" />
+          <p className="absolute bottom-0 left-0 text-[10px] font-medium uppercase tracking-[0.16em] text-[var(--musai-muted)]">
             Low
           </p>
-          <p className="absolute bottom-0 right-0 text-[10px] font-medium uppercase tracking-[0.16em] text-zinc-600">
+          <p className="absolute bottom-0 right-0 text-[10px] font-medium uppercase tracking-[0.16em] text-[var(--musai-muted)]">
             High
           </p>
         </div>
@@ -158,21 +148,23 @@ export function ViolinTuner() {
           <p
             className={`text-4xl font-semibold tracking-tight ${
               tone === "good"
-                ? "text-emerald-300"
+                ? "text-[var(--musai-ok)]"
                 : tone === "slight"
-                  ? "text-yellow-300"
+                  ? "text-[var(--musai-warn)]"
                   : tone === "bad"
-                    ? "text-red-400"
-                    : "text-zinc-500"
+                    ? "text-[var(--musai-accent-2)]"
+                    : "text-[var(--musai-muted)]"
             }`}
           >
             {reading?.targetLabel ?? "—"}
           </p>
-          <p className={`mt-2 text-sm font-medium ${styles.label ? "text-zinc-400" : ""}`}>
-            {directionLabel}
-          </p>
+          {directionLabel ? (
+            <p className="mt-2 text-sm font-medium text-[var(--musai-muted)]">
+              {directionLabel}
+            </p>
+          ) : null}
           {reading ? (
-            <p className="mt-1 font-mono text-[12px] tabular-nums text-zinc-500">
+            <p className="mt-1 font-mono text-[12px] tabular-nums text-[var(--musai-muted)]">
               {reading.cents >= 0 ? "+" : ""}
               {reading.cents.toFixed(1)} cents
             </p>
@@ -183,15 +175,15 @@ export function ViolinTuner() {
           <button
             type="button"
             onClick={() => (listening ? stop() : void start())}
-            className="musai-btn-primary max-w-[16rem]"
+            className="musai-btn-primary"
           >
-            {listening ? "Stop listening" : "Listen"}
+            {listening ? "Stop" : "Listen"}
           </button>
         </div>
 
         {message ? (
           <p
-            className="musai-glass-inset mt-5 border-rose-500/20 bg-rose-500/[0.06] px-4 py-3 text-center text-sm text-rose-100/90"
+            className="musai-glass-inset mt-5 border-[color-mix(in_srgb,var(--musai-accent-2)_30%,var(--musai-border))] bg-[color-mix(in_srgb,var(--musai-accent-2)_8%,white)] px-4 py-3 text-center text-sm text-[var(--musai-accent-2)]"
             role="alert"
           >
             {message}

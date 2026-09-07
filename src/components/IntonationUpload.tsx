@@ -332,7 +332,7 @@ export function IntonationUpload() {
           aria-label="Analyzing audio"
         >
           <AudioActivityVisualizer variant="prominent" />
-          <p className="mt-7 text-sm font-medium text-zinc-300">Analyzing…</p>
+          <p className="mt-7 text-sm font-medium text-[var(--musai-ink)]">Analyzing…</p>
         </div>
       )}
 
@@ -344,30 +344,24 @@ export function IntonationUpload() {
             className="pointer-events-none absolute inset-0 overflow-hidden rounded-[1.5rem]"
             aria-hidden
           >
-            <div className="absolute bottom-4 left-3 top-4 w-[2px] rounded-full bg-gradient-to-b from-emerald-400/55 via-sky-400/40 to-violet-500/35" />
+            <div className="absolute bottom-4 left-3 top-4 w-[2px] rounded-full bg-gradient-to-b from-[var(--musai-accent)] via-[color-mix(in_srgb,var(--musai-accent)_60%,var(--musai-accent-2))] to-[var(--musai-accent-2)]" />
           </div>
 
           <div className="relative z-[2] grid gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.08fr)]">
             {/* Target pitch */}
-            <div className="flex flex-col overflow-visible border-b border-white/[0.06] p-6 pt-7 sm:p-8 sm:pt-9 lg:border-b-0 lg:border-r lg:border-white/[0.06]">
+            <div className="flex flex-col overflow-visible border-b border-[var(--musai-border)] p-6 pt-7 sm:p-8 sm:pt-9 lg:border-b-0 lg:border-r lg:border-[var(--musai-border)]">
               <div className="flex items-start justify-between gap-3 pr-1 pt-0.5">
                 <div className="min-w-0">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.26em] text-emerald-400/90">
+                  <h2 className="text-base font-semibold tracking-tight text-[var(--musai-ink)]">
                     Target
-                  </p>
-                  <h2 className="mt-2 text-base font-semibold tracking-tight text-white">
-                    Note
                   </h2>
-                  <p className="mt-1.5 text-[12px] leading-snug text-zinc-500">
-                    Optional helper. The same letter in any octave still counts.
-                  </p>
                 </div>
                 <ReferenceToneHelpButton />
               </div>
 
               <div className="relative mt-7 flex min-h-0 flex-1 items-center justify-center py-4 sm:py-6">
                 <div
-                  className="pointer-events-none absolute left-1/2 top-1/2 h-[min(92vw,380px)] w-[min(92vw,380px)] max-w-full -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-400/[0.09] blur-[72px]"
+                  className="pointer-events-none absolute left-1/2 top-1/2 h-[min(92vw,380px)] w-[min(92vw,380px)] max-w-full -translate-x-1/2 -translate-y-1/2 rounded-full bg-[color-mix(in_srgb,var(--musai-accent)_9%,transparent)] blur-[72px]"
                   aria-hidden
                 />
                 <div className="relative z-[1] flex w-full justify-center">
@@ -384,11 +378,8 @@ export function IntonationUpload() {
             <div className="flex flex-col p-6 sm:p-8">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.26em] text-sky-400/90">
-                    Capture
-                  </p>
-                  <h2 className="mt-2 text-base font-semibold tracking-tight text-white">
-                    Audio
+                  <h2 className="text-base font-semibold tracking-tight text-[var(--musai-ink)]">
+                    Record
                   </h2>
                 </div>
                 <IntonationRecordingHelpButton />
@@ -410,12 +401,12 @@ export function IntonationUpload() {
               <div className="mt-7 min-h-0 flex-1 sm:mt-8">
                 {inputMode === "upload" ? (
                   <div
-                    className={`overflow-hidden rounded-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-[border-color,background-color,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
+                    className={`overflow-hidden rounded-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] transition-[border-color,background-color,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
                       uploadProcessing
-                        ? "border border-sky-400/30 bg-sky-400/[0.055] shadow-[0_0_48px_rgba(56,189,248,0.12),inset_0_1px_0_rgba(255,255,255,0.08)]"
+                        ? "border border-[color-mix(in_srgb,var(--musai-accent)_35%,var(--musai-border))] bg-[var(--musai-accent-soft)]"
                         : file
-                          ? "border border-emerald-500/20 bg-white/[0.045] shadow-[0_0_32px_rgba(16,185,129,0.06),inset_0_1px_0_rgba(255,255,255,0.07)]"
-                          : "border border-dashed border-white/[0.14] bg-white/[0.03] hover:border-sky-400/35 hover:bg-white/[0.05]"
+                          ? "border border-[color-mix(in_srgb,var(--musai-ok)_30%,var(--musai-border))] bg-[var(--musai-surface)]"
+                          : "border border-dashed border-[var(--musai-border)] bg-[var(--musai-surface)] hover:border-[color-mix(in_srgb,var(--musai-accent)_40%,var(--musai-border))] hover:bg-[var(--musai-surface-2)]"
                     }`}
                   >
                     {file ? (
@@ -434,14 +425,11 @@ export function IntonationUpload() {
                             variant="compact"
                             className="mb-2"
                           />
-                          <span className="text-sm font-semibold tracking-tight text-sky-100/95">
-                            Reading your waveform…
+                          <span className="text-sm font-semibold tracking-tight text-[var(--musai-ink)]">
+                            Reading…
                           </span>
-                          <span className="mt-2 max-w-full truncate px-2 text-center text-xs text-zinc-400">
+                          <span className="mt-2 max-w-full truncate px-2 text-center text-xs text-[var(--musai-muted)]">
                             {file.name}
-                          </span>
-                          <span className="mt-2 text-center text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">
-                            Decoding audio buffer
                           </span>
                         </div>
                         <label
@@ -449,9 +437,9 @@ export function IntonationUpload() {
                             uploadProcessing
                               ? "pointer-events-none relative z-0 min-h-[220px] -translate-y-2 opacity-0 blur-[1px] motion-reduce:blur-none sm:min-h-[240px]"
                               : "relative z-10 min-h-[220px] translate-y-0 opacity-100 sm:min-h-[240px]"
-                          } hover:bg-white/[0.03]`}
+                          } hover:bg-[var(--musai-surface-2)]`}
                         >
-                          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400/95 ring-1 ring-emerald-400/25 transition-transform duration-500 ease-out motion-reduce:transition-none group-hover:scale-[1.06]">
+                          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--musai-accent-soft)] text-[var(--musai-ok)] ring-1 ring-[color-mix(in_srgb,var(--musai-ok)_25%,transparent)] transition-transform duration-500 ease-out motion-reduce:transition-none group-hover:scale-[1.06]">
                             <svg
                               viewBox="0 0 24 24"
                               className="h-5 w-5"
@@ -467,14 +455,11 @@ export function IntonationUpload() {
                               />
                             </svg>
                           </span>
-                          <span className="mt-3 text-sm font-semibold text-emerald-200/95">
-                            Audio ready
+                          <span className="mt-3 text-sm font-semibold text-[var(--musai-ok)]">
+                            Ready
                           </span>
-                          <span className="mt-2 max-w-full truncate px-2 text-center text-xs text-zinc-400">
+                          <span className="mt-2 max-w-full truncate px-2 text-center text-xs text-[var(--musai-muted)]">
                             {file.name}
-                          </span>
-                          <span className="mt-2 text-center text-[11px] text-zinc-500">
-                            Tap to replace this file
                           </span>
                           <input
                             ref={fileInputRef}
@@ -486,12 +471,9 @@ export function IntonationUpload() {
                         </label>
                       </div>
                     ) : (
-                      <label className="flex min-h-[220px] cursor-pointer flex-col items-center justify-center px-4 py-8 transition-colors duration-300 hover:bg-white/[0.04] sm:min-h-[240px]">
-                        <span className="text-sm font-semibold text-zinc-200">
-                          Choose an audio file
-                        </span>
-                        <span className="mt-2 text-center text-xs leading-relaxed text-zinc-500">
-                          WAV, MP3, M4A, and other common formats
+                      <label className="flex min-h-[220px] cursor-pointer flex-col items-center justify-center px-4 py-8 transition-colors duration-300 hover:bg-[var(--musai-surface-2)] sm:min-h-[240px]">
+                        <span className="text-sm font-semibold text-[var(--musai-ink)]">
+                          Import audio
                         </span>
                         <input
                           ref={fileInputRef}
@@ -530,25 +512,27 @@ export function IntonationUpload() {
 
               {message && status === "error" ? (
                 <p
-                  className="musai-glass-inset mt-5 border-rose-500/20 bg-rose-500/[0.06] px-4 py-3 text-center text-sm leading-relaxed text-rose-100/90"
+                  className="musai-glass-inset mt-5 border-[color-mix(in_srgb,var(--musai-accent-2)_30%,var(--musai-border))] bg-[color-mix(in_srgb,var(--musai-accent-2)_8%,white)] px-4 py-3 text-center text-sm leading-relaxed text-[var(--musai-accent-2)]"
                   role="alert"
                 >
                   {message}
                 </p>
               ) : null}
 
-              <button
-                type="button"
-                disabled={!canAnalyze}
-                onClick={() => void analyze()}
-                className={`musai-btn-primary mt-8 ${
-                  inputMode === "record" && recordedBlob
-                    ? "ring-1 ring-emerald-300/20"
-                    : ""
-                }`}
-              >
-                {status === "loading" ? "Working…" : "Analyze"}
-              </button>
+              <div className="mt-8 flex justify-center">
+                <button
+                  type="button"
+                  disabled={!canAnalyze}
+                  onClick={() => void analyze()}
+                  className={`musai-btn-primary ${
+                    inputMode === "record" && recordedBlob
+                      ? "ring-1 ring-[color-mix(in_srgb,var(--musai-ok)_25%,transparent)]"
+                      : ""
+                  }`}
+                >
+                  {status === "loading" ? "Working…" : "Analyse"}
+                </button>
+              </div>
             </div>
           </div>
         </div>

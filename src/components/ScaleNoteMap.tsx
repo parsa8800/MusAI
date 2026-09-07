@@ -45,7 +45,7 @@ function NoteRow({
   if (notes.length === 0) return null;
   return (
     <div className="w-full space-y-3">
-      <p className="text-center text-[10px] font-semibold uppercase tracking-[0.28em] text-zinc-500">
+      <p className="text-center text-[10px] font-semibold uppercase tracking-[0.28em] text-[var(--musai-muted)]">
         {label}
       </p>
       <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">
@@ -69,15 +69,15 @@ export function ScaleNoteMap({
 }) {
   return (
     <div className="w-full space-y-8">
-      <div className="flex flex-wrap items-center justify-center gap-4 text-[11px] text-zinc-400">
+      <div className="flex flex-wrap items-center justify-center gap-4 text-[11px] text-[var(--musai-muted)]">
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-full bg-emerald-500" /> On pitch
+          <span className="h-3 w-3 rounded-full bg-[var(--musai-ok)]" /> On pitch
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-full bg-yellow-400" /> Slightly off
+          <span className="h-3 w-3 rounded-full bg-[var(--musai-warn)]" /> Slightly off
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-full bg-red-500" /> Out of tune
+          <span className="h-3 w-3 rounded-full bg-[var(--musai-accent-2)]" /> Out of tune
         </span>
       </div>
       <NoteRow label="Ascending" notes={ascending} />

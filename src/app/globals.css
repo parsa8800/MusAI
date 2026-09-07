@@ -2,59 +2,79 @@
 @import "@vexflow-fonts/bravura/index.css";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f6f3ee;
+  --foreground: #1c1917;
+  --musai-bg: #f6f3ee;
+  --musai-surface: #fffcf8;
+  --musai-surface-2: #f3efe8;
+  --musai-ink: #1c1917;
+  --musai-muted: #78716c;
+  --musai-border: #e7e2da;
+  --musai-accent: #2f6f5e;
+  --musai-accent-soft: #e8f2ee;
+  --musai-accent-2: #c45c4a;
+  --musai-ok: #3d7a5f;
+  --musai-warn: #b45309;
+  --musai-danger: #c45c4a;
+  /* Scale key families — soft wash, not loud accent */
+  --musai-key-flat: #4a6fa5;
+  --musai-key-flat-soft: #eef2f8;
+  --musai-key-sharp: #a67c52;
+  --musai-key-sharp-soft: #f7f1ea;
+  --musai-key-natural: #5c574f;
+  --musai-key-natural-soft: #f0ece6;
+  --musai-radius: 0.75rem;
+  --musai-radius-lg: 0.875rem;
+  --musai-shadow: 0 1px 2px rgba(28, 25, 23, 0.04),
+    0 8px 24px rgba(28, 25, 23, 0.05);
+  --musai-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --musai-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --musai-ease-morph: cubic-bezier(0.45, 0, 0.2, 1);
+  --musai-dur: 280ms;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-musai-bg: var(--musai-bg);
+  --color-musai-surface: var(--musai-surface);
+  --color-musai-ink: var(--musai-ink);
+  --color-musai-muted: var(--musai-muted);
+  --color-musai-border: var(--musai-border);
+  --color-musai-accent: var(--musai-accent);
+  --color-musai-accent-2: var(--musai-accent-2);
+  --font-sans: var(--font-source-sans);
+  --font-display: var(--font-fraunces);
+  --font-mono: var(--font-source-sans);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  background: var(--musai-bg);
+  color: var(--musai-ink);
+  font-family: var(--font-source-sans), system-ui, sans-serif;
 }
 
 html {
-  /* Keep width stable when page height crosses the scrollbar threshold. */
   scrollbar-gutter: stable;
+  color-scheme: light;
 }
 
-/* Dark app shell: soft glassy ambient light (minimal, professional). */
-/*
- * MusAI wordmark — gradient is ONLY on text (background-clip: text + transparent fill).
- * Glow uses filter on .musai-wordmark-glow only (never on clipped text nodes).
- */
+/* ─── Wordmark ─── */
 .musai-wordmark-glow {
   display: inline-block;
   overflow: visible;
-  filter: drop-shadow(0 0 36px rgba(45, 212, 191, 0.2))
-    drop-shadow(0 0 72px rgba(34, 211, 238, 0.12))
-    drop-shadow(0 0 120px rgba(16, 185, 129, 0.07))
-    drop-shadow(0 3px 18px rgba(0, 0, 0, 0.4));
 }
 
 .musai-hero-brand {
   position: relative;
   z-index: 2;
   opacity: 0;
-  transform: translateY(14px);
+  transform: translateY(12px);
 }
 
 @media (prefers-reduced-motion: no-preference) {
   .musai-hero-brand {
-    animation: musai-hero-fade-rise 0.78s cubic-bezier(0.22, 1, 0.36, 1) 0.08s forwards;
+    animation: musai-hero-fade-rise 0.7s var(--musai-ease-out) 0.06s forwards;
   }
 }
 
@@ -68,7 +88,7 @@ html {
 @keyframes musai-hero-fade-rise {
   from {
     opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
@@ -82,266 +102,111 @@ html {
   align-items: baseline;
   white-space: nowrap;
   line-height: 1;
-  font-weight: 800;
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-weight: 600;
   letter-spacing: -0.03em;
   margin: 0;
-  overflow: visible;
+  color: var(--musai-ink);
 }
 
-.musai-wordmark__mus,
-.musai-wordmark__ai {
-  font-weight: inherit;
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
-  -webkit-text-fill-color: transparent;
-}
-
-/* Mus — extra stops for smoother fill (less banding on large glyphs) */
 .musai-wordmark__mus {
-  letter-spacing: -0.035em;
-  background-image: linear-gradient(
-    125deg,
-    #f0fdf4 0%,
-    #bbf7d0 18%,
-    #86efac 38%,
-    #6ee7b7 54%,
-    #34d399 72%,
-    #1ba896 88%,
-    #14b8a6 100%
-  );
+  color: var(--musai-ink);
 }
 
-/* AI — seam + cyan / ice with gradual handoff */
 .musai-wordmark__ai {
-  letter-spacing: -0.025em;
   margin-left: -0.02em;
-  background-image: linear-gradient(
-    125deg,
-    #14b8a6 0%,
-    #1bb8a8 14%,
-    #2dd4bf 32%,
-    #22d3ee 52%,
-    #38bdf8 72%,
-    #bae6fd 92%,
-    #f0f9ff 100%
-  );
+  color: var(--musai-accent);
 }
 
-/* App shell: solid fallback under AmbientBackground (OKLCH layers + blur live in component) */
 body.musai-app-body {
   position: relative;
   isolation: isolate;
-  background-color: #030712;
-  background-color: oklch(0.072 0.016 263);
+  background-color: var(--musai-bg);
   min-height: 100%;
-  --musai-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --musai-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
-  --musai-ease-morph: cubic-bezier(0.45, 0, 0.2, 1);
-  --musai-dur: 280ms;
+  color: var(--musai-ink);
 }
 
-/* Frosted glass: one soft radial sheen (no crossed linear gradients = no “sections”) */
+/* ─── Surfaces (keep class names; light behavior) ─── */
 .musai-glass-panel {
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  border-radius: 1.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background-color: rgba(255, 255, 255, 0.042);
-  background-image: radial-gradient(
-    in oklch,
-    ellipse 130% 95% at 50% -32%,
-    oklch(0.99 0.005 260 / 0.09) 0%,
-    oklch(0.92 0.004 265 / 0.045) 38%,
-    oklch(0.55 0.003 265 / 0.02) 62%,
-    oklch(0.25 0.01 265 / 0.07) 100%
-  );
-  backdrop-filter: blur(32px) saturate(1.35);
-  -webkit-backdrop-filter: blur(32px) saturate(1.35);
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.14),
-    inset 0 -1px 0 0 rgba(255, 255, 255, 0.035),
-    0 22px 56px -14px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(255, 255, 255, 0.045);
+  border-radius: var(--musai-radius-lg);
+  border: 1px solid var(--musai-border);
+  background-color: var(--musai-surface);
+  box-shadow: var(--musai-shadow);
   transition: box-shadow var(--musai-dur) var(--musai-ease-out),
     border-color var(--musai-dur) ease, transform var(--musai-dur) var(--musai-ease-out);
 }
 
-.musai-glass-panel::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.22) 48%,
-    rgba(255, 255, 255, 0.32) 50%,
-    rgba(255, 255, 255, 0.22) 52%,
-    transparent 100%
-  );
-  opacity: 0.65;
-  pointer-events: none;
-  z-index: 1;
-}
-
-/* Use with .musai-glass-panel on hub exercise links */
 .musai-glass-panel.musai-glass-card {
   transform: translateZ(0);
-  transition: transform 300ms cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 300ms cubic-bezier(0.22, 1, 0.36, 1),
-    border-color 300ms ease;
+  transition: transform 280ms var(--musai-ease-out),
+    box-shadow 280ms var(--musai-ease-out), border-color 280ms ease;
 }
 
 .musai-glass-panel.musai-glass-card:hover {
-  transform: translateY(-3px) scale(1.025);
-  border-color: rgba(255, 255, 255, 0.18);
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.18),
-    inset 0 -1px 0 0 rgba(255, 255, 255, 0.06),
-    0 36px 88px -22px rgba(0, 0, 0, 0.55),
-    0 0 56px -12px rgba(255, 255, 255, 0.06),
-    0 0 0 1px rgba(255, 255, 255, 0.06);
-}
-
-.musai-glass-panel.musai-glass-card.musai-glass-card--emerald:hover {
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.18),
-    inset 0 -1px 0 0 rgba(255, 255, 255, 0.06),
-    0 36px 88px -22px rgba(0, 0, 0, 0.55),
-    0 0 56px -12px rgba(52, 211, 153, 0.12),
-    0 0 0 1px rgba(255, 255, 255, 0.06);
-}
-
-.musai-glass-panel.musai-glass-card.musai-glass-card--sky:hover {
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.18),
-    inset 0 -1px 0 0 rgba(255, 255, 255, 0.06),
-    0 36px 88px -22px rgba(0, 0, 0, 0.55),
-    0 0 56px -12px rgba(56, 189, 248, 0.14),
-    0 0 0 1px rgba(255, 255, 255, 0.06);
-}
-
-.musai-glass-panel.musai-glass-card.musai-glass-card--amber:hover {
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.18),
-    inset 0 -1px 0 0 rgba(255, 255, 255, 0.06),
-    0 36px 88px -22px rgba(0, 0, 0, 0.55),
-    0 0 56px -12px rgba(251, 191, 36, 0.14),
-    0 0 0 1px rgba(255, 255, 255, 0.06);
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--musai-accent) 28%, var(--musai-border));
+  box-shadow: 0 2px 4px rgba(28, 25, 23, 0.04),
+    0 12px 28px rgba(28, 25, 23, 0.07);
 }
 
 .musai-glass-panel.musai-glass-card:active {
-  transform: translateY(-1px) scale(0.992);
+  transform: translateY(0) scale(0.995);
   transition-duration: 120ms;
 }
 
-/* Muted glass (coming soon) — same smooth treatment, dimmer */
 .musai-glass-panel.musai-glass-panel--muted {
   border-style: dashed;
-  border-color: rgba(255, 255, 255, 0.1);
-  background-color: rgba(0, 0, 0, 0.1);
-  background-image: radial-gradient(
-    in oklch,
-    ellipse 125% 90% at 50% -28%,
-    oklch(0.95 0.004 265 / 0.045) 0%,
-    oklch(0.45 0.003 265 / 0.018) 55%,
-    oklch(0.18 0.008 265 / 0.12) 100%
-  );
-  opacity: 0.92;
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.08),
-    0 20px 56px -20px rgba(0, 0, 0, 0.48),
-    0 0 0 1px rgba(255, 255, 255, 0.04);
+  border-color: var(--musai-border);
+  background-color: var(--musai-surface-2);
+  opacity: 1;
+  box-shadow: none;
 }
 
-/* Large studio / step surfaces — liquid glass, overflow OK for rings */
 .musai-glass-surface {
   position: relative;
   isolation: isolate;
   overflow: visible;
-  border-radius: 1.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background-color: rgba(255, 255, 255, 0.034);
-  background-image: radial-gradient(
-    in oklch,
-    ellipse 125% 92% at 50% -30%,
-    oklch(0.98 0.004 260 / 0.07) 0%,
-    oklch(0.82 0.003 265 / 0.038) 42%,
-    oklch(0.48 0.003 265 / 0.02) 64%,
-    oklch(0.2 0.012 265 / 0.075) 100%
-  );
-  backdrop-filter: blur(28px) saturate(1.28);
-  -webkit-backdrop-filter: blur(28px) saturate(1.28);
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.13),
-    inset 0 -1px 0 0 rgba(255, 255, 255, 0.03),
-    0 20px 50px -14px rgba(0, 0, 0, 0.46),
-    0 0 0 1px rgba(255, 255, 255, 0.04);
+  border-radius: var(--musai-radius-lg);
+  border: 1px solid var(--musai-border);
+  background-color: var(--musai-surface);
+  box-shadow: var(--musai-shadow);
 }
 
-.musai-glass-surface::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: 1px;
-  border-radius: 1.5rem 1.5rem 0 0;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.16) 50%,
-    transparent 100%
-  );
-  opacity: 0.55;
-  pointer-events: none;
-  z-index: 1;
-}
-
-/* Nested inset panels (capture zones, mic panel) */
 .musai-glass-inset {
   position: relative;
-  border-radius: 1.125rem;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(0, 0, 0, 0.14);
-  backdrop-filter: blur(22px) saturate(1.15);
-  -webkit-backdrop-filter: blur(22px) saturate(1.15);
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.055);
+  border-radius: var(--musai-radius);
+  border: 1px solid var(--musai-border);
+  background: var(--musai-surface-2);
+  box-shadow: none;
 }
 
-/* Native selects — soft glass, minimal chrome */
 .musai-field-select {
   width: 100%;
   cursor: pointer;
   appearance: none;
-  border-radius: 0.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  background: rgba(255, 255, 255, 0.045);
+  border-radius: var(--musai-radius);
+  border: 1px solid var(--musai-border);
+  background: var(--musai-surface);
   padding: 0.65rem 2.25rem 0.65rem 0.8rem;
   font-size: 0.8125rem;
-  font-weight: 400;
+  font-weight: 500;
   line-height: 1.35;
-  color: #e4e4e7;
-  backdrop-filter: blur(18px) saturate(1.12);
-  -webkit-backdrop-filter: blur(18px) saturate(1.12);
-  transition:
-    background-color 220ms var(--musai-ease-out),
+  color: var(--musai-ink);
+  transition: background-color 220ms var(--musai-ease-out),
     border-color 220ms ease;
 }
 
 .musai-field-select:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.1);
+  border-color: color-mix(in srgb, var(--musai-ink) 18%, var(--musai-border));
 }
 
 .musai-field-select:focus {
   outline: none;
-  border-color: rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.065);
+  border-color: var(--musai-accent);
+  box-shadow: 0 0 0 3px var(--musai-accent-soft);
 }
 
 .musai-field-select:disabled {
@@ -349,20 +214,18 @@ body.musai-app-body {
   opacity: 0.45;
 }
 
-/* Segmented control (capture source, scale type, …) */
+/* Segmented control */
 .musai-segmented {
   display: inline-flex;
   width: 100%;
   max-width: 20rem;
   align-items: stretch;
-  gap: 0.1875rem;
+  gap: 0.125rem;
   padding: 0.1875rem;
-  border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  background: rgba(0, 0, 0, 0.2);
-  backdrop-filter: blur(20px) saturate(1.2);
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+  border-radius: var(--musai-radius);
+  border: 1px solid var(--musai-border);
+  background: var(--musai-surface-2);
+  box-shadow: none;
 }
 
 .musai-segmented--compact {
@@ -371,21 +234,18 @@ body.musai-app-body {
 
 .musai-segmented__tab {
   flex: 1;
-  border-radius: 9999px;
+  border-radius: calc(var(--musai-radius) - 2px);
   padding: 0.625rem 0.5rem;
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 550;
   line-height: 1.2;
-  color: rgba(161, 161, 170, 0.96);
+  color: var(--musai-muted);
   background: transparent;
   border: 1px solid transparent;
   cursor: pointer;
-  transition:
-    color 260ms var(--musai-ease-out),
-    background-color 260ms var(--musai-ease-out),
-    border-color 260ms ease,
-    box-shadow 260ms ease,
-    transform 200ms var(--musai-ease-out);
+  transition: color 220ms var(--musai-ease-out),
+    background-color 220ms var(--musai-ease-out), border-color 220ms ease,
+    transform 180ms var(--musai-ease-out);
 }
 
 .musai-segmented--compact .musai-segmented__tab {
@@ -395,16 +255,16 @@ body.musai-app-body {
 }
 
 .musai-segmented__tab:hover {
-  color: rgba(212, 212, 216, 0.96);
+  color: var(--musai-ink);
 }
 
 .musai-segmented__tab:active {
-  transform: scale(0.97);
+  transform: scale(0.98);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .musai-segmented__tab {
-    transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease;
+    transition: color 180ms ease, background-color 180ms ease;
   }
   .musai-segmented__tab:active {
     transform: none;
@@ -412,97 +272,212 @@ body.musai-app-body {
 }
 
 .musai-segmented__tab[aria-selected="true"] {
-  color: #fafafa;
-  border-color: rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.1);
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.12),
-    0 3px 16px rgba(0, 0, 0, 0.12);
+  color: var(--musai-accent);
+  border-color: color-mix(in srgb, var(--musai-accent) 28%, var(--musai-border));
+  background: var(--musai-accent-soft);
+  box-shadow: none;
+  font-weight: 650;
 }
 
-/* Tonic / filter chips */
+/* Chips */
 .musai-chip {
-  border-radius: 9999px;
+  border-radius: var(--musai-radius);
   padding: 0.5rem 0.9rem;
   font-size: 0.875rem;
   font-weight: 500;
   line-height: 1.25;
   border: 1px solid transparent;
   cursor: pointer;
-  transition:
-    background-color 260ms var(--musai-ease-out),
-    color 260ms ease,
-    border-color 260ms ease,
-    box-shadow 260ms ease,
-    transform 200ms var(--musai-ease-out);
+  transition: background-color 220ms var(--musai-ease-out), color 220ms ease,
+    border-color 220ms ease, transform 180ms var(--musai-ease-out);
 }
 
 .musai-chip:hover {
-  transform: scale(1.02);
+  transform: none;
 }
 
 .musai-chip:active {
-  transform: scale(0.97);
+  transform: scale(0.98);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .musai-chip:hover,
   .musai-chip:active {
     transform: none;
   }
 }
 
 .musai-chip--off {
-  background: rgba(0, 0, 0, 0.22);
-  color: rgba(161, 161, 170, 0.95);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: var(--musai-surface-2);
+  color: var(--musai-muted);
+  border-color: var(--musai-border);
 }
 
 .musai-chip--off:hover {
-  color: rgba(228, 228, 231, 0.96);
-  background: rgba(0, 0, 0, 0.3);
+  color: var(--musai-ink);
+  background: var(--musai-surface);
 }
 
 .musai-chip--on {
-  background: rgba(255, 255, 255, 0.11);
-  border-color: rgba(255, 255, 255, 0.13);
-  color: #fafafa;
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.11),
-    0 2px 12px rgba(0, 0, 0, 0.15);
+  background: var(--musai-accent-soft);
+  border-color: color-mix(in srgb, var(--musai-accent) 35%, var(--musai-border));
+  color: var(--musai-accent);
+  box-shadow: none;
 }
 
-/* Scale Studio tonic chips — stronger selected state */
+/* Scale Studio key picker */
+.musai-key-board {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem 0.5rem;
+  padding: 0.55rem;
+  border-radius: var(--musai-radius-lg);
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--musai-key-flat-soft) 88%, transparent) 0%,
+      color-mix(in srgb, var(--musai-key-flat-soft) 88%, transparent) 49.5%,
+      color-mix(in srgb, var(--musai-key-sharp-soft) 88%, transparent) 50.5%,
+      color-mix(in srgb, var(--musai-key-sharp-soft) 88%, transparent) 100%
+    );
+  border: 1px solid var(--musai-border);
+}
+
+.musai-key-natural-slot {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0.15rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--musai-border) 80%, transparent);
+}
+
+.musai-key-col-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0 0.35rem;
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+}
+
+.musai-key-col-head--flat {
+  color: var(--musai-key-flat);
+}
+
+.musai-key-col-head--sharp {
+  color: var(--musai-key-sharp);
+}
+
+.musai-key-btn {
+  display: inline-flex;
+  width: 100%;
+  min-height: 2.65rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--musai-radius);
+  border: 1px solid transparent;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background-color 200ms var(--musai-ease-out),
+    border-color 200ms ease,
+    color 200ms ease,
+    box-shadow 200ms ease,
+    transform 160ms var(--musai-ease-out);
+}
+
+.musai-key-btn:active {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .musai-key-btn:active {
+    transform: none;
+  }
+}
+
+.musai-key-btn--flat {
+  background: var(--musai-key-flat-soft);
+  border-color: color-mix(in srgb, var(--musai-key-flat) 18%, var(--musai-border));
+  color: var(--musai-key-flat);
+}
+
+.musai-key-btn--flat:hover {
+  border-color: color-mix(in srgb, var(--musai-key-flat) 35%, var(--musai-border));
+  background: color-mix(in srgb, var(--musai-key-flat-soft) 70%, white);
+}
+
+.musai-key-btn--sharp {
+  background: var(--musai-key-sharp-soft);
+  border-color: color-mix(in srgb, var(--musai-key-sharp) 18%, var(--musai-border));
+  color: var(--musai-key-sharp);
+}
+
+.musai-key-btn--sharp:hover {
+  border-color: color-mix(in srgb, var(--musai-key-sharp) 35%, var(--musai-border));
+  background: color-mix(in srgb, var(--musai-key-sharp-soft) 70%, white);
+}
+
+.musai-key-btn--natural {
+  max-width: 5.5rem;
+  min-height: 2.85rem;
+  background: var(--musai-key-natural-soft);
+  border-color: color-mix(in srgb, var(--musai-key-natural) 16%, var(--musai-border));
+  color: var(--musai-key-natural);
+  font-size: 1.05rem;
+}
+
+.musai-key-btn--natural:hover {
+  border-color: color-mix(in srgb, var(--musai-key-natural) 32%, var(--musai-border));
+}
+
+.musai-key-btn[aria-pressed="true"] {
+  box-shadow: 0 0 0 2px var(--musai-surface), 0 0 0 3.5px currentColor;
+  font-weight: 700;
+}
+
+.musai-key-btn--flat[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--musai-key-flat) 14%, white);
+  border-color: color-mix(in srgb, var(--musai-key-flat) 45%, var(--musai-border));
+  color: var(--musai-key-flat);
+}
+
+.musai-key-btn--sharp[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--musai-key-sharp) 14%, white);
+  border-color: color-mix(in srgb, var(--musai-key-sharp) 45%, var(--musai-border));
+  color: var(--musai-key-sharp);
+}
+
+.musai-key-btn--natural[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--musai-key-natural) 12%, white);
+  border-color: color-mix(in srgb, var(--musai-key-natural) 40%, var(--musai-border));
+  color: var(--musai-ink);
+}
+
 .musai-studio-tonic {
-  border-radius: 1rem;
-  min-height: 3.35rem;
+  border-radius: var(--musai-radius);
+  min-height: 3.1rem;
 }
 
 .musai-studio-tonic--on {
-  border-color: rgba(56, 189, 248, 0.28);
-  background: rgba(56, 189, 248, 0.1);
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.1),
-    0 0 0 1px rgba(56, 189, 248, 0.12),
-    0 6px 20px rgba(14, 165, 233, 0.12);
+  border-color: color-mix(in srgb, var(--musai-accent) 40%, var(--musai-border));
+  background: var(--musai-accent-soft);
+  color: var(--musai-accent);
+  box-shadow: none;
 }
 
-/* Written-notes empty / closed prompt */
 .musai-studio-notes-prompt {
-  border-radius: 1.25rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background:
-    radial-gradient(
-      ellipse 90% 80% at 50% 0%,
-      rgba(56, 189, 248, 0.07) 0%,
-      transparent 70%
-    ),
-    rgba(255, 255, 255, 0.03);
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+  border-radius: var(--musai-radius-lg);
+  border: 1px solid var(--musai-border);
+  background: var(--musai-surface);
+  box-shadow: var(--musai-shadow);
 }
 
-/* Capture status pill */
 .musai-studio-status {
   display: inline-flex;
   align-items: center;
@@ -511,24 +486,23 @@ body.musai-app-body {
   padding: 0.2rem 0.55rem;
   font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 .musai-studio-status--idle {
-  color: rgba(161, 161, 170, 0.95);
-  background: rgba(255, 255, 255, 0.04);
+  color: var(--musai-muted);
+  background: var(--musai-surface-2);
 }
 
 .musai-studio-status--live {
-  color: rgba(254, 202, 202, 0.95);
-  background: rgba(255, 59, 48, 0.12);
-  box-shadow: 0 0 16px rgba(255, 59, 48, 0.12);
+  color: var(--musai-accent-2);
+  background: color-mix(in srgb, var(--musai-accent-2) 12%, white);
 }
 
 .musai-studio-status--ready {
-  color: rgba(167, 243, 208, 0.95);
-  background: rgba(16, 185, 129, 0.12);
+  color: var(--musai-ok);
+  background: var(--musai-accent-soft);
 }
 
 .musai-studio-status__dot {
@@ -554,30 +528,56 @@ body.musai-app-body {
   }
 }
 
-/* Primary CTA (analyze, etc.) */
 .musai-btn-primary {
-  width: 100%;
-  border-radius: 9999px;
-  padding: 0.875rem 1.25rem;
+  display: inline-flex;
+  width: auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--musai-radius);
+  padding: 0.7rem 1.35rem;
   font-size: 0.875rem;
   font-weight: 600;
   line-height: 1.25;
-  color: oklch(0.14 0.02 265);
-  background: linear-gradient(
-    to bottom,
-    oklch(0.78 0.14 155),
-    oklch(0.6 0.16 155)
-  );
-  border: 1px solid rgba(52, 211, 153, 0.32);
-  box-shadow:
-    0 10px 28px rgba(16, 185, 129, 0.2),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.28);
+  color: #fffcf8;
+  background: var(--musai-accent);
+  border: 1px solid color-mix(in srgb, var(--musai-accent) 80%, black);
+  box-shadow: 0 1px 2px rgba(28, 25, 23, 0.06);
   cursor: pointer;
-  transition:
-    filter 240ms var(--musai-ease-out),
-    transform 200ms var(--musai-ease-out),
-    opacity 200ms ease,
-    box-shadow 240ms var(--musai-ease-out);
+  transition: filter 220ms var(--musai-ease-out),
+    transform 180ms var(--musai-ease-out), opacity 180ms ease,
+    background-color 220ms ease;
+}
+
+.musai-btn-primary--block {
+  width: 100%;
+}
+
+.musai-btn-secondary {
+  display: inline-flex;
+  width: auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--musai-radius);
+  padding: 0.7rem 1.35rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--musai-ink);
+  background: var(--musai-surface);
+  border: 1px solid var(--musai-border);
+  box-shadow: var(--musai-shadow);
+  cursor: pointer;
+  transition: background-color 200ms ease, border-color 200ms ease,
+    transform 180ms var(--musai-ease-out);
+}
+
+.musai-btn-secondary:hover {
+  background: var(--musai-surface-2);
+  border-color: color-mix(in srgb, var(--musai-accent) 22%, var(--musai-border));
+}
+
+.musai-btn-secondary:active {
+  transform: scale(0.985);
 }
 
 .musai-btn-primary:hover:not(:disabled) {
@@ -590,7 +590,7 @@ body.musai-app-body {
 }
 
 .musai-btn-primary:disabled {
-  opacity: 0.36;
+  opacity: 0.4;
   cursor: not-allowed;
   box-shadow: none;
   filter: none;
@@ -598,32 +598,31 @@ body.musai-app-body {
 
 @media (prefers-reduced-motion: reduce) {
   .musai-btn-primary:hover:not(:disabled),
-  .musai-btn-primary:active:not(:disabled) {
+  .musai-btn-primary:active:not(:disabled),
+  .musai-btn-secondary:active {
     transform: none;
   }
 }
 
-/* Voice Memos record core morph */
+/* Voice Memos record core */
 .musai-vm-core {
   position: relative;
   display: block;
   width: var(--musai-vm-core-idle, 72px);
   height: var(--musai-vm-core-idle, 72px);
   border-radius: 9999px;
-  background-color: #ff3b30;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.24);
-  transition:
-    width 420ms var(--musai-ease-morph),
+  background-color: var(--musai-accent-2);
+  box-shadow: 0 1px 2px rgba(28, 25, 23, 0.12);
+  transition: width 420ms var(--musai-ease-morph),
     height 420ms var(--musai-ease-morph),
-    border-radius 420ms var(--musai-ease-morph),
-    box-shadow 320ms ease;
+    border-radius 420ms var(--musai-ease-morph), box-shadow 320ms ease;
 }
 
 .musai-vm-core[data-recording="true"] {
   width: var(--musai-vm-core-rec, 26px);
   height: var(--musai-vm-core-rec, 26px);
   border-radius: var(--musai-vm-core-rec-radius, 5px);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 1px 3px rgba(28, 25, 23, 0.16);
 }
 
 .musai-vm-trigger {
@@ -648,27 +647,24 @@ body.musai-app-body {
 }
 
 .musai-vm-trigger--studio {
-  /* Slightly stronger idle affordance for Scale Studio */
-  filter: drop-shadow(0 6px 16px rgba(255, 59, 48, 0.14));
+  filter: none;
 }
 
 .musai-vm-trigger--studio[data-recording="true"] {
-  filter: drop-shadow(0 0 12px rgba(255, 59, 48, 0.32));
+  filter: none;
 }
 
 .musai-vm-trigger:focus-visible {
-  box-shadow: 0 0 0 2px oklch(0.2 0.02 265), 0 0 0 4px rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 0 2px var(--musai-surface), 0 0 0 4px var(--musai-accent);
 }
 
-/* Soft pulse ring while recording (transform/opacity only). */
 .musai-vm-rec-ring {
   pointer-events: none;
   position: absolute;
   inset: 8%;
   border-radius: 9999px;
-  border: 1.5px solid rgba(255, 59, 48, 0.55);
-  box-shadow: 0 0 18px rgba(255, 59, 48, 0.22);
-  opacity: 0.55;
+  border: 1.5px solid color-mix(in srgb, var(--musai-accent-2) 55%, transparent);
+  opacity: 0.5;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -680,21 +676,20 @@ body.musai-app-body {
 @keyframes musai-vm-rec-pulse {
   0% {
     transform: scale(0.92);
-    opacity: 0.65;
+    opacity: 0.55;
   }
   55% {
-    transform: scale(1.12);
-    opacity: 0.18;
+    transform: scale(1.1);
+    opacity: 0.15;
   }
   100% {
     transform: scale(0.92);
-    opacity: 0.65;
+    opacity: 0.55;
   }
 }
 
 .musai-vm-trigger[data-recording="true"] {
-  /* Slight outer glow while armed */
-  filter: drop-shadow(0 0 10px rgba(255, 59, 48, 0.28));
+  filter: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -704,19 +699,15 @@ body.musai-app-body {
   .musai-vm-trigger:active {
     transform: none;
   }
-  .musai-vm-trigger[data-recording="true"] {
-    filter: none;
-  }
   .musai-vm-rec-ring {
-    opacity: 0.45;
+    opacity: 0.4;
   }
 }
 
-/* Live mic level strip (shared capture panel, recording only) */
 .musai-capture-meter-bar {
-  transition:
-    height 95ms cubic-bezier(0.32, 0.72, 0.27, 1),
+  transition: height 95ms cubic-bezier(0.32, 0.72, 0.27, 1),
     opacity 130ms ease-out;
+  background: var(--musai-accent);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -725,7 +716,6 @@ body.musai-app-body {
   }
 }
 
-/* Note ring wedges: no browser default focus rectangle (blue box). */
 .musai-note-wedge:focus,
 .musai-note-wedge:focus-visible {
   outline: none !important;
@@ -735,7 +725,7 @@ body.musai-app-body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* ─── Results page: score ring loading + reveal ─── */
+/* Score ring */
 @keyframes musai-score-ring-spin {
   to {
     transform: rotate(360deg);
@@ -802,7 +792,6 @@ body.musai-app-body {
   }
 }
 
-/* Results card: staggered copy */
 @keyframes musai-result-fade-up {
   from {
     opacity: 0;
@@ -824,28 +813,23 @@ body.musai-app-body {
 }
 
 .musai-results-card.musai-results-ready .musai-rv-title {
-  animation: musai-result-fade-up 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.42s
-    forwards;
+  animation: musai-result-fade-up 0.75s var(--musai-ease-out) 0.35s forwards;
 }
 
 .musai-results-card.musai-results-ready .musai-rv-body {
-  animation: musai-result-fade-up 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.58s
-    forwards;
+  animation: musai-result-fade-up 0.75s var(--musai-ease-out) 0.48s forwards;
 }
 
 .musai-results-card.musai-results-ready .musai-rv-cents {
-  animation: musai-result-fade-up 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.74s
-    forwards;
+  animation: musai-result-fade-up 0.75s var(--musai-ease-out) 0.6s forwards;
 }
 
 .musai-results-card.musai-results-ready .musai-rv-details {
-  animation: musai-result-fade-up 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.88s
-    forwards;
+  animation: musai-result-fade-up 0.75s var(--musai-ease-out) 0.72s forwards;
 }
 
 .musai-results-card.musai-results-ready .musai-rv-actions {
-  animation: musai-result-fade-up 0.85s cubic-bezier(0.22, 1, 0.36, 1) 1.02s
-    forwards;
+  animation: musai-result-fade-up 0.75s var(--musai-ease-out) 0.84s forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -860,29 +844,10 @@ body.musai-app-body {
   }
 }
 
-@keyframes musai-results-card-breathe {
-  0%,
-  100% {
-    box-shadow:
-      0 20px 56px rgba(0, 0, 0, 0.38),
-      0 0 0 1px rgba(255, 255, 255, 0.06) inset,
-      0 1px 0 rgba(255, 255, 255, 0.1) inset;
-  }
-  50% {
-    box-shadow:
-      0 24px 64px rgba(0, 0, 0, 0.42),
-      0 0 0 1px rgba(255, 255, 255, 0.09) inset,
-      0 1px 0 rgba(255, 255, 255, 0.14) inset;
-  }
+.musai-results-card-breathe {
+  animation: none;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .musai-results-card-breathe {
-    animation: musai-results-card-breathe 7s ease-in-out infinite;
-  }
-}
-
-/* Audio activity visualizer: seamless wave scroll + flowing bars */
 @keyframes musai-audio-viz-wave-scroll {
   from {
     transform: translateX(0);
@@ -898,7 +863,6 @@ body.musai-app-body {
   }
 }
 
-/* Alternate direction removes the “stuck” feel at loop endpoints */
 @keyframes musai-audio-viz-bar-flow {
   from {
     transform: scaleY(0.18);
@@ -933,11 +897,11 @@ body.musai-app-body {
 
   .musai-staff-card__shimmer {
     animation: none !important;
-    opacity: 0.35;
+    opacity: 0;
   }
 }
 
-/* ─── Scale practice: premium glass staff cards (VexFlow SVG inside) ─── */
+/* Staff — paper surface */
 .musai-staff-row {
   width: 100%;
 }
@@ -948,46 +912,21 @@ body.musai-app-body {
   width: 100%;
   box-sizing: border-box;
   overflow: visible;
-  border-radius: 1.125rem;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: linear-gradient(
-    165deg,
-    rgba(255, 255, 255, 0.09) 0%,
-    rgba(18, 20, 28, 0.78) 42%,
-    rgba(10, 12, 18, 0.94) 100%
-  );
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
-    0 18px 56px rgba(0, 0, 0, 0.44),
-    0 6px 16px rgba(0, 0, 0, 0.22);
-  backdrop-filter: blur(22px);
-  -webkit-backdrop-filter: blur(22px);
-  transition:
-    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1),
-    border-color 220ms cubic-bezier(0.22, 1, 0.36, 1),
-    background 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  border-radius: var(--musai-radius-lg);
+  border: 1px solid var(--musai-border);
+  background: var(--musai-surface);
+  box-shadow: var(--musai-shadow);
+  transition: border-color 220ms var(--musai-ease-out),
+    box-shadow 220ms var(--musai-ease-out);
 }
 
 .musai-staff-card:hover {
-  transform: translateY(-1px);
-  border-color: rgba(255, 255, 255, 0.2);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.2),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
-    0 22px 68px rgba(0, 0, 0, 0.46),
-    0 10px 24px rgba(0, 0, 0, 0.26);
+  transform: none;
+  border-color: color-mix(in srgb, var(--musai-ink) 12%, var(--musai-border));
 }
 
 .musai-staff-card::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  z-index: 2;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  content: none;
 }
 
 .musai-staff-card__inner {
@@ -1004,39 +943,7 @@ body.musai-app-body {
 }
 
 .musai-staff-card__shimmer {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  z-index: 0;
-  pointer-events: none;
-  background: linear-gradient(
-    105deg,
-    transparent 0%,
-    transparent 38%,
-    rgba(255, 255, 255, 0.035) 47%,
-    rgba(255, 255, 255, 0.07) 50%,
-    rgba(255, 255, 255, 0.035) 53%,
-    transparent 62%,
-    transparent 100%
-  );
-  background-size: 220% 100%;
-  opacity: 0.55;
-}
-
-@keyframes musai-staff-glass-shimmer {
-  0%,
-  100% {
-    background-position: 180% 0;
-  }
-  50% {
-    background-position: -80% 0;
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .musai-staff-card__shimmer {
-    animation: musai-staff-glass-shimmer 18s ease-in-out infinite;
-  }
+  display: none;
 }
 
 .musai-staff-svg-host {
@@ -1049,14 +956,7 @@ body.musai-app-body {
   width: 100% !important;
   max-width: 100%;
   height: auto;
-  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45))
-    drop-shadow(0 0 24px rgba(255, 255, 255, 0.04));
-  transition: filter 220ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.musai-staff-card:hover .musai-staff-svg-host svg {
-  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.48))
-    drop-shadow(0 0 34px rgba(255, 255, 255, 0.06));
+  filter: none;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -1078,9 +978,9 @@ body.musai-app-body {
   .musai-chat-thinking-shimmer {
     background: linear-gradient(
       90deg,
-      #8e8e8e 0%,
-      #ececec 40%,
-      #8e8e8e 80%
+      var(--musai-muted) 0%,
+      var(--musai-ink) 40%,
+      var(--musai-muted) 80%
     );
     background-size: 200% 100%;
     -webkit-background-clip: text;
@@ -1132,8 +1032,6 @@ body.musai-app-body {
   }
 }
 
-
-/* ─── Shared info popover (portal tooltips) ─── */
 @keyframes musai-info-popover-in {
   from {
     opacity: 0;
@@ -1147,7 +1045,18 @@ body.musai-app-body {
 
 @media (prefers-reduced-motion: no-preference) {
   .musai-info-popover-panel {
-    animation: musai-info-popover-in 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: musai-info-popover-in 0.22s var(--musai-ease-out) both;
   }
 }
 
+/* Workspace helpers */
+.musai-workspace {
+  border-radius: calc(var(--musai-radius-lg) + 2px);
+  border: 1px solid var(--musai-border);
+  background: var(--musai-surface);
+  box-shadow: var(--musai-shadow);
+}
+
+.font-display {
+  font-family: var(--font-fraunces), Georgia, serif;
+}
