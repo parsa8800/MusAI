@@ -197,6 +197,29 @@ function collectFocusNotes(
   }));
 }
 
+function collectStrengths(
+  notes: ScalePracticeNoteRow[],
+  summary: ScalePracticeSummary,
+): string[] {
+  const out: string[] = [];
+  const inTune = notes.filter((n) => !n.missingData && n.intonationBucket === "in_tune");
+  if (inTune.length >= Math.max(3, Math.floor(notes.length * 0.45))) {
+    out.push("Several notes landed close to pitch");
+  }
+  if (summary.trend === "balanced" && summary.notesAnalyzed > 0) {
+    out.push("Pitch stayed fairly even through the scale");
+  }
+  if (summary.inTunePercent >= 75) {
+    out.push("Solid overall control on this take");
+  } else if (summary.notesAnalyzed > 0 && summary.averageAbsCents < 40) {
+    out.push("Tone was clear enough to measure well");
+  }
+  if (out.length === 0 && summary.notesAnalyzed > 0) {
+    out.push("You completed a full take — good place to build from");
+  }
+  return out.slice(0, 3).map((s) => sanitizeCoachFeedback(s));
+}
+
 /**
  * Short template coaching — staff colours carry the per-note detail.
  */
@@ -210,6 +233,7 @@ export function buildScaleCoachingFeedback(
   const focusNotes = collectFocusNotes(notes, summary);
   const tip = tipFor(focusNotes, summary);
   const trendLine = trendSentence(summary.trend);
+  const strengths = collectStrengths(notes, summary);
 
   const cleanTip = ensureBulletFeedback(tip);
   const cleanTrend = ensureBulletFeedback(trendLine);
@@ -219,7 +243,7 @@ export function buildScaleCoachingFeedback(
     tip: cleanTip,
     trendLine: cleanTrend,
     focusNotes,
-    strengths: [],
+    strengths,
     practicePlan: cleanTip.split("\n"),
     overview: cleanTip,
   };

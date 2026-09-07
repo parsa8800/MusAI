@@ -6,9 +6,8 @@ import {
 } from "@/components/InfoPopover";
 
 const TARGET_TIPS = [
-  "Tap a note to select",
   "Hold to hear reference tone",
-  "Drag to change",
+  "Drag to change octave",
 ];
 
 export function ReferenceToneHelpButton() {

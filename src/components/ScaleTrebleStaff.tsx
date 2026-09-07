@@ -33,12 +33,12 @@ type Props = {
   className?: string;
 };
 
-/** Slightly luminous ink; stroke a touch softer for dimensional noteheads. */
-const NOTATION_FILL = "#f7f7ff";
-/** Shared stroke: crisp enough for staff lines, soft enough for notehead rims. */
-const NOTATION_STROKE = "#d4d8ea";
-/** Deep cool panel behind the staff (visible at SVG edges). */
-const STAVE_BG = "rgba(14,16,24,0.97)";
+/** Warm ink on paper staff. */
+const NOTATION_FILL = "#1c1917";
+/** Staff lines and notehead rims. */
+const NOTATION_STROKE = "#c4bdb4";
+/** Paper surface behind the staff SVG. */
+const STAVE_BG = "#fffcf8";
 
 function clamp01(x: number): number {
   return Math.max(0, Math.min(1, x));
@@ -50,16 +50,23 @@ function severity01FromAbsCents(absCents: number): number {
 
 function noteInkForCents(cents: number | null): { fill: string; stroke: string } {
   if (cents === null) {
-    return { fill: "rgba(148,163,184,0.55)", stroke: "rgba(148,163,184,0.55)" };
+    return { fill: "rgba(120,113,108,0.55)", stroke: "rgba(120,113,108,0.55)" };
   }
   const abs = Math.abs(cents);
   if (abs <= SCALE_IN_TUNE_CENTS) {
-    return { fill: "rgba(16,185,129,0.98)", stroke: "rgba(52,211,153,0.95)" }; // green
+    return { fill: "#3d7a5f", stroke: "#3d7a5f" };
+  }
+  /* Sharp = warm amber; flat = cool slate — matches results legend. */
+  if (cents > 0) {
+    if (abs <= SCALE_CLEAR_MISS_CENTS) {
+      return { fill: "#b45309", stroke: "#b45309" };
+    }
+    return { fill: "#c45c4a", stroke: "#c45c4a" };
   }
   if (abs <= SCALE_CLEAR_MISS_CENTS) {
-    return { fill: "rgba(250,204,21,0.95)", stroke: "rgba(234,179,8,0.95)" }; // yellow
+    return { fill: "#4a6fa5", stroke: "#4a6fa5" };
   }
-  return { fill: "rgba(239,68,68,0.95)", stroke: "rgba(248,113,113,0.95)" }; // red
+  return { fill: "#3d5a80", stroke: "#3d5a80" };
 }
 
 function drawSystem(

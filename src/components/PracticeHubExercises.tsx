@@ -4,8 +4,7 @@ import Link from "next/link";
 import { useAnimeEntrance } from "@/hooks/useAnimeEntrance";
 
 /**
- * Practice hub exercises grid with staggered Anime.js entrance.
- * Keeps the existing glass card visual language.
+ * Practice hub exercises — titles only; purpose is clear from each name.
  */
 export function PracticeHubExercises() {
   const ref = useAnimeEntrance<HTMLElement>({ delay: 120 });
@@ -20,7 +19,7 @@ export function PracticeHubExercises() {
       <h2
         data-anime-enter
         id="features-heading"
-        className="mb-8 text-center text-xl font-semibold tracking-tight text-white sm:mb-10 sm:text-2xl"
+        className="font-display mb-8 text-center text-xl font-semibold tracking-tight text-[var(--musai-ink)] sm:mb-10 sm:text-2xl"
       >
         Exercises
       </h2>
@@ -28,25 +27,11 @@ export function PracticeHubExercises() {
         <Link
           data-anime-enter
           href="/practice/tuner"
-          className="group relative block overflow-hidden rounded-[1.5rem] px-7 py-8 text-left musai-glass-panel musai-glass-card musai-glass-card--amber"
+          className="group relative block overflow-hidden rounded-[var(--musai-radius-lg)] px-7 py-8 text-left musai-glass-panel musai-glass-card before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-[var(--musai-accent)] before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100"
         >
-          <div
-            className="pointer-events-none absolute inset-0 z-0 opacity-0 transition-opacity duration-300 ease-out group-hover:opacity-100"
-            aria-hidden
-            style={{
-              background:
-                "radial-gradient(ellipse 120% 85% at 15% -5%, rgba(251,191,36,0.14) 0%, rgba(251,191,36,0.03) 48%, transparent 88%)",
-            }}
-          />
           <div className="relative z-10">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-amber-400/90">
-              Tuner
-            </p>
-            <p className="mt-3 text-xl font-semibold tracking-tight text-white">
+            <p className="font-display text-xl font-semibold tracking-tight text-[var(--musai-ink)]">
               Violin tuner
-            </p>
-            <p className="mt-2 text-[13px] leading-snug text-zinc-500">
-              Open strings, live pitch.
             </p>
           </div>
         </Link>
@@ -54,25 +39,11 @@ export function PracticeHubExercises() {
         <Link
           data-anime-enter
           href="/practice/single-note"
-          className="group relative block overflow-hidden rounded-[1.5rem] px-7 py-8 text-left musai-glass-panel musai-glass-card musai-glass-card--emerald"
+          className="group relative block overflow-hidden rounded-[var(--musai-radius-lg)] px-7 py-8 text-left musai-glass-panel musai-glass-card before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-[var(--musai-key-flat)] before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100"
         >
-          <div
-            className="pointer-events-none absolute inset-0 z-0 opacity-0 transition-opacity duration-300 ease-out group-hover:opacity-100"
-            aria-hidden
-            style={{
-              background:
-                "radial-gradient(ellipse 120% 85% at 15% -5%, rgba(16,185,129,0.12) 0%, rgba(16,185,129,0.03) 48%, transparent 88%)",
-            }}
-          />
           <div className="relative z-10">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-emerald-400/90">
-              Single note
-            </p>
-            <p className="mt-3 text-xl font-semibold tracking-tight text-white">
+            <p className="font-display text-xl font-semibold tracking-tight text-[var(--musai-ink)]">
               Tuning trainer
-            </p>
-            <p className="mt-2 text-[13px] leading-snug text-zinc-500">
-              One pitch, clear feedback.
             </p>
           </div>
         </Link>
@@ -80,38 +51,21 @@ export function PracticeHubExercises() {
         <Link
           data-anime-enter
           href="/practice/scale"
-          className="group relative block overflow-hidden rounded-[1.5rem] px-7 py-8 text-left musai-glass-panel musai-glass-card musai-glass-card--sky"
+          className="group relative block overflow-hidden rounded-[var(--musai-radius-lg)] px-7 py-8 text-left musai-glass-panel musai-glass-card sm:col-span-2 before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-[var(--musai-accent-2)] before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100"
         >
-          <div
-            className="pointer-events-none absolute inset-0 z-0 opacity-0 transition-opacity duration-300 ease-out group-hover:opacity-100"
-            aria-hidden
-            style={{
-              background:
-                "radial-gradient(ellipse 120% 85% at 15% -5%, rgba(56,189,248,0.12) 0%, rgba(56,189,248,0.03) 48%, transparent 88%)",
-            }}
-          />
           <div className="relative z-10">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-sky-400/90">
-              Scale
-            </p>
-            <p className="mt-3 text-xl font-semibold tracking-tight text-white">
+            <p className="font-display text-xl font-semibold tracking-tight text-[var(--musai-ink)]">
               Scale studio
-            </p>
-            <p className="mt-2 text-[13px] leading-snug text-zinc-500">
-              Full scale readout.
             </p>
           </div>
         </Link>
 
         <div
           data-anime-enter
-          className="musai-glass-panel musai-glass-panel--muted rounded-[1.5rem] px-7 py-8 text-left sm:col-span-2"
+          className="musai-glass-panel musai-glass-panel--muted rounded-[var(--musai-radius-lg)] px-7 py-8 text-left sm:col-span-2"
         >
-          <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-zinc-500">
-            Soon
-          </p>
-          <p className="mt-3 text-sm font-semibold tracking-tight text-zinc-400">
-            Shifting · Drills
+          <p className="text-sm font-semibold tracking-tight text-[var(--musai-muted)]">
+            Coming soon
           </p>
         </div>
       </div>

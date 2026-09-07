@@ -4,7 +4,7 @@ export function StepShell({
   step,
   title,
   subtitle,
-  accent,
+  accent: _accent,
   cornerAction,
   children,
 }: {
@@ -16,17 +16,12 @@ export function StepShell({
   cornerAction?: ReactNode;
   children: ReactNode;
 }) {
-  const bar =
-    accent === "emerald"
-      ? "from-emerald-400/75 to-teal-600/15"
-      : accent === "sky"
-        ? "from-sky-400/75 to-blue-600/15"
-        : "from-violet-400/75 to-purple-600/15";
+  void _accent;
 
   return (
     <section className="musai-glass-surface relative overflow-visible">
       <div
-        className={`pointer-events-none absolute bottom-5 left-0 top-5 w-[2px] rounded-full bg-gradient-to-b ${bar}`}
+        className="pointer-events-none absolute bottom-5 left-0 top-5 w-[2px] rounded-full bg-[var(--musai-accent)] opacity-70"
         aria-hidden
       />
       <div
@@ -37,15 +32,15 @@ export function StepShell({
         }
       >
         <div className="flex gap-3 pl-0.5">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/[0.07] text-xs font-bold tabular-nums text-white ring-1 ring-white/[0.1]">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--musai-radius)] border border-[var(--musai-border)] bg-[var(--musai-surface-2)] text-xs font-bold tabular-nums text-[var(--musai-ink)]">
             {step}
           </span>
           <div className="min-w-0 pt-0.5">
-            <h2 className="text-sm font-semibold tracking-tight text-white">
+            <h2 className="font-display text-sm font-semibold tracking-tight text-[var(--musai-ink)]">
               {title}
             </h2>
             {subtitle ? (
-              <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">
+              <p className="mt-1.5 text-xs leading-relaxed text-[var(--musai-muted)]">
                 {subtitle}
               </p>
             ) : null}

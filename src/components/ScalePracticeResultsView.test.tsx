@@ -7,12 +7,14 @@ vi.mock("next/link", () => ({
     href,
     children,
     onClick,
+    "aria-label": ariaLabel,
   }: {
     href: string;
     children: React.ReactNode;
     onClick?: () => void;
+    "aria-label"?: string;
   }) => (
-    <a href={href} onClick={onClick}>
+    <a href={href} onClick={onClick} aria-label={ariaLabel}>
       {children}
     </a>
   ),
@@ -123,10 +125,22 @@ describe("ScalePracticeResultsView", () => {
   it("shows score ring, staff, then coach chat", async () => {
     render(<ScalePracticeResultsView session={sampleSession} />);
 
+    expect(
+      screen.getByRole("link", { name: /Back to Scale studio/i }),
+    ).toHaveAttribute("href", "/practice/scale");
     expect(screen.getByRole("heading", { name: /C major/i })).toBeInTheDocument();
-    expect(screen.getByText(/Heard from your take/i)).toBeInTheDocument();
+    expect(screen.getByText(/Scale feedback/i)).toBeInTheDocument();
+    expect(screen.getByText(/Detected · 1 octave/i)).toBeInTheDocument();
     expect(screen.getByTestId("score-ring")).toHaveTextContent("88");
     expect(screen.getByTestId("staff")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Retry$/i })).toHaveAttribute(
+      "href",
+      "/practice/scale",
+    );
+    expect(screen.getByRole("link", { name: /Practice hub/i })).toHaveAttribute(
+      "href",
+      "/",
+    );
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(50);

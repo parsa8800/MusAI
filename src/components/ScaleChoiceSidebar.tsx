@@ -1,7 +1,7 @@
 "use client";
 
 import { animate } from "animejs";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { MusaiSegmentedControl } from "@/components/MusaiSegmentedControl";
 import type { ScaleKind } from "@/lib/scales";
 import {
@@ -25,41 +25,60 @@ type Props = {
   onResetRange: () => void;
 };
 
-/** Colored word badge — no tiny ♯♯♯ rows. */
-function AccidentalHint({
+function partitionKeys(rows: ReturnType<typeof tonicAccidentalRows>): {
+  natural: TonicAccidentalOption | null;
+  flats: TonicAccidentalOption[];
+  sharps: TonicAccidentalOption[];
+} {
+  let natural: TonicAccidentalOption | null = null;
+  const flats: TonicAccidentalOption[] = [];
+  const sharps: TonicAccidentalOption[] = [];
+
+  for (const row of rows) {
+    for (const key of row.keys) {
+      if (key.accidentalKind === "natural" || key.accidentalCount === 0) {
+        natural = key;
+      } else if (key.accidentalKind === "flat") {
+        flats.push(key);
+      } else {
+        sharps.push(key);
+      }
+    }
+  }
+
+  return { natural, flats, sharps };
+}
+
+function KeyButton({
   option,
   selected,
+  family,
+  onSelect,
+  scaleKind,
 }: {
   option: TonicAccidentalOption;
   selected: boolean;
+  family: "flat" | "sharp" | "natural";
+  onSelect: () => void;
+  scaleKind: ScaleKind;
 }) {
-  const kind =
-    option.accidentalKind === "natural" || option.accidentalCount === 0
-      ? "natural"
-      : option.accidentalKind;
-
-  const tone =
-    kind === "flat"
-      ? selected
-        ? "bg-sky-400/25 text-sky-100 ring-1 ring-sky-300/40"
-        : "bg-sky-500/12 text-sky-200/90 ring-1 ring-sky-400/18"
-      : kind === "sharp"
-        ? selected
-          ? "bg-amber-400/25 text-amber-50 ring-1 ring-amber-200/45"
-          : "bg-amber-500/12 text-amber-100/90 ring-1 ring-amber-400/22"
-        : selected
-          ? "bg-white/[0.12] text-zinc-100 ring-1 ring-white/18"
-          : "bg-white/[0.04] text-zinc-500 ring-1 ring-white/10";
-
   return (
-    <span
-      className={`mt-1 inline-flex min-h-[1.45rem] max-w-full items-center justify-center rounded-md px-1.5 text-[11px] font-semibold leading-none tracking-wide ${tone}`}
+    <button
+      type="button"
+      onClick={onSelect}
+      className={`musai-key-btn musai-key-btn--${family}`}
+      aria-pressed={selected}
+      aria-label={`${option.label} ${scaleKind === "major" ? "major" : "minor"}, ${accidentalBadge(option)}`}
     >
-      {accidentalBadge(option)}
-    </span>
+      {option.label}
+    </button>
   );
 }
 
+/**
+ * Scale / key picker — flats left (cool), sharps right (warm), natural centered.
+ * Colour + grouping carry the scan; no “1 sharp” microcopy under every key.
+ */
 export function ScaleChoiceSidebar({
   tonicPc,
   onTonicPc,
@@ -72,8 +91,10 @@ export function ScaleChoiceSidebar({
   onResetRange,
 }: Props) {
   const rows = tonicAccidentalRows(scaleKind);
+  const { natural, flats, sharps } = useMemo(() => partitionKeys(rows), [rows]);
   const listRef = useRef<HTMLDivElement>(null);
   const prevPc = useRef(tonicPc);
+  const pairCount = Math.max(flats.length, sharps.length);
 
   useEffect(() => {
     if (prevPc.current === tonicPc) return;
@@ -100,15 +121,8 @@ export function ScaleChoiceSidebar({
   }, [tonicPc]);
 
   return (
-    <aside className="musai-glass-inset w-full px-2.5 py-3.5 text-center sm:px-3 sm:py-4 lg:sticky lg:top-6">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-sky-400/90">
-        Choose scale
-      </p>
-      <p className="mt-1 text-[11px] leading-snug text-zinc-500">
-        Flats left · sharps right
-      </p>
-
-      <div className="mt-3 space-y-2">
+    <aside className="w-full px-1 py-1 text-center sm:px-1.5">
+      <div className="space-y-2">
         <MusaiSegmentedControl<ScaleKind>
           ariaLabel="Scale type"
           value={scaleKind}
@@ -134,50 +148,70 @@ export function ScaleChoiceSidebar({
       </div>
 
       <div
-        className="my-3 h-px w-full bg-gradient-to-r from-transparent via-white/12 to-transparent"
-        aria-hidden
-      />
-
-      <div ref={listRef} className="space-y-1.5">
-        {rows.map((row) => (
-          <div
-            key={row.accidentalCount}
-            className={`grid gap-1.5 ${
-              row.keys.length === 1 ? "grid-cols-1 px-4" : "grid-cols-2"
-            }`}
-          >
-            {row.keys.map((t) => {
-              const selected = tonicPc === t.pitchClass;
-              return (
-                <button
-                  key={`${t.pitchClass}-${t.accidentalKind}`}
-                  type="button"
-                  onClick={() => onTonicPc(t.pitchClass)}
-                  className={`musai-chip musai-studio-tonic inline-flex w-full flex-col items-center justify-center gap-0.5 px-1 py-2 ${
-                    selected ? "musai-chip--on musai-studio-tonic--on" : "musai-chip--off"
-                  }`}
-                  aria-pressed={selected}
-                  aria-label={`${t.label} ${scaleKind === "major" ? "major" : "minor"}, ${accidentalBadge(t)}`}
-                >
-                  <span className="text-[13px] font-semibold leading-none tracking-tight">
-                    {t.label}
-                  </span>
-                  <AccidentalHint option={t} selected={selected} />
-                </button>
-              );
-            })}
+        ref={listRef}
+        className="musai-key-board mt-4"
+        role="group"
+        aria-label="Key"
+      >
+        {natural ? (
+          <div className="musai-key-natural-slot">
+            <KeyButton
+              option={natural}
+              selected={tonicPc === natural.pitchClass}
+              family="natural"
+              scaleKind={scaleKind}
+              onSelect={() => onTonicPc(natural.pitchClass)}
+            />
           </div>
-        ))}
+        ) : null}
+
+        <div className="musai-key-col-head musai-key-col-head--flat" aria-hidden>
+          <span>♭</span>
+        </div>
+        <div className="musai-key-col-head musai-key-col-head--sharp" aria-hidden>
+          <span>♯</span>
+        </div>
+
+        {Array.from({ length: pairCount }, (_, i) => {
+          const flat = flats[i];
+          const sharp = sharps[i];
+          return (
+            <div key={`pair-${i}`} className="contents">
+              {flat ? (
+                <KeyButton
+                  option={flat}
+                  selected={tonicPc === flat.pitchClass}
+                  family="flat"
+                  scaleKind={scaleKind}
+                  onSelect={() => onTonicPc(flat.pitchClass)}
+                />
+              ) : (
+                <span aria-hidden />
+              )}
+              {sharp ? (
+                <KeyButton
+                  option={sharp}
+                  selected={tonicPc === sharp.pitchClass}
+                  family="sharp"
+                  scaleKind={scaleKind}
+                  onSelect={() => onTonicPc(sharp.pitchClass)}
+                />
+              ) : (
+                <span aria-hidden />
+              )}
+            </div>
+          );
+        })}
       </div>
 
       <details className="group mt-4 flex flex-col items-center">
-        <summary className="musai-chip musai-chip--off inline-flex w-full max-w-[9.5rem] cursor-pointer list-none items-center justify-center border border-white/12 px-3 py-2 text-[13px] font-semibold group-open:musai-chip--on [&::-webkit-details-marker]:hidden">
+        <summary className="musai-chip musai-chip--off inline-flex w-full max-w-[9.5rem] cursor-pointer list-none items-center justify-center px-3 py-2 text-[13px] font-semibold group-open:musai-chip--on [&::-webkit-details-marker]:hidden">
           Range
         </summary>
         <div className="mt-3 w-full space-y-3 text-center">
           <label className="block">
-            <span className="mb-2 block text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">
-              Start pitch
+            <span className="mb-2 block text-[10px] font-medium uppercase tracking-[0.18em] text-[var(--musai-muted)]">
+              Start
             </span>
             <div className="relative mx-auto max-w-[9.5rem]">
               <select
@@ -192,7 +226,7 @@ export function ScaleChoiceSidebar({
                 ))}
               </select>
               <span
-                className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500"
+                className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--musai-muted)]"
                 aria-hidden
               >
                 <svg
@@ -214,9 +248,9 @@ export function ScaleChoiceSidebar({
           <button
             type="button"
             onClick={onResetRange}
-            className="mx-auto block w-full max-w-[9.5rem] rounded-xl border border-white/[0.08] py-2 text-xs font-medium text-zinc-400 transition-colors duration-200 hover:bg-white/[0.04] hover:text-zinc-200"
+            className="mx-auto block w-full max-w-[9.5rem] rounded-[var(--musai-radius)] border border-[var(--musai-border)] py-2 text-xs font-medium text-[var(--musai-muted)] transition-colors duration-200 hover:bg-[var(--musai-surface-2)] hover:text-[var(--musai-ink)]"
           >
-            Reset range
+            Reset
           </button>
         </div>
       </details>

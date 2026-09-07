@@ -15,10 +15,10 @@ function ResultsLoading() {
   return (
     <div className="flex min-h-full flex-col items-center justify-center px-5 pb-24 pt-14 sm:px-8">
       <div
-        className="h-12 w-12 rounded-full border-2 border-white/[0.08] border-t-sky-400/75 motion-safe:animate-spin motion-reduce:animate-none"
+        className="h-12 w-12 rounded-full border-2 border-[var(--musai-border)] border-t-[var(--musai-accent)] motion-safe:animate-spin motion-reduce:animate-none"
         aria-hidden
       />
-      <p className="mt-6 text-sm text-zinc-500">Loading…</p>
+      <p className="mt-6 text-sm text-[var(--musai-muted)]">Loading…</p>
     </div>
   );
 }
@@ -52,24 +52,18 @@ function ScalePracticeResultsInner() {
   if (!session) {
     return (
       <div className="flex min-h-full flex-col items-center justify-center gap-6 px-6 py-24">
-        <p className="text-center text-sm text-zinc-500">
-          No scale session found. Run an analysis from scale practice first.
+        <p className="text-center text-sm text-[var(--musai-muted)]">
+          No take yet.
         </p>
-        <Link
-          href="/practice/scale"
-          className="rounded-full border border-white/[0.1] bg-white/[0.05] px-5 py-2.5 text-sm font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl transition-[background-color,border-color,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-white/[0.08] active:scale-[0.98]"
-        >
-          Scale practice
-        </Link>
-        <Link href="/" className="text-xs text-zinc-600 hover:text-zinc-400">
-          Change exercise
+        <Link href="/practice/scale" className="musai-btn-primary">
+          Scale studio
         </Link>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-full flex-col items-center px-5 pb-24 pt-14 sm:px-8">
+    <div className="flex min-h-full flex-col items-center px-4 pb-20 pt-10 sm:px-6 sm:pb-24 sm:pt-12 lg:px-8">
       <ScalePracticeResultsView session={session} />
     </div>
   );

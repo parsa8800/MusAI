@@ -6,9 +6,8 @@ import {
 } from "@/components/InfoPopover";
 
 const RECORDING_TIPS = [
-  "Play one steady note",
-  "Stay consistent",
-  "Tap to stop",
+  "One steady note",
+  "Stop when finished",
 ];
 
 export function IntonationRecordingHelpButton() {

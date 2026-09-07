@@ -8,11 +8,10 @@ import { MUSAI_DUR, MUSAI_EASE, prefersReducedMotion } from "@/lib/motion";
 type AnimeLike = { pause: () => void; revert?: () => void; cancel?: () => void };
 
 /**
- * Polished analysing state for Scale Studio — waveform + glow timeline,
- * no fake % progress.
+ * Calm analysing state — short wait copy only.
  */
 export function ScaleAnalysisPanel({
-  label = "Analysing your scale…",
+  label = "Analysing…",
 }: {
   label?: string;
 }) {
@@ -40,7 +39,7 @@ export function ScaleAnalysisPanel({
 
     tl.add(root, {
       opacity: [0, 1],
-      y: [10, 0],
+      y: [8, 0],
       duration: MUSAI_DUR.enter,
     });
 
@@ -49,10 +48,10 @@ export function ScaleAnalysisPanel({
         copy,
         {
           opacity: [0, 1],
-          y: [6, 0],
+          y: [4, 0],
           duration: MUSAI_DUR.base,
         },
-        80,
+        60,
       );
     }
 
@@ -60,12 +59,12 @@ export function ScaleAnalysisPanel({
 
     if (glow) {
       const glowAnim = animate(glow, {
-        opacity: [0.28, 0.55, 0.28],
-        scale: [0.97, 1.03, 0.97],
-        duration: 3200,
+        opacity: [0.2, 0.4, 0.2],
+        scale: [0.98, 1.02, 0.98],
+        duration: 3600,
         ease: "inOutSine",
         loop: true,
-        delay: 160,
+        delay: 120,
       });
       handles.push(glowAnim as AnimeLike);
     }
@@ -86,7 +85,7 @@ export function ScaleAnalysisPanel({
   return (
     <div
       ref={rootRef}
-      className="musai-glass-surface relative flex flex-col items-center overflow-hidden px-6 py-12"
+      className="musai-glass-surface relative flex flex-col items-center overflow-hidden px-6 py-14"
       role="status"
       aria-live="polite"
     >
@@ -96,8 +95,8 @@ export function ScaleAnalysisPanel({
         aria-hidden
         style={{
           background:
-            "radial-gradient(ellipse 70% 55% at 50% 42%, rgba(56,189,248,0.16) 0%, rgba(14,165,233,0.06) 42%, transparent 72%)",
-          opacity: 0.45,
+            "radial-gradient(ellipse 65% 50% at 50% 40%, color-mix(in srgb, var(--musai-accent) 12%, transparent) 0%, transparent 70%)",
+          opacity: 0.35,
         }}
       />
       <div
@@ -105,11 +104,8 @@ export function ScaleAnalysisPanel({
         className="relative z-[1] flex w-full flex-col items-center"
       >
         <AudioActivityVisualizer variant="prominent" />
-        <p className="mt-8 text-sm font-medium tracking-tight text-zinc-200">
+        <p className="mt-8 font-display text-base font-semibold tracking-tight text-[var(--musai-ink)]">
           {label}
-        </p>
-        <p className="mt-2 text-[11px] font-medium uppercase tracking-[0.2em] text-zinc-500">
-          Pitch · timing · intonation
         </p>
       </div>
     </div>

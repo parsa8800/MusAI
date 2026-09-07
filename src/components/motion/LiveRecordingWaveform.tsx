@@ -33,8 +33,8 @@ export function LiveRecordingWaveform({
 
   const barClass =
     tone === "mini"
-      ? "bg-rose-300/55"
-      : "bg-gradient-to-t from-rose-500/35 via-rose-300/70 to-rose-100/90";
+      ? "bg-[color-mix(in_srgb,var(--musai-accent-2)_55%,transparent)]"
+      : "bg-gradient-to-t from-[color-mix(in_srgb,var(--musai-accent-2)_35%,transparent)] via-[color-mix(in_srgb,var(--musai-accent-2)_70%,transparent)] to-[color-mix(in_srgb,var(--musai-accent-2)_90%,white)]";
 
   return (
     <div

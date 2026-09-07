@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { IntonationResultsView } from "@/components/IntonationResultsView";
+import { PracticeHubBackLink } from "@/components/PracticeHubBackLink";
 import {
   clearIntonationResult,
   readIntonationResult,
@@ -35,10 +36,10 @@ export default function ResultsPage() {
     return (
       <div className="flex min-h-full flex-col items-center justify-center px-5 pb-24 pt-14 sm:px-8">
         <div
-          className="h-12 w-12 rounded-full border-2 border-white/[0.08] border-t-emerald-400/75 motion-safe:animate-spin motion-reduce:animate-none"
+          className="h-12 w-12 rounded-full border-2 border-[var(--musai-border)] border-t-[var(--musai-accent)] motion-safe:animate-spin motion-reduce:animate-none"
           aria-hidden
         />
-        <p className="mt-6 text-sm text-zinc-500">Loading results</p>
+        <p className="mt-6 text-sm text-[var(--musai-muted)]">Loading…</p>
       </div>
     );
   }
@@ -48,17 +49,20 @@ export default function ResultsPage() {
   }
 
   return (
-    <div className="flex min-h-full flex-col items-center px-5 pb-24 pt-10 sm:px-8 sm:pt-14">
-      <header className="mb-9 w-full max-w-md text-center sm:mb-11">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-emerald-400/85">
-          Results
-        </p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-          Intonation
-        </h1>
-      </header>
-
-      <IntonationResultsView result={result} onTryAgain={goSetup} />
+    <div className="flex min-h-full flex-col items-center px-5 pb-24 pt-10 sm:px-8 sm:pt-12">
+      <div className="w-full max-w-[460px]">
+        <PracticeHubBackLink
+          href="/practice/single-note"
+          label="Tuning trainer"
+          ariaLabel="Back to Tuning trainer"
+        />
+        <header className="mb-8 text-center sm:mb-9">
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-[var(--musai-ink)] sm:text-3xl">
+            Tuning results
+          </h1>
+        </header>
+        <IntonationResultsView result={result} onTryAgain={goSetup} />
+      </div>
     </div>
   );
 }

@@ -102,11 +102,11 @@ export function clearScalePracticeHistory(): void {
 
 export function formatScaleTakeSubtitle(session: ScalePracticeSessionV1): string {
   const span = session.octaveSpan === 2 ? "2 octaves" : "1 octave";
-  if (session.scaleSource === "detected") {
-    return `Heard from your take · ${session.scaleLabel} · ${span}`;
-  }
-  if (session.scaleSource === "selected") {
-    return `You chose · ${session.scaleLabel} · ${span}`;
-  }
-  return `${session.scaleLabel} · ${span}`;
+  const source =
+    session.scaleSource === "detected"
+      ? "Detected"
+      : session.scaleSource === "selected"
+        ? "Selected"
+        : null;
+  return source ? `${source} · ${span}` : span;
 }

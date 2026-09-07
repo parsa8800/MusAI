@@ -29,22 +29,22 @@ export const NOTE_TONE_STYLES: Record<
   { chip: string; glow: string; label: string }
 > = {
   good: {
-    chip: "border-emerald-300/50 bg-emerald-500/85 text-white",
-    glow: "shadow-[0_0_22px_rgba(16,185,129,0.35)]",
+    chip: "border-[color-mix(in_srgb,var(--musai-ok)_35%,var(--musai-border))] bg-[color-mix(in_srgb,var(--musai-ok)_85%,white)] text-[var(--musai-ink)]",
+    glow: "shadow-[0_2px_8px_color-mix(in_srgb,var(--musai-ok)_18%,transparent)]",
     label: "On pitch",
   },
   slight: {
-    chip: "border-yellow-300/55 bg-yellow-400/90 text-zinc-950",
-    glow: "shadow-[0_0_20px_rgba(250,204,21,0.32)]",
+    chip: "border-[color-mix(in_srgb,var(--musai-warn)_35%,var(--musai-border))] bg-[color-mix(in_srgb,var(--musai-warn)_80%,white)] text-[var(--musai-ink)]",
+    glow: "shadow-[0_2px_8px_color-mix(in_srgb,var(--musai-warn)_16%,transparent)]",
     label: "Slightly off",
   },
   bad: {
-    chip: "border-red-300/50 bg-red-500/90 text-white",
-    glow: "shadow-[0_0_22px_rgba(239,68,68,0.35)]",
+    chip: "border-[color-mix(in_srgb,var(--musai-accent-2)_35%,var(--musai-border))] bg-[color-mix(in_srgb,var(--musai-accent-2)_80%,white)] text-[var(--musai-ink)]",
+    glow: "shadow-[0_2px_8px_color-mix(in_srgb,var(--musai-accent-2)_16%,transparent)]",
     label: "Out of tune",
   },
   unclear: {
-    chip: "border-zinc-500/40 bg-zinc-600/70 text-zinc-200",
+    chip: "border-[var(--musai-border)] bg-[var(--musai-surface-2)] text-[var(--musai-muted)]",
     glow: "",
     label: "Unclear",
   },
