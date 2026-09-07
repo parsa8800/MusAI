@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MusaiCaptureDock } from "@/components/MusaiCaptureDock";
 import { MusaiFloatingMiniRecorder } from "@/components/MusaiFloatingMiniRecorder";
 import { PracticeHubBackLink } from "@/components/PracticeHubBackLink";
+import { ScaleDetectAmbiguity } from "@/components/ScaleDetectAmbiguity";
 import { ScaleGuidePanel } from "@/components/ScaleGuidePanel";
 import { ScaleInlineFeedback } from "@/components/ScaleInlineFeedback";
 import { ScalePracticeInfoProvider } from "@/components/scalePracticeInfoContext";
@@ -19,8 +20,17 @@ import {
 } from "@/lib/alignScaleOctave";
 import { createAudioContext } from "@/lib/audioContext";
 import { buildScalePracticeSession } from "@/lib/buildScalePracticeSession";
+import {
+  detectScaleFromAudio,
+  type ScaleCandidate,
+} from "@/lib/detectScale";
 import { createMediaRecorder, startMediaRecorder } from "@/lib/mediaRecorderMime";
 import { describeMicOpenError, getMicStream } from "@/lib/micStream";
+import {
+  candidateMatchesIdentity,
+  sessionFromDetectedCandidate,
+  workspaceHrefForCandidate,
+} from "@/lib/scaleDetectSession";
 import {
   getScaleProgressJourney,
   persistScalePracticeSession,
@@ -45,6 +55,7 @@ export function ScaleWorkspace({
 }: {
   identity: ScaleWorkspaceIdentity;
 }) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const rootMidi = useMemo(
     () => defaultRootMidiForTonic(identity.tonicPitchClass),
@@ -55,6 +66,11 @@ export function ScaleWorkspace({
   );
   const [bestAccuracy, setBestAccuracy] = useState(0);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [pendingDetect, setPendingDetect] = useState<{
+    alternatives: ScaleCandidate[];
+    sampleRateHz: number;
+    audioSourceType: "recorded" | "uploaded";
+  } | null>(null);
 
   useEffect(() => {
     void searchParams;
@@ -172,8 +188,35 @@ export function ScaleWorkspace({
     setMessage(null);
     setRecordedBlob(null);
     setFile(null);
+    setPendingDetect(null);
     setFeedbackOpen(true);
   }, []);
+
+  const acceptDetected = useCallback(
+    (
+      candidate: ScaleCandidate,
+      sampleRateHz: number,
+      audioSourceType: "recorded" | "uploaded",
+    ) => {
+      const session = sessionFromDetectedCandidate(
+        candidate,
+        sampleRateHz,
+        audioSourceType,
+      );
+      if (candidateMatchesIdentity(candidate, identity)) {
+        completeAttempt(session);
+        return;
+      }
+      persistScalePracticeSession(session);
+      setPendingDetect(null);
+      setStatus("idle");
+      setMessage(null);
+      setRecordedBlob(null);
+      setFile(null);
+      router.push(workspaceHrefForCandidate(candidate));
+    },
+    [completeAttempt, identity, router],
+  );
 
   const runAnalyze = useCallback(
     async (blobOverride?: Blob | null, fileOverride?: File | null) => {
@@ -193,7 +236,7 @@ export function ScaleWorkspace({
 
       if (!validateScaleMidisInViolinRange(expectedMidis)) {
         setMessage(
-          "This range leaves the violin span. Choose a lower start note.",
+          "This range leaves the violin span. Try one octave on this scale.",
         );
         setStatus("error");
         return;
@@ -202,6 +245,7 @@ export function ScaleWorkspace({
       const token = ++autoAnalyzeToken.current;
       setStatus("loading");
       setMessage(null);
+      setPendingDetect(null);
 
       try {
         const ctx = createAudioContext();
@@ -223,6 +267,25 @@ export function ScaleWorkspace({
         const audioSourceType =
           captureMode === "record" ? "recorded" : "uploaded";
 
+        const detected = detectScaleFromAudio(mono, sampleRateHz);
+        if (token !== autoAnalyzeToken.current) return;
+
+        if (detected.ok && detected.ambiguous) {
+          setPendingDetect({
+            alternatives: detected.alternatives,
+            sampleRateHz,
+            audioSourceType,
+          });
+          setStatus("idle");
+          return;
+        }
+
+        if (detected.ok) {
+          acceptDetected(detected.best, sampleRateHz, audioSourceType);
+          return;
+        }
+
+        // Fallback: score against this page’s written scale.
         const analysis = analyzeScalePerformance({
           mono,
           sampleRateHz,
@@ -254,7 +317,9 @@ export function ScaleWorkspace({
 
         setStatus("error");
         setMessage(
-          "Couldn’t hear a clear scale. Re-record slower, one note per bow, then try again.",
+          detected.reason === "no_pitch"
+            ? "Couldn’t detect clear pitches. Re-record slower, one note per bow."
+            : "Couldn’t match that take. Play this scale, or a different one to open a new page.",
         );
       } catch (e) {
         if (token !== autoAnalyzeToken.current) return;
@@ -267,6 +332,7 @@ export function ScaleWorkspace({
       }
     },
     [
+      acceptDetected,
       captureMode,
       completeAttempt,
       expectedMidis,
@@ -282,6 +348,7 @@ export function ScaleWorkspace({
   const resetCaptureSession = useCallback(() => {
     setMessage(null);
     setStatus("idle");
+    setPendingDetect(null);
   }, []);
 
   const setCaptureMode = useCallback(
@@ -447,11 +514,11 @@ export function ScaleWorkspace({
             href="/practice/scale"
             className="shrink-0 text-[12px] font-medium text-[var(--musai-muted)] underline decoration-[var(--musai-border)] underline-offset-2 hover:text-[var(--musai-ink)]"
           >
-            Change scale
+            New scale
           </Link>
         </header>
 
-        <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-2">
+        <div className="relative grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-2">
           <section
             className="flex min-h-0 flex-col overflow-hidden px-4 py-3 sm:px-5"
             aria-label="Scale notes"
@@ -488,6 +555,20 @@ export function ScaleWorkspace({
               )}
             </div>
           </section>
+
+          {pendingDetect ? (
+            <ScaleDetectAmbiguity
+              alternatives={pendingDetect.alternatives}
+              onPick={(c) =>
+                acceptDetected(
+                  c,
+                  pendingDetect.sampleRateHz,
+                  pendingDetect.audioSourceType,
+                )
+              }
+              onCancel={() => setPendingDetect(null)}
+            />
+          ) : null}
         </div>
 
         <div className="shrink-0 border-t border-[var(--musai-border)] px-3 py-2 sm:px-4">

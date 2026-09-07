@@ -1,63 +1,344 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
-import { AnimatedReveal } from "@/components/motion/AnimatedReveal";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { MusaiCaptureDock } from "@/components/MusaiCaptureDock";
+import { MusaiFloatingMiniRecorder } from "@/components/MusaiFloatingMiniRecorder";
 import { PracticeHubBackLink } from "@/components/PracticeHubBackLink";
-import { ScaleChoiceSidebar } from "@/components/ScaleChoiceSidebar";
-import { ScaleGuidePanel } from "@/components/ScaleGuidePanel";
+import { ScaleDetectAmbiguity } from "@/components/ScaleDetectAmbiguity";
 import { ScalePracticeInfoProvider } from "@/components/scalePracticeInfoContext";
 import { ScaleProgressPanel } from "@/components/ScaleProgressPanel";
-import { ScaleStudioHeader } from "@/components/ScaleStudioHeader";
+import { useFloatingMiniRecorder } from "@/hooks/useFloatingMiniRecorder";
+import { useSyncedRecorderUi } from "@/hooks/useSyncedRecorderUi";
+import { bufferToMono } from "@/lib/analyzePitch";
+import { createAudioContext } from "@/lib/audioContext";
 import {
-  identityFromSelection,
-  scaleWorkspaceHref,
-} from "@/lib/scaleWorkspace";
+  detectScaleFromAudio,
+  type ScaleCandidate,
+} from "@/lib/detectScale";
+import { createMediaRecorder, startMediaRecorder } from "@/lib/mediaRecorderMime";
+import { describeMicOpenError, getMicStream } from "@/lib/micStream";
+import {
+  sessionFromDetectedCandidate,
+  workspaceHrefForCandidate,
+} from "@/lib/scaleDetectSession";
+import { persistScalePracticeSession } from "@/lib/scalePracticeSession";
 import type { ScaleProgressJourneyV1 } from "@/lib/scaleProgressHistory";
-import type { ScaleKind } from "@/lib/scales";
-import { buildScalePracticeGuideModel } from "@/lib/scalePracticeGuide";
-import {
-  buildExerciseScaleMidis,
-  defaultRootMidiForTonic,
-} from "@/lib/scales";
+import { scaleWorkspaceHref } from "@/lib/scaleWorkspace";
+
+type CaptureMode = "record" | "upload";
 
 /**
- * Scale Studio home: pick a scale/octave, open its persistent workspace,
- * or continue from Progress.
+ * Scale Studio home — play any scale; we detect it, save progress, and open
+ * that scale’s pad. No select-then-record.
  */
 export function ScaleStudioSelector() {
   const router = useRouter();
-  const [tonicPc, setTonicPc] = useState(0);
-  const [scaleKind, setScaleKind] = useState<ScaleKind>("major");
-  const rootMidi = useMemo(
-    () => defaultRootMidiForTonic(tonicPc),
-    [tonicPc],
-  );
-  const [advSpan, setAdvSpan] = useState<1 | 2>(1);
+  const [captureMode, setCaptureModeState] = useState<CaptureMode>("record");
+  const [file, setFile] = useState<File | null>(null);
+  const [uploadProcessing, setUploadProcessing] = useState(false);
+  const uploadTokenRef = useRef(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [micDevices, setMicDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedMicId, setSelectedMicId] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [message, setMessage] = useState<string | null>(null);
+  const [progressOpen, setProgressOpen] = useState(false);
+  const [pendingDetect, setPendingDetect] = useState<{
+    alternatives: ScaleCandidate[];
+    sampleRateHz: number;
+    audioSourceType: "recorded" | "uploaded";
+  } | null>(null);
+  const autoAnalyzeToken = useRef(0);
 
-  const selectTonicPc = (pc: number) => {
-    setTonicPc(pc);
-  };
-  const selectScaleKind = (kind: ScaleKind) => {
-    setScaleKind(kind);
-  };
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const discardRecordingRef = useRef(false);
+  const mainRecorderRef = useRef<HTMLDivElement | null>(null);
 
-  const octaveSpan = advSpan;
-  const identity = identityFromSelection(tonicPc, scaleKind, octaveSpan);
-  const expectedMidis = useMemo(
-    () => buildExerciseScaleMidis(rootMidi, scaleKind, octaveSpan),
-    [octaveSpan, rootMidi, scaleKind],
-  );
-  const guideModel = useMemo(
-    () => buildScalePracticeGuideModel(tonicPc, scaleKind, rootMidi, octaveSpan),
-    [octaveSpan, rootMidi, scaleKind, tonicPc],
+  const { elapsedLabel, lastTakeLabel, levelBars } = useSyncedRecorderUi(
+    isRecording,
+    streamRef,
   );
 
-  const openWorkspace = () => {
-    router.push(scaleWorkspaceHref(identity.scaleId, identity.octaveSpan));
-  };
+  const stopStream = useCallback(() => {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+  }, []);
+
+  const refreshMicDevices = useCallback(async () => {
+    try {
+      const all = await navigator.mediaDevices.enumerateDevices();
+      setMicDevices(all.filter((d) => d.kind === "audioinput"));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    const md = navigator.mediaDevices;
+    if (!md?.addEventListener) return;
+    md.addEventListener("devicechange", refreshMicDevices);
+    return () => md.removeEventListener("devicechange", refreshMicDevices);
+  }, [refreshMicDevices]);
+
+  useEffect(() => {
+    return () => {
+      discardRecordingRef.current = true;
+      try {
+        mediaRecorderRef.current?.stop();
+      } catch {
+        /* ignore */
+      }
+      stopStream();
+    };
+  }, [stopStream]);
+
+  const openDetected = useCallback(
+    (
+      candidate: ScaleCandidate,
+      sampleRateHz: number,
+      audioSourceType: "recorded" | "uploaded",
+    ) => {
+      const session = sessionFromDetectedCandidate(
+        candidate,
+        sampleRateHz,
+        audioSourceType,
+      );
+      persistScalePracticeSession(session);
+      setPendingDetect(null);
+      setStatus("idle");
+      setMessage(null);
+      setRecordedBlob(null);
+      setFile(null);
+      router.push(workspaceHrefForCandidate(candidate));
+    },
+    [router],
+  );
+
+  const runDetect = useCallback(
+    async (blobOverride?: Blob | null, fileOverride?: File | null) => {
+      const activeBlob = blobOverride ?? recordedBlob;
+      const activeFile = fileOverride ?? file;
+      const hasFile = captureMode === "upload" && activeFile;
+      const hasRec = captureMode === "record" && activeBlob;
+      if (!hasFile && !hasRec) {
+        setMessage(
+          captureMode === "upload"
+            ? "Choose an audio file first."
+            : "Record your scale first.",
+        );
+        setStatus("error");
+        return;
+      }
+
+      const token = ++autoAnalyzeToken.current;
+      setStatus("loading");
+      setMessage(null);
+      setPendingDetect(null);
+
+      try {
+        const ctx = createAudioContext();
+        if (!ctx) {
+          setStatus("error");
+          setMessage("This browser cannot decode audio. Try Chrome or Safari.");
+          return;
+        }
+        const raw =
+          captureMode === "upload"
+            ? await activeFile!.arrayBuffer()
+            : await activeBlob!.arrayBuffer();
+        if (token !== autoAnalyzeToken.current) return;
+        const audioBuffer = await ctx.decodeAudioData(raw.slice(0));
+        const sampleRateHz = audioBuffer.sampleRate;
+        const mono = bufferToMono(audioBuffer);
+        await ctx.close();
+
+        const audioSourceType =
+          captureMode === "record" ? "recorded" : "uploaded";
+        const detected = detectScaleFromAudio(mono, sampleRateHz);
+        if (token !== autoAnalyzeToken.current) return;
+
+        if (detected.ok && detected.ambiguous) {
+          setPendingDetect({
+            alternatives: detected.alternatives,
+            sampleRateHz,
+            audioSourceType,
+          });
+          setStatus("idle");
+          return;
+        }
+        if (detected.ok) {
+          openDetected(detected.best, sampleRateHz, audioSourceType);
+          return;
+        }
+
+        setStatus("error");
+        setMessage(
+          detected.reason === "no_pitch"
+            ? "Couldn’t detect clear pitches. Re-record slower, one note per bow, in a quieter room."
+            : "Couldn’t match that take to a scale. Play a full scale up and down, then try again.",
+        );
+      } catch (e) {
+        if (token !== autoAnalyzeToken.current) return;
+        setStatus("error");
+        setMessage(
+          e instanceof Error
+            ? e.message
+            : "Could not analyse that take. Try a clearer recording.",
+        );
+      }
+    },
+    [captureMode, file, openDetected, recordedBlob],
+  );
+
+  const resetCaptureSession = useCallback(() => {
+    setMessage(null);
+    setStatus("idle");
+    setPendingDetect(null);
+  }, []);
+
+  const setCaptureMode = useCallback(
+    (mode: CaptureMode) => {
+      if (mode === captureMode) return;
+      if (isRecording) {
+        discardRecordingRef.current = true;
+        mediaRecorderRef.current?.stop();
+      }
+      setCaptureModeState(mode);
+      resetCaptureSession();
+      if (mode === "upload") {
+        setRecordedBlob(null);
+      } else {
+        setFile(null);
+        setUploadProcessing(false);
+        uploadTokenRef.current += 1;
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+    },
+    [captureMode, isRecording, resetCaptureSession],
+  );
+
+  const handleFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const f = e.target.files?.[0] ?? null;
+      if (!f) {
+        setFile(null);
+        setUploadProcessing(false);
+        return;
+      }
+      const token = ++uploadTokenRef.current;
+      setFile(f);
+      setUploadProcessing(true);
+      const reduced =
+        typeof window !== "undefined" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const minMs = reduced ? 0 : 400;
+      void (async () => {
+        try {
+          await Promise.all([
+            new Promise<void>((r) => setTimeout(r, minMs)),
+            f.slice(0, Math.min(f.size, 65536)).arrayBuffer(),
+          ]);
+        } catch {
+          /* ignore */
+        } finally {
+          if (uploadTokenRef.current === token) {
+            setUploadProcessing(false);
+            void runDetect(null, f);
+          }
+        }
+      })();
+    },
+    [runDetect],
+  );
+
+  const startRecording = useCallback(async () => {
+    setMessage(null);
+    setRecordedBlob(null);
+    setPendingDetect(null);
+    try {
+      const stream = await getMicStream(
+        selectedMicId.trim() === "" ? null : selectedMicId,
+      );
+      streamRef.current = stream;
+      chunksRef.current = [];
+      void refreshMicDevices();
+
+      const recorder = createMediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (ev) => {
+        if (ev.data.size > 0) chunksRef.current.push(ev.data);
+      };
+      recorder.onerror = () => {
+        setMessage("Recording failed. Try again or import a file.");
+        setStatus("error");
+      };
+      recorder.onstop = () => {
+        setIsRecording(false);
+        stopStream();
+        mediaRecorderRef.current = null;
+        if (discardRecordingRef.current) {
+          discardRecordingRef.current = false;
+          chunksRef.current = [];
+          return;
+        }
+        const blob = new Blob(chunksRef.current, {
+          type: recorder.mimeType || "audio/webm",
+        });
+        chunksRef.current = [];
+        if (blob.size < 256) {
+          setMessage("Almost no audio captured. Check the mic input.");
+          setStatus("error");
+          return;
+        }
+        setRecordedBlob(blob);
+        void runDetect(blob, null);
+      };
+
+      startMediaRecorder(recorder);
+      setIsRecording(true);
+    } catch (err) {
+      stopStream();
+      setMessage(describeMicOpenError(err));
+      setStatus("error");
+    }
+  }, [refreshMicDevices, runDetect, selectedMicId, stopStream]);
+
+  const stopRecording = useCallback(() => {
+    const rec = mediaRecorderRef.current;
+    if (rec && rec.state !== "inactive") {
+      try {
+        if (rec.state === "recording") rec.requestData();
+      } catch {
+        /* ignore */
+      }
+      try {
+        rec.stop();
+      } catch {
+        /* ignore */
+      }
+    }
+  }, []);
+
+  const canAnalyze =
+    status !== "loading" &&
+    !uploadProcessing &&
+    (captureMode === "upload" ? !!file : !!recordedBlob);
+
+  const miniEnabled =
+    captureMode === "record" && status !== "loading" && !isRecording;
+  const { miniMounted, miniVisible } = useFloatingMiniRecorder(
+    mainRecorderRef,
+    miniEnabled,
+  );
 
   const continueJourney = (journey: ScaleProgressJourneyV1) => {
+    setProgressOpen(false);
     router.push(
       scaleWorkspaceHref(journey.scaleId, journey.lastOctaveSpan),
     );
@@ -65,78 +346,152 @@ export function ScaleStudioSelector() {
 
   return (
     <ScalePracticeInfoProvider>
-      <div className="w-full max-w-[min(1280px,100%)]">
-        <PracticeHubBackLink />
-      </div>
-      <ScaleStudioHeader />
-      <AnimatedReveal className="w-full max-w-[min(1280px,100%)] space-y-6 sm:space-y-8">
-        <p
-          data-anime-enter
-          className="mx-auto max-w-xl text-center text-[14px] leading-relaxed text-[var(--musai-muted)]"
-        >
-          Choose a scale to open its practice page — progress stays with that
-          scale whenever you return.
-        </p>
+      <div className="relative flex h-[100dvh] max-h-[100dvh] w-full flex-col overflow-hidden">
+        <header className="flex shrink-0 items-center gap-3 border-b border-[var(--musai-border)] px-4 py-2.5 sm:px-6">
+          <PracticeHubBackLink className="!mb-0" />
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-[15px] font-semibold tracking-tight text-[var(--musai-ink)] sm:text-[16px]">
+              Scale studio
+            </h1>
+          </div>
+          <button
+            type="button"
+            className="shrink-0 text-[12px] font-medium text-[var(--musai-muted)] underline decoration-[var(--musai-border)] underline-offset-2 hover:text-[var(--musai-ink)]"
+            onClick={() => setProgressOpen((v) => !v)}
+            aria-expanded={progressOpen}
+          >
+            {progressOpen ? "Hide progress" : "In progress"}
+          </button>
+        </header>
 
-        <div className="mx-auto w-full max-w-md lg:hidden">
-          <ScaleProgressPanel onContinue={continueJourney} />
-        </div>
+        <div className="relative grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-2">
+          <section
+            className="flex min-h-0 flex-col items-center justify-center overflow-hidden px-6 py-4 text-center"
+            aria-label="How Scale studio works"
+          >
+            <p className="font-display text-2xl font-semibold tracking-tight text-[var(--musai-ink)] sm:text-3xl">
+              Play a scale
+            </p>
+            <p className="mt-2 max-w-sm text-[13px] leading-relaxed text-[var(--musai-muted)] sm:text-[14px]">
+              Record any major or minor scale. MusAI detects what you played,
+              opens that scale’s page, and coaches from the take.
+            </p>
+            <ol className="mt-5 max-w-xs space-y-2 text-left text-[12px] leading-snug text-[var(--musai-muted)]">
+              <li className="flex gap-2">
+                <span className="font-semibold tabular-nums text-[var(--musai-ink)]">
+                  1
+                </span>
+                Hit record and play up, then down
+              </li>
+              <li className="flex gap-2">
+                <span className="font-semibold tabular-nums text-[var(--musai-ink)]">
+                  2
+                </span>
+                We open the matching scale page with feedback
+              </li>
+              <li className="flex gap-2">
+                <span className="font-semibold tabular-nums text-[var(--musai-ink)]">
+                  3
+                </span>
+                Record again there — a new scale starts a new page
+              </li>
+            </ol>
+          </section>
 
-        <div className="musai-workspace relative mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-6">
-          <div className="musai-studio-layout">
-            <div className="musai-studio-layout__keys relative z-10">
-              <ScaleChoiceSidebar
-                tonicPc={tonicPc}
-                onTonicPc={selectTonicPc}
-                scaleKind={scaleKind}
-                onScaleKind={selectScaleKind}
-                octaveSpan={octaveSpan}
-                onOctaveSpan={setAdvSpan}
-              />
-            </div>
-
-            <div className="musai-studio-layout__notes min-w-0">
-              <div className="mx-auto w-full max-w-3xl">
-                <ScaleGuidePanel
-                  guide={guideModel}
-                  exerciseMidis={expectedMidis}
-                  tonicPitchClass={tonicPc}
-                  scaleKind={scaleKind}
-                  octaveSpan={octaveSpan}
+          <section
+            className="flex min-h-0 flex-col items-center justify-center overflow-hidden border-t border-[var(--musai-border)] px-6 py-4 text-center md:border-l md:border-t-0"
+            aria-label="Ready to record"
+          >
+            {status === "loading" ? (
+              <div className="flex flex-col items-center gap-3">
+                <div
+                  className="h-10 w-10 rounded-full border-2 border-[var(--musai-border)] border-t-[var(--musai-accent)] motion-safe:animate-spin motion-reduce:animate-none"
+                  aria-hidden
                 />
-              </div>
-            </div>
-
-            <div className="musai-studio-layout__capture">
-              <div className="flex flex-col items-center gap-3 px-1 py-2">
-                <button
-                  type="button"
-                  onClick={openWorkspace}
-                  className="musai-btn-primary w-full max-w-[14rem]"
-                >
-                  Open practice
-                </button>
-                <p className="max-w-[14rem] text-center text-[11px] leading-snug text-[var(--musai-muted)]">
-                  Same page layout — record beside the notes
+                <p className="text-[13px] text-[var(--musai-muted)]">
+                  Listening for your scale…
                 </p>
               </div>
+            ) : (
+              <>
+                <p className="font-display text-xl font-semibold text-[var(--musai-ink)]">
+                  Ready when you are
+                </p>
+                <p className="mt-2 max-w-xs text-[13px] leading-relaxed text-[var(--musai-muted)]">
+                  Use the record bar below. No need to pick a key first.
+                </p>
+              </>
+            )}
+          </section>
+
+          {pendingDetect ? (
+            <ScaleDetectAmbiguity
+              alternatives={pendingDetect.alternatives}
+              onPick={(c) =>
+                openDetected(
+                  c,
+                  pendingDetect.sampleRateHz,
+                  pendingDetect.audioSourceType,
+                )
+              }
+              onCancel={() => {
+                setPendingDetect(null);
+                setMessage(null);
+              }}
+            />
+          ) : null}
+
+          {progressOpen ? (
+            <div className="absolute inset-y-0 right-0 z-10 w-full max-w-sm overflow-y-auto border-l border-[var(--musai-border)] bg-[var(--musai-bg)] p-4 shadow-[var(--musai-shadow)]">
+              <ScaleProgressPanel onContinue={continueJourney} />
             </div>
-
-            <aside
-              data-anime-enter
-              className="pointer-events-none absolute top-16 right-0 hidden w-[14.5rem] translate-x-[calc(100%+1rem)] lg:block xl:hidden"
-            >
-              <div className="pointer-events-auto sticky top-24">
-                <ScaleProgressPanel onContinue={continueJourney} />
-              </div>
-            </aside>
-          </div>
+          ) : null}
         </div>
 
-        <div className="mx-auto hidden w-full max-w-md xl:block">
-          <ScaleProgressPanel onContinue={continueJourney} />
+        <div className="shrink-0 border-t border-[var(--musai-border)] px-3 py-2 sm:px-4">
+          <MusaiCaptureDock
+            selectId="musai-mic-scale-studio"
+            captureMode={captureMode}
+            onCaptureMode={setCaptureMode}
+            isRecording={isRecording}
+            recordedBlob={recordedBlob}
+            file={file}
+            uploadProcessing={uploadProcessing}
+            fileInputRef={fileInputRef}
+            onFileChange={handleFileChange}
+            mainRecorderRef={mainRecorderRef}
+            micDevices={micDevices}
+            selectedMicId={selectedMicId}
+            onMicChange={setSelectedMicId}
+            onMicRefresh={refreshMicDevices}
+            onDiscardClip={() => {
+              setRecordedBlob(null);
+              resetCaptureSession();
+            }}
+            onStartRecording={() => void startRecording()}
+            onStopRecording={stopRecording}
+            streamRef={streamRef}
+            elapsedLabel={elapsedLabel}
+            levelBars={levelBars}
+            lastTakeLabel={lastTakeLabel}
+            message={message}
+            status={status}
+            canAnalyze={canAnalyze}
+            onAnalyze={() => void runDetect()}
+            hideAnalyze
+          />
         </div>
-      </AnimatedReveal>
+
+        <MusaiFloatingMiniRecorder
+          mounted={miniMounted}
+          visible={miniVisible && !isRecording}
+          isRecording={isRecording}
+          onStartRecording={() => void startRecording()}
+          onStopRecording={stopRecording}
+          elapsedLabel={elapsedLabel}
+          levelBars={levelBars}
+        />
+      </div>
     </ScalePracticeInfoProvider>
   );
 }
