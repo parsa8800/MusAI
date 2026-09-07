@@ -11,6 +11,7 @@ import { ScaleDetectAmbiguity } from "@/components/ScaleDetectAmbiguity";
 import { ScaleGuidePanel } from "@/components/ScaleGuidePanel";
 import { ScaleInlineFeedback } from "@/components/ScaleInlineFeedback";
 import { ScalePracticeInfoProvider } from "@/components/scalePracticeInfoContext";
+import { ScaleProgressPanel } from "@/components/ScaleProgressPanel";
 import { useFloatingMiniRecorder } from "@/hooks/useFloatingMiniRecorder";
 import { useSyncedRecorderUi } from "@/hooks/useSyncedRecorderUi";
 import { analyzeScalePerformance } from "@/lib/analyzeScalePerformance";
@@ -32,6 +33,7 @@ import {
   sessionFromDetectedCandidate,
   workspaceHrefForCandidate,
 } from "@/lib/scaleDetectSession";
+import type { ScaleProgressJourneyV1 } from "@/lib/scaleProgressHistory";
 import {
   getScaleProgressJourney,
   persistScalePracticeSession,
@@ -44,7 +46,7 @@ import {
   validateScaleMidisInViolinRange,
 } from "@/lib/scales";
 import type { ScaleWorkspaceIdentity } from "@/lib/scaleWorkspace";
-import { workspaceTitle } from "@/lib/scaleWorkspace";
+import { scaleWorkspaceHref, workspaceTitle } from "@/lib/scaleWorkspace";
 
 type CaptureMode = "record" | "upload";
 
@@ -70,6 +72,7 @@ export function ScaleWorkspace({
     strong: string;
     next: string;
   } | null>(null);
+  const [changeScaleOpen, setChangeScaleOpen] = useState(false);
   const [pendingDetect, setPendingDetect] = useState<{
     alternatives: ScaleCandidate[];
     sampleRateHz: number;
@@ -511,9 +514,19 @@ export function ScaleWorkspace({
     [],
   );
 
+  const switchToJourney = useCallback(
+    (journey: ScaleProgressJourneyV1) => {
+      setChangeScaleOpen(false);
+      router.push(
+        scaleWorkspaceHref(journey.scaleId, journey.lastOctaveSpan),
+      );
+    },
+    [router],
+  );
+
   return (
     <ScalePracticeInfoProvider>
-      <div className="flex h-[100dvh] max-h-[100dvh] w-full flex-col overflow-hidden">
+      <div className="relative flex h-[100dvh] max-h-[100dvh] w-full flex-col overflow-hidden">
         <header className="flex shrink-0 items-center gap-3 border-b border-[var(--musai-border)] px-4 py-2.5 sm:px-6">
           <PracticeHubBackLink
             href="/practice/scale"
@@ -526,12 +539,19 @@ export function ScaleWorkspace({
               {title}
             </h1>
           </div>
-          <Link
-            href="/practice/scale"
-            className="musai-btn-secondary shrink-0 px-3 py-1.5 text-[13px]"
+          <button
+            type="button"
+            className={`musai-btn-secondary shrink-0 px-3 py-1.5 text-[13px] ${
+              changeScaleOpen
+                ? "border-[color-mix(in_srgb,var(--musai-accent)_40%,var(--musai-border))] bg-[var(--musai-accent-soft)]"
+                : ""
+            }`}
+            aria-expanded={changeScaleOpen}
+            aria-controls="scale-workspace-switcher"
+            onClick={() => setChangeScaleOpen((v) => !v)}
           >
             Change scale
-          </Link>
+          </button>
         </header>
 
         <div className="relative min-h-0 flex-1 overflow-hidden">
@@ -583,6 +603,35 @@ export function ScaleWorkspace({
               </section>
             }
           />
+
+          {changeScaleOpen ? (
+            <div
+              id="scale-workspace-switcher"
+              className="absolute inset-y-0 right-0 z-20 flex w-full max-w-sm flex-col border-l border-[var(--musai-border)] bg-[var(--musai-bg)] p-4 shadow-[var(--musai-shadow)]"
+            >
+              <button
+                type="button"
+                className="mb-3 self-end text-[13px] font-medium text-[var(--musai-muted)] underline decoration-[var(--musai-border)] underline-offset-2 hover:text-[var(--musai-ink)]"
+                onClick={() => setChangeScaleOpen(false)}
+              >
+                Close
+              </button>
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <ScaleProgressPanel
+                  currentProgressKey={identity.progressKey}
+                  title="Switch scale"
+                  subtitle="Pick one you’re already working on"
+                  onContinue={switchToJourney}
+                />
+              </div>
+              <Link
+                href="/practice/scale"
+                className="musai-btn-primary mt-3 w-full justify-center text-center text-[13px]"
+              >
+                New scale
+              </Link>
+            </div>
+          ) : null}
 
           {pendingDetect ? (
             <ScaleDetectAmbiguity
