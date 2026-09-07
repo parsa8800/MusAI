@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useId, useRef, useState } from "react";
 import {
   localCoachChatReply,
   buildScaleCoachChatContext,
+  coachSuggestedQuestions,
 } from "@/lib/scaleCoachChat";
 import { ensureBulletFeedback, sanitizeCoachFeedback } from "@/lib/scalePracticeCopy";
 import type { ScalePracticeSessionV1 } from "@/lib/scalePracticeTypes";
@@ -81,7 +82,6 @@ type AssistantMsg = {
   text: string;
   stream: boolean;
   source: ReplySource;
-  error?: string;
 };
 
 type UserMsg = {
@@ -102,32 +102,60 @@ function UserBubble({ text }: { text: string }) {
   );
 }
 
-function SourceBadge({
-  source,
-  error,
-}: {
-  source: ReplySource;
-  error?: string;
-}) {
-  const isAi = source === "llm";
+/** Tiny optional hint when coaching is preview (not live). No visible Demo/Preview label. */
+function PreviewCoachDot() {
+  const tipId = useId();
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
   return (
-    <div className="mt-2 space-y-1">
-      <p
-        className={`text-[11px] font-medium tracking-wide ${
-          isAi ? "text-[var(--musai-ok)]" : "text-[var(--musai-warn)]"
-        }`}
+    <span ref={rootRef} className="relative ml-1.5 inline-flex translate-y-px items-center">
+      <button
+        type="button"
+        aria-label="Preview coaching"
+        aria-expanded={open}
+        aria-describedby={open ? tipId : undefined}
+        className="inline-flex h-4 w-4 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--musai-border)]"
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        onClick={(e) => {
+          e.preventDefault();
+          setOpen((v) => !v);
+        }}
       >
-        {isAi ? "AI" : "Template"}
-        {!isAi ? " · not live AI" : null}
-      </p>
-      {!isAi && error ? (
-        <p className="text-[11px] leading-snug text-[var(--musai-muted)]">
-          {/quota|429|billing/i.test(error)
-            ? "OpenAI quota or billing blocked the AI. Add billing at platform.openai.com, then retry."
-            : error.slice(0, 160)}
-        </p>
+        <span
+          className="block h-[5px] w-[5px] rounded-full bg-[var(--musai-muted)] opacity-[0.35]"
+          aria-hidden
+        />
+      </button>
+      {open ? (
+        <span
+          id={tipId}
+          role="tooltip"
+          className="pointer-events-none absolute left-1/2 top-[calc(100%+6px)] z-20 -translate-x-1/2 whitespace-nowrap rounded-full border border-[var(--musai-border)] bg-[var(--musai-surface)] px-2.5 py-1 text-[11px] font-medium text-[var(--musai-muted)] shadow-[var(--musai-shadow)]"
+        >
+          Preview coaching
+        </span>
       ) : null}
-    </div>
+    </span>
   );
 }
 
@@ -135,15 +163,11 @@ function AssistantTurn({
   text,
   stream,
   showThinking,
-  source,
-  error,
   onStreamDone,
 }: {
   text: string;
   stream: boolean;
   showThinking: boolean;
-  source: ReplySource;
-  error?: string;
   onStreamDone?: () => void;
 }) {
   const reduce = usePrefersReducedMotion();
@@ -181,24 +205,24 @@ function AssistantTurn({
       {phase === "thinking" ? (
         <ThinkingIndicator />
       ) : (
-        <>
-          <ul className="list-none space-y-2.5 text-[16px] leading-7 text-[var(--musai-ink)]">
-            {lines.map((line, i) => {
-              const body = line.replace(/^•\s*/, "");
-              const isLast = i === lines.length - 1;
-              return (
-                <li key={`${i}-${body.slice(0, 12)}`} className="flex gap-2.5">
-                  <span className="mt-[0.55em] h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--musai-accent)]" aria-hidden />
-                  <span className="min-w-0 flex-1 whitespace-pre-wrap">
-                    {body}
-                    {typing && isLast ? <StreamingCaret /> : null}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-          {phase === "done" ? <SourceBadge source={source} error={error} /> : null}
-        </>
+        <ul className="list-none space-y-2.5 text-[16px] leading-7 text-[var(--musai-ink)]">
+          {lines.map((line, i) => {
+            const body = line.replace(/^•\s*/, "");
+            const isLast = i === lines.length - 1;
+            return (
+              <li key={`${i}-${body.slice(0, 12)}`} className="flex gap-2.5">
+                <span
+                  className="mt-[0.55em] h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--musai-accent)]"
+                  aria-hidden
+                />
+                <span className="min-w-0 flex-1 whitespace-pre-wrap">
+                  {body}
+                  {typing && isLast ? <StreamingCaret /> : null}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
       )}
     </div>
   );
@@ -210,13 +234,16 @@ type Props = {
   tip: string;
   source: "template" | "llm";
   session: ScalePracticeSessionV1;
+  /** Kept for API compatibility; never shown in the UI. */
   initialError?: string | null;
   /** Embed beside the staff on results (fills column, no top rule). */
   embed?: boolean;
+  /** Sidebar heading when embedded. */
+  title?: string;
 };
 
 /**
- * Live coach chat: measured-take LLM replies when key works, labeled AI vs Template.
+ * Coach chat. Preview mode only shows a tiny muted status dot — no Demo labels.
  */
 export function CoachChatPanel({
   start,
@@ -226,6 +253,7 @@ export function CoachChatPanel({
   session,
   initialError = null,
   embed = false,
+  title = "Coach · Parsa",
 }: Props) {
   const reduce = usePrefersReducedMotion();
   const formId = useId();
@@ -235,11 +263,13 @@ export function CoachChatPanel({
   const [awaitingReply, setAwaitingReply] = useState(false);
   const [messages, setMessages] = useState<ThreadMsg[]>([]);
   const [bootDone, setBootDone] = useState(false);
-  const [bannerError, setBannerError] = useState<string | null>(initialError);
+  const [coachSource, setCoachSource] = useState<ReplySource>(
+    initialSource ?? "template",
+  );
 
   useEffect(() => {
-    setBannerError(initialError);
-  }, [initialError]);
+    setCoachSource(initialSource ?? "template");
+  }, [initialSource]);
 
   useEffect(() => {
     if (!start) {
@@ -261,7 +291,6 @@ export function CoachChatPanel({
         text: initial,
         stream: true,
         source: initialSource ?? "template",
-        error: initialError ?? undefined,
       },
     ]);
     setBootDone(false);
@@ -277,7 +306,11 @@ export function CoachChatPanel({
     e.preventDefault();
     const userText = sanitizeCoachFeedback(draft.trim());
     if (!userText || busy || !bootDone) return;
+    setDraft("");
+    await sendUserMessage(userText);
+  }
 
+  async function sendUserMessage(userText: string) {
     const userMsg: UserMsg = {
       id: `u-${Date.now()}`,
       role: "user",
@@ -288,7 +321,6 @@ export function CoachChatPanel({
       text: m.text,
     }));
 
-    setDraft("");
     setBusy(true);
     setAwaitingReply(true);
     setMessages((prev) => [...prev, userMsg]);
@@ -296,7 +328,6 @@ export function CoachChatPanel({
     const ctx = buildScaleCoachChatContext(session, tip, trendLine);
     let answer = localCoachChatReply(userText, ctx);
     let replySource: ReplySource = "template";
-    let replyError: string | undefined;
 
     try {
       const res = await fetch("/api/scale-coach-chat", {
@@ -313,25 +344,17 @@ export function CoachChatPanel({
         const data = (await res.json()) as {
           reply?: string;
           source?: ReplySource;
-          error?: string;
         };
         if (typeof data.reply === "string" && data.reply.trim()) {
           answer = ensureBulletFeedback(data.reply);
         }
         if (data.source === "llm" || data.source === "template") {
           replySource = data.source;
+          setCoachSource(data.source);
         }
-        if (typeof data.error === "string" && data.error.trim()) {
-          replyError = data.error;
-          setBannerError(data.error);
-        } else if (replySource === "llm") {
-          setBannerError(null);
-        }
-      } else {
-        replyError = `Chat API HTTP ${res.status}`;
       }
-    } catch (err) {
-      replyError = err instanceof Error ? err.message : "Chat request failed";
+    } catch {
+      /* keep local reply */
     }
 
     setAwaitingReply(false);
@@ -343,7 +366,6 @@ export function CoachChatPanel({
         text: answer,
         stream: true,
         source: replySource,
-        error: replyError,
       },
     ]);
   }
@@ -351,6 +373,11 @@ export function CoachChatPanel({
   if (!start) return null;
 
   const canSend = bootDone && !busy && Boolean(draft.trim());
+  const showPreviewDot = coachSource !== "llm";
+  const suggestions = coachSuggestedQuestions(
+    buildScaleCoachChatContext(session, tip, trendLine),
+  );
+  const showSuggestions = bootDone && !busy && messages.length <= 1;
 
   return (
     <div
@@ -373,15 +400,11 @@ export function CoachChatPanel({
       >
         {embed ? (
           <p className="font-display text-lg font-semibold tracking-tight text-[var(--musai-ink)]">
-            Coach
+            <span className="inline-flex items-center">
+              {title}
+              {showPreviewDot ? <PreviewCoachDot /> : null}
+            </span>
           </p>
-        ) : null}
-        {bannerError ? (
-          <div className="rounded-[var(--musai-radius)] border border-[color-mix(in_srgb,var(--musai-warn)_35%,var(--musai-border))] bg-[color-mix(in_srgb,var(--musai-warn)_10%,white)] px-3.5 py-2.5 text-[12px] leading-snug text-[var(--musai-warn)]">
-            {/quota|429|billing/i.test(bannerError)
-              ? "Live AI is off: OpenAI says this key is out of quota. Add billing at platform.openai.com/account/billing, then send another message."
-              : `Live AI is off: ${bannerError.slice(0, 180)}`}
-          </div>
         ) : null}
         {messages.map((msg, idx) => {
           if (msg.role === "user") {
@@ -396,8 +419,6 @@ export function CoachChatPanel({
               text={msg.text}
               stream={msg.stream}
               showThinking={idx === 0}
-              source={msg.source}
-              error={msg.error}
               onStreamDone={
                 isLatestAssistant
                   ? () => {
@@ -416,45 +437,76 @@ export function CoachChatPanel({
           </div>
         ) : null}
 
+        {showSuggestions ? (
+          <div
+            className="flex flex-wrap gap-1.5 px-1 pt-1"
+            role="group"
+            aria-label="Suggested questions"
+          >
+            {suggestions.map((q) => (
+              <button
+                key={q}
+                type="button"
+                disabled={!bootDone || busy}
+                onClick={() => void sendUserMessage(q)}
+                className="rounded-full border border-[var(--musai-border)] bg-[var(--musai-surface-2)] px-2.5 py-1 text-left text-[11px] font-medium leading-snug text-[var(--musai-ink)] transition hover:border-[var(--musai-accent)] hover:bg-[var(--musai-accent-soft)] disabled:opacity-40"
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
         <div ref={bottomRef} />
       </div>
 
-        <form
-          id={formId}
-          onSubmit={onSubmit}
-          className={embed ? "mt-3 shrink-0 pt-2" : "sticky bottom-0 pt-3"}
-        >
-          <div className="flex items-center gap-2 rounded-[28px] border border-[var(--musai-border)] bg-[var(--musai-surface-2)] px-3 py-2 shadow-[var(--musai-shadow)]">
-            <label className="sr-only" htmlFor={`${formId}-input`}>
-              Message
-            </label>
-            <textarea
-              id={`${formId}-input`}
-              rows={1}
-              value={draft}
-              disabled={!bootDone || busy}
-              placeholder="Ask anything"
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  e.currentTarget.form?.requestSubmit();
-                }
-              }}
-              className="max-h-32 min-h-[36px] flex-1 resize-none bg-transparent py-2 text-[15px] leading-6 text-[var(--musai-ink)] outline-none placeholder:text-[var(--musai-muted)] disabled:opacity-50"
-            />
-            <button
-              type="submit"
-              disabled={!canSend}
-              aria-label="Send"
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--musai-accent)] text-[#fffcf8] transition enabled:hover:brightness-105 disabled:opacity-40"
+      <form
+        id={formId}
+        onSubmit={onSubmit}
+        className={embed ? "mt-3 shrink-0 pt-2" : "sticky bottom-0 pt-3"}
+      >
+        <div className="flex items-center gap-2 rounded-[28px] border border-[var(--musai-border)] bg-[var(--musai-surface-2)] px-3 py-2 shadow-[var(--musai-shadow)]">
+          <label className="sr-only" htmlFor={`${formId}-input`}>
+            Message
+          </label>
+          <textarea
+            id={`${formId}-input`}
+            rows={1}
+            value={draft}
+            disabled={!bootDone || busy}
+            placeholder="Ask anything"
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                e.currentTarget.form?.requestSubmit();
+              }
+            }}
+            className="max-h-32 min-h-[36px] flex-1 resize-none bg-transparent py-2 text-[15px] leading-6 text-[var(--musai-ink)] outline-none placeholder:text-[var(--musai-muted)] disabled:opacity-50"
+          />
+          <button
+            type="submit"
+            disabled={!canSend}
+            aria-label="Send"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--musai-accent)] text-[#fffcf8] transition enabled:hover:brightness-105 disabled:opacity-40"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              aria-hidden
             >
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden>
-                <path d="M12 19V5M12 5l-5 5M12 5l5 5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-          </div>
-        </form>
+              <path
+                d="M12 19V5M12 5l-5 5M12 5l5 5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

@@ -24,6 +24,8 @@ type MusaiMicCapturePanelProps = {
   onDiscardClip: () => void;
   onStartRecording: () => void;
   onStopRecording: () => void;
+  /** Discard mid-take and restart without analysing. */
+  onRetakeRecording?: () => void;
   /** Live mic stream while recording (drives real level meter). */
   streamRef: RefObject<MediaStream | null>;
   /**
@@ -37,6 +39,11 @@ type MusaiMicCapturePanelProps = {
   density?: "comfortable" | "compact";
   /** Scale Studio recording polish (waveform + motion timelines). */
   experience?: "default" | "studio";
+  /**
+   * `minimal` — discard only (parent dock shows Ready).
+   * `full` — Ready badge + discard (legacy standalone).
+   */
+  clipChrome?: "full" | "minimal";
 };
 
 const METER_MAX_PX = 30;
@@ -118,6 +125,7 @@ export function MusaiRecorderControls({
   isRecording,
   onStartRecording,
   onStopRecording,
+  onRetakeRecording,
   elapsedLabel,
   levelBars,
   size = "full",
@@ -128,6 +136,8 @@ export function MusaiRecorderControls({
   isRecording: boolean;
   onStartRecording: () => void;
   onStopRecording: () => void;
+  /** Discard the current take and start again without analysing. */
+  onRetakeRecording?: () => void;
   /** Pre-formatted `MM:SS.cs` string. */
   elapsedLabel: string;
   /** Smoothed 0–1 levels. */
@@ -217,18 +227,16 @@ export function MusaiRecorderControls({
     <div className={className} data-rec-stage>
       <div className="flex flex-col items-center">
         {!isRecording ? (
-          <p
-            data-rec-idle-label
-            className="mb-2 text-center text-[13px] font-semibold tracking-tight text-[var(--musai-ink)]"
-          >
+          <p data-rec-idle-label className="sr-only">
             Record
           </p>
         ) : (
           <p
-            className="mb-2 text-center text-[13px] font-semibold tracking-tight text-[var(--musai-accent-2)]"
+            className="musai-rec-live-hint mb-2.5"
             aria-live="polite"
           >
-            Tap to stop
+            <span className="musai-rec-live-hint__dot" aria-hidden />
+            Recording · tap to stop
           </p>
         )}
         <button
@@ -236,7 +244,9 @@ export function MusaiRecorderControls({
           onClick={isRecording ? onStopRecording : onStartRecording}
           aria-label={isRecording ? "Stop recording" : "Start recording"}
           className={`musai-vm-trigger ${studio ? "musai-vm-trigger--studio" : ""} ${
-            !isRecording ? "ring-2 ring-[color-mix(in_srgb,var(--musai-accent-2)_35%,transparent)] ring-offset-2 ring-offset-[var(--musai-surface-2)]" : ""
+            !isRecording
+              ? "ring-2 ring-[color-mix(in_srgb,var(--musai-accent-2)_35%,transparent)] ring-offset-2 ring-offset-[var(--musai-bg)]"
+              : ""
           }`}
           data-recording={isRecording ? "true" : "false"}
           style={vmVars}
@@ -246,11 +256,7 @@ export function MusaiRecorderControls({
             aria-hidden
           />
           {isRecording ? (
-            <span
-              className="musai-vm-rec-ring"
-              data-rec-ring
-              aria-hidden
-            />
+            <span className="musai-vm-rec-ring" data-rec-ring aria-hidden />
           ) : null}
           <span
             className="musai-vm-core"
@@ -266,7 +272,7 @@ export function MusaiRecorderControls({
           {isRecording ? (
             <div
               data-rec-live
-              className="flex w-full flex-col items-center justify-start"
+              className="musai-rec-live flex w-full flex-col items-center justify-start"
             >
               {studio ? (
                 <LiveRecordingWaveform
@@ -277,12 +283,21 @@ export function MusaiRecorderControls({
               ) : (
                 <RecordingLevelMeter levels={meterBars} size={size} />
               )}
-              <div className="mt-2 flex flex-col items-center justify-start gap-0.5 text-center">
+              <div className="musai-rec-live__meta mt-2.5 flex flex-col items-center gap-2.5 text-center">
                 <p
-                  className={`font-mono tabular-nums tracking-tight text-[var(--musai-accent-2)] ${timerSize}`}
+                  className={`musai-rec-live__timer font-mono tabular-nums tracking-tight text-[var(--musai-accent-2)] ${timerSize}`}
                 >
                   {elapsedLabel}
                 </p>
+                {onRetakeRecording ? (
+                  <button
+                    type="button"
+                    onClick={onRetakeRecording}
+                    className="musai-rec-retake"
+                  >
+                    Retake
+                  </button>
+                ) : null}
               </div>
             </div>
           ) : null}
@@ -290,6 +305,60 @@ export function MusaiRecorderControls({
       </div>
     </div>
   );
+}
+
+function MicGlyph({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      aria-hidden
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 3a3 3 0 00-3 3v5a3 3 0 006 0V6a3 3 0 00-3-3z"
+      />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M19 11a7 7 0 01-14 0M12 18v3"
+      />
+    </svg>
+  );
+}
+
+function ChevronGlyph({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      aria-hidden
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M5 7.5l5 5 5-5"
+      />
+    </svg>
+  );
+}
+
+function selectedMicLabel(
+  selectedMicId: string,
+  micDevices: MediaDeviceInfo[],
+): string {
+  if (!selectedMicId.trim()) return "Default microphone";
+  const match = micDevices.find((d) => d.deviceId === selectedMicId);
+  const raw = match?.label?.trim();
+  if (!raw) return "Microphone";
+  return raw.length > 34 ? `${raw.slice(0, 32)}…` : raw;
 }
 
 function MusaiAudioInputRow({
@@ -309,51 +378,70 @@ function MusaiAudioInputRow({
   disabled: boolean;
   compact?: boolean;
 }) {
-  return (
-    <div className={`mx-auto w-full ${compact ? "max-w-[220px]" : "max-w-[260px]"}`}>
-      <label
-        htmlFor={id}
-        className={
-          compact
-            ? "sr-only"
-            : "mb-2 block text-center text-[11px] font-medium tracking-wide text-[var(--musai-muted)]"
-        }
-      >
-        Input
-      </label>
-      <div className="relative">
+  const label = selectedMicLabel(selectedMicId, micDevices);
+
+  if (compact) {
+    return (
+      <div className="musai-mic-picker mx-auto w-full max-w-[16.5rem]">
+        <label htmlFor={id} className="sr-only">
+          Microphone input
+        </label>
+        <span className="musai-mic-picker__icon" aria-hidden>
+          <MicGlyph className="h-3.5 w-3.5" />
+        </span>
         <select
           id={id}
           value={selectedMicId}
           onChange={(e) => onMicChange(e.target.value)}
           onFocus={() => void onMicRefresh()}
           disabled={disabled}
-          className="musai-field-select pr-9"
+          className="musai-mic-picker__select"
+          aria-label={`Microphone: ${label}`}
+          title={label}
         >
-          <option value="">Default</option>
+          <option value="">Default microphone</option>
           {micDevices.map((d) => (
             <option key={d.deviceId} value={d.deviceId}>
               {d.label?.trim() || `Input ${d.deviceId.slice(0, 8)}`}
             </option>
           ))}
         </select>
-        <span
-          className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--musai-muted)]"
-          aria-hidden
+        <span className="musai-mic-picker__chevron" aria-hidden>
+          <ChevronGlyph className="h-3.5 w-3.5" />
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto w-full max-w-[260px]">
+      <label
+        htmlFor={id}
+        className="mb-2 block text-center text-[11px] font-medium tracking-wide text-[var(--musai-muted)]"
+      >
+        Microphone
+      </label>
+      <div className="musai-mic-picker">
+        <span className="musai-mic-picker__icon" aria-hidden>
+          <MicGlyph className="h-3.5 w-3.5" />
+        </span>
+        <select
+          id={id}
+          value={selectedMicId}
+          onChange={(e) => onMicChange(e.target.value)}
+          onFocus={() => void onMicRefresh()}
+          disabled={disabled}
+          className="musai-mic-picker__select"
         >
-          <svg
-            viewBox="0 0 20 20"
-            className="h-3.5 w-3.5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.5}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M5 7l5 5 5-5"
-            />
-          </svg>
+          <option value="">Default microphone</option>
+          {micDevices.map((d) => (
+            <option key={d.deviceId} value={d.deviceId}>
+              {d.label?.trim() || `Input ${d.deviceId.slice(0, 8)}`}
+            </option>
+          ))}
+        </select>
+        <span className="musai-mic-picker__chevron" aria-hidden>
+          <ChevronGlyph className="h-3.5 w-3.5" />
         </span>
       </div>
     </div>
@@ -374,12 +462,14 @@ export function MusaiMicCapturePanel({
   onDiscardClip,
   onStartRecording,
   onStopRecording,
+  onRetakeRecording,
   streamRef,
   elapsedLabelOverride,
   levelBarsOverride,
   lastTakeLabelOverride,
-  density = "comfortable",
-  experience = "default",
+  density = "compact",
+  experience = "studio",
+  clipChrome = "full",
 }: MusaiMicCapturePanelProps) {
   const fallbackElapsedLabel = useRecordingElapsedLabel(isRecording);
   const fallbackLevelBars = useRecordingLevelBars(isRecording, streamRef);
@@ -395,20 +485,10 @@ export function MusaiMicCapturePanel({
   return (
     <div
       ref={stageRef}
-      className={
-        compact
-          ? "overflow-visible [overflow-anchor:none]"
-          : "musai-glass-inset overflow-visible [overflow-anchor:none]"
-      }
+      className="overflow-visible [overflow-anchor:none]"
     >
       {!isRecording ? (
-        <div
-          className={
-            compact
-              ? "px-1 pt-1"
-              : "border-b border-[var(--musai-border)] px-5 py-4 sm:px-6"
-          }
-        >
+        <div className="mb-2 px-1">
           <MusaiAudioInputRow
             id={selectId}
             micDevices={micDevices}
@@ -416,7 +496,7 @@ export function MusaiMicCapturePanel({
             onMicChange={onMicChange}
             onMicRefresh={onMicRefresh}
             disabled={isRecording}
-            compact={compact}
+            compact
           />
         </div>
       ) : null}
@@ -424,14 +504,15 @@ export function MusaiMicCapturePanel({
       <div
         className={
           compact
-            ? "flex flex-col items-center px-2 pb-2 pt-3"
-            : "flex flex-col items-center px-6 pb-20 pt-16 sm:pb-24 sm:pt-20"
+            ? "flex flex-col items-center px-2 pb-1 pt-2"
+            : "flex flex-col items-center px-6 pb-12 pt-10"
         }
       >
         <MusaiRecorderControls
           isRecording={isRecording}
           onStartRecording={onStartRecording}
           onStopRecording={onStopRecording}
+          onRetakeRecording={onRetakeRecording}
           elapsedLabel={elapsedLabel}
           levelBars={levelBars}
           size={compact ? "mini" : "full"}
@@ -441,48 +522,44 @@ export function MusaiMicCapturePanel({
         {hasSavedClip && !isRecording ? (
           <div
             data-rec-ready
-            className={
-              compact
-                ? "mt-2 flex w-full max-w-[280px] flex-col items-center gap-1.5"
-                : "mt-6 flex w-full max-w-[360px] flex-col items-center gap-3"
-            }
+            className="mt-2 flex w-full max-w-[280px] flex-col items-center gap-1.5"
           >
-            <div
-              className={`musai-glass-inset flex w-full items-center justify-between gap-3 rounded-[var(--musai-radius)] border-[color-mix(in_srgb,var(--musai-ok)_28%,var(--musai-border))] bg-[var(--musai-accent-soft)] ${
-                compact ? "px-3.5 py-2" : "px-4 py-3"
-              }`}
-            >
-              <div className="flex min-w-0 items-center gap-2.5">
-                <span
-                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--musai-surface)] text-[var(--musai-ok)] ring-1 ring-[color-mix(in_srgb,var(--musai-ok)_25%,transparent)]"
-                  aria-hidden
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-3.5 w-3.5"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={2.1}
+            {clipChrome === "full" ? (
+              <div className="musai-glass-inset flex w-full items-center justify-between gap-3 rounded-[var(--musai-radius)] border-[color-mix(in_srgb,var(--musai-ok)_28%,var(--musai-border))] bg-[var(--musai-accent-soft)] px-3.5 py-2">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <span
+                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--musai-surface)] text-[var(--musai-ok)] ring-1 ring-[color-mix(in_srgb,var(--musai-ok)_25%,transparent)]"
+                    aria-hidden
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                </span>
-                <div className="min-w-0 text-left">
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-3.5 w-3.5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={2.1}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  </span>
                   <p className="text-[12px] font-semibold tracking-tight text-[var(--musai-ok)]">
                     Ready
                   </p>
                 </div>
+                {lastTakeLabel ? (
+                  <span className="shrink-0 font-mono text-[11px] tabular-nums text-[var(--musai-muted)]">
+                    {lastTakeLabel}
+                  </span>
+                ) : null}
               </div>
-              {lastTakeLabel ? (
-                <span className="shrink-0 font-mono text-[11px] tabular-nums text-[var(--musai-muted)]">
-                  {lastTakeLabel}
-                </span>
-              ) : null}
-            </div>
+            ) : lastTakeLabel ? (
+              <p className="font-mono text-[11px] tabular-nums text-[var(--musai-muted)]">
+                {lastTakeLabel}
+              </p>
+            ) : null}
 
             <button
               type="button"

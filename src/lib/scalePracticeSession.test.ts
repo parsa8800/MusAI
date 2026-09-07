@@ -10,18 +10,18 @@ import {
   readScalePracticeHistoryEntry,
   readScalePracticeSession,
   removeScalePracticeHistoryEntry,
-  SCALE_HISTORY_MAX,
 } from "@/lib/scalePracticeSession";
+import { listScaleProgressJourneys } from "@/lib/scaleProgressHistory";
 import type { ScalePracticeSessionV1 } from "@/lib/scalePracticeTypes";
 
 function makeSession(
   overrides: Partial<ScalePracticeSessionV1> = {},
 ): ScalePracticeSessionV1 {
-  return {
+  const base: ScalePracticeSessionV1 = {
     schemaVersion: 1,
-    sessionId: overrides.sessionId ?? "s1",
+    sessionId: "s1",
     exerciseType: "scale_practice",
-    recordedAt: overrides.recordedAt ?? "2026-01-01T00:00:00.000Z",
+    recordedAt: "2026-01-01T00:00:00.000Z",
     scaleId: "C_major",
     scaleLabel: "C major",
     scaleKind: "major",
@@ -67,7 +67,13 @@ function makeSession(
       notesMissing: 0,
     },
     scaleSource: "detected",
+  };
+  return {
+    ...base,
     ...overrides,
+    summary: { ...base.summary, ...overrides.summary },
+    notes: overrides.notes ?? base.notes,
+    expectedNotesMidi: overrides.expectedNotesMidi ?? base.expectedNotesMidi,
   };
 }
 
@@ -103,7 +109,7 @@ describe("scalePracticeSession history", () => {
     expect(parseScalePracticeSession(bad)).toBeNull();
   });
 
-  it("persists current session and appends history", () => {
+  it("persists current session and groups by scale journey", () => {
     const a = makeSession({ sessionId: "a", recordedAt: "2026-01-02T00:00:00.000Z" });
     persistScalePracticeSession(a);
     expect(readScalePracticeSession()?.sessionId).toBe("a");
@@ -114,18 +120,27 @@ describe("scalePracticeSession history", () => {
     const hist = listScalePracticeHistory();
     expect(hist.map((s) => s.sessionId)).toEqual(["b", "a"]);
     expect(readScalePracticeHistoryEntry("a")?.sessionId).toBe("a");
+    expect(listScaleProgressJourneys()).toHaveLength(1);
+    expect(listScaleProgressJourneys()[0]?.attempts).toHaveLength(2);
   });
 
-  it("caps history length and dedupes by id", () => {
-    for (let i = 0; i < SCALE_HISTORY_MAX + 3; i++) {
-      pushScalePracticeHistory(
-        makeSession({ sessionId: `id-${i}`, recordedAt: `2026-01-${String(i + 1).padStart(2, "0")}T00:00:00.000Z` }),
-      );
-    }
-    expect(listScalePracticeHistory()).toHaveLength(SCALE_HISTORY_MAX);
+  it("keeps separate journeys for different scales", () => {
+    pushScalePracticeHistory(makeSession({ sessionId: "c", scaleId: "C_major" }));
+    pushScalePracticeHistory(
+      makeSession({
+        sessionId: "d",
+        scaleId: "D_major",
+        scaleLabel: "D major",
+        tonicPitchClass: 2,
+      }),
+    );
+    expect(listScaleProgressJourneys()).toHaveLength(2);
+  });
+
+  it("dedupes by id within a journey", () => {
     pushScalePracticeHistory(makeSession({ sessionId: "id-10" }));
-    expect(listScalePracticeHistory()[0]?.sessionId).toBe("id-10");
-    expect(listScalePracticeHistory().filter((s) => s.sessionId === "id-10")).toHaveLength(1);
+    pushScalePracticeHistory(makeSession({ sessionId: "id-10" }));
+    expect(listScaleProgressJourneys()[0]?.attempts).toHaveLength(1);
   });
 
   it("removes a history entry by id", () => {

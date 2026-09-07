@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ScaleKind } from "@/lib/scales";
 import {
-  chunkMidisForStaffPaired,
+  chunkMidisForStaff,
   maxNotesPerStaffRow,
 } from "@/lib/staffChunking";
 import {
@@ -31,14 +31,26 @@ type Props = {
   tonicPitchClass: number;
   scaleKind: ScaleKind;
   className?: string;
+  /** Tighter vertical spacing for one-viewport pick mode. */
+  density?: "default" | "pad";
+  /** @deprecated Asc/desc are drawn as one continuous piece; labels are unused. */
+  showSectionLabels?: boolean;
 };
 
-/** Warm ink on paper staff. */
-const NOTATION_FILL = "#1c1917";
-/** Staff lines and notehead rims. */
-const NOTATION_STROKE = "#c4bdb4";
-/** Paper surface behind the staff SVG. */
-const STAVE_BG = "#fffcf8";
+/** Warm ink on paper staff — resolved from theme tokens at draw time. */
+function notationThemeColors() {
+  if (typeof window === "undefined") {
+    return { fill: "#1c1917", stroke: "#c4bdb4", bg: "#fffcf8" };
+  }
+  const s = getComputedStyle(document.documentElement);
+  const read = (name: string, fallback: string) =>
+    s.getPropertyValue(name).trim() || fallback;
+  return {
+    fill: read("--musai-ink", "#1c1917"),
+    stroke: read("--musai-border", "#c4bdb4"),
+    bg: read("--musai-surface", "#fffcf8"),
+  };
+}
 
 function clamp01(x: number): number {
   return Math.max(0, Math.min(1, x));
@@ -75,13 +87,23 @@ function drawSystem(
   vexKeys: string[],
   keySig: string,
   staveWidth: number,
-  options: { endBarSingle: boolean; cents?: Array<number | null> },
+  options: {
+    endBarSingle: boolean;
+    cents?: Array<number | null>;
+    lineSpacingPx?: number;
+    noteHeadFontSize?: number;
+    colors?: { fill: string; stroke: string; bg: string };
+  },
 ) {
   const { Renderer, Stave, StaveNote, Formatter } = VF;
+  const lineSpacing = options.lineSpacingPx ?? STAVE_LINE_SPACING_PX;
+  const noteHeadFontSize = options.noteHeadFontSize ?? 39;
+  const { fill: notationFill, stroke: notationStroke, bg: staveBg } =
+    options.colors ?? notationThemeColors();
   const metricsDefaults = (VF as { MetricsDefaults?: { NoteHead?: { fontSize?: number } } }).MetricsDefaults;
   const metrics = (VF as { Metrics?: { clear?: (key: string) => void } }).Metrics;
   if (metricsDefaults) {
-    metricsDefaults.NoteHead = { ...metricsDefaults.NoteHead, fontSize: 39 };
+    metricsDefaults.NoteHead = { ...metricsDefaults.NoteHead, fontSize: noteHeadFontSize };
     metrics?.clear?.("NoteHead");
   }
   const BarlineType = VF.BarlineType;
@@ -91,23 +113,23 @@ function drawSystem(
     | undefined;
 
   host.innerHTML = "";
-  const { height, staveY } = staveCanvasMetrics(vexKeys, STAVE_LINE_SPACING_PX);
+  const { height, staveY } = staveCanvasMetrics(vexKeys, lineSpacing);
   const renderer = new Renderer(host, Renderer.Backends.SVG);
   renderer.resize(staveWidth, height);
   const ctx = renderer.getContext();
-  ctx.setFillStyle(NOTATION_FILL);
-  ctx.setStrokeStyle(NOTATION_STROKE);
-  ctx.setBackgroundFillStyle(STAVE_BG);
+  ctx.setFillStyle(notationFill);
+  ctx.setStrokeStyle(notationStroke);
+  ctx.setBackgroundFillStyle(staveBg);
   ctx.setLineWidth(1.25);
 
   const stave = new Stave(16, staveY, staveWidth - 32, {
-    spacingBetweenLinesPx: STAVE_LINE_SPACING_PX,
+    spacingBetweenLinesPx: lineSpacing,
     spaceAboveStaffLn: STAVE_HEADROOM_SPACES,
     spaceBelowStaffLn: STAVE_HEADROOM_SPACES,
   });
-  stave.setStyle({ fillStyle: NOTATION_FILL, strokeStyle: NOTATION_STROKE });
+  stave.setStyle({ fillStyle: notationFill, strokeStyle: notationStroke });
   stave.setDefaultLedgerLineStyle({
-    strokeStyle: NOTATION_STROKE,
+    strokeStyle: notationStroke,
     lineWidth: 2,
   });
   stave.addClef("treble");
@@ -117,7 +139,7 @@ function drawSystem(
   }
   stave.setContext(ctx).draw();
 
-  const noteStyle = { fillStyle: NOTATION_FILL, strokeStyle: NOTATION_STROKE };
+  const noteStyle = { fillStyle: notationFill, strokeStyle: notationStroke };
   const centsForNotes = options.cents ? [...options.cents] : undefined;
   const notes = vexKeys.map((k, noteIdx) => {
     const n = new StaveNote({
@@ -127,14 +149,14 @@ function drawSystem(
     });
     // Staff spacing is larger than VexFlow’s default; keep stems ~3.2 spaces tall.
     // setStemLength only stores an override — push it onto the Stem before draw.
-    n.setStemLength(STAVE_LINE_SPACING_PX * 3.2);
+    n.setStemLength(lineSpacing * 3.2);
     n.getStem()?.setExtension(n.getStemExtension());
     n.setLedgerLineStyle({
-      strokeStyle: NOTATION_STROKE,
+      strokeStyle: notationStroke,
       lineWidth: 2.1,
     });
     for (const head of n.noteHeads) {
-      head.setFontSize(39);
+      head.setFontSize(noteHeadFontSize);
     }
     const cents = centsForNotes?.[noteIdx];
     if (typeof cents === "number" || cents === null) {
@@ -199,7 +221,7 @@ function drawSystem(
  * Ledger lines: a touch shorter than the default head-width stretch, still
  * centered on the note (equal overhang left and right).
  */
-function reshapeLedgerLines(svg: SVGSVGElement) {
+function reshapeLedgerLines(svg: SVGSVGElement, stroke: string) {
   const ns = "http://www.w3.org/2000/svg";
   /** Horizontal overhang past each side of the notehead bbox. */
   const overhang = 2.5;
@@ -220,7 +242,7 @@ function reshapeLedgerLines(svg: SVGSVGElement) {
     line.setAttribute("x2", String(cx + half));
     line.setAttribute("y1", String(box.y));
     line.setAttribute("y2", String(box.y));
-    line.setAttribute("stroke", NOTATION_STROKE);
+    line.setAttribute("stroke", stroke);
     line.setAttribute("stroke-width", "2.1");
     line.setAttribute("stroke-linecap", "round");
     path.replaceWith(line);
@@ -228,8 +250,7 @@ function reshapeLedgerLines(svg: SVGSVGElement) {
 }
 
 /** Crop leftover canvas so painted notation sits in the middle of the card. */
-function cropSvgViewBoxToInk(svg: SVGSVGElement) {
-  const pad = 22;
+function cropSvgViewBoxToInk(svg: SVGSVGElement, inkPad = 22) {
   const canvasWidth = Number(svg.getAttribute("data-stave-width") || svg.viewBox.baseVal.width);
   const ctm = svg.getScreenCTM();
   if (!ctm || canvasWidth <= 0) return;
@@ -250,23 +271,41 @@ function cropSvgViewBoxToInk(svg: SVGSVGElement) {
     maxY = Math.max(maxY, y1);
   }
   if (!Number.isFinite(minY) || maxY <= minY) return;
-  const height = Math.ceil(maxY - minY + 2 * pad);
-  const y = minY - pad;
+  const height = Math.ceil(maxY - minY + 2 * inkPad);
+  const y = minY - inkPad;
   svg.setAttribute("viewBox", `0 ${y} ${canvasWidth} ${height}`);
   svg.setAttribute("height", String(height));
   svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
 }
 
-function cropStaffSvgs(root: HTMLElement) {
+function cropStaffSvgs(root: HTMLElement, inkPad = 22, stroke?: string) {
+  const ledgerStroke = stroke ?? notationThemeColors().stroke;
   root.querySelectorAll<SVGSVGElement>("svg").forEach((svg) => {
-    reshapeLedgerLines(svg);
-    cropSvgViewBoxToInk(svg);
+    reshapeLedgerLines(svg, ledgerStroke);
+    cropSvgViewBoxToInk(svg, inkPad);
   });
 }
 
-function appendGlassStaffRow(
+function fitPieceIntoHost(host: HTMLElement) {
+  const piece = host.firstElementChild as HTMLElement | null;
+  if (!piece) return;
+  piece.style.transform = "";
+  piece.style.marginBottom = "";
+  piece.style.transformOrigin = "center center";
+  const avail = host.clientHeight;
+  const need = piece.scrollHeight;
+  // Keep notation readable — never shrink below ~90%. Prefer scroll over tiny notes.
+  if (avail > 8 && need > avail) {
+    const s = Math.max(0.9, Math.min(1, (avail - 4) / need));
+    if (s < 0.995) piece.style.transform = `scale(${s})`;
+  }
+}
+
+/** One paper card; multiple systems stack inside like a continuous piece. */
+function appendPieceStaffCard(
   wrap: HTMLElement,
-  drawIntoHost: (svgHost: HTMLDivElement) => void,
+  parts: Array<{ kind: "system"; draw: (svgHost: HTMLDivElement) => void }>,
+  opts: { pad: boolean; systemGapClass: string },
 ) {
   const row = document.createElement("div");
   row.className = "musai-staff-row w-full max-w-full";
@@ -276,15 +315,27 @@ function appendGlassStaffRow(
   shimmer.className = "musai-staff-card__shimmer";
   shimmer.setAttribute("aria-hidden", "true");
   const inner = document.createElement("div");
-  inner.className = "musai-staff-card__inner";
-  const svgHost = document.createElement("div");
-  svgHost.className = "musai-staff-svg-host";
+  inner.className = opts.pad
+    ? "musai-staff-card__inner musai-staff-card__inner--pad"
+    : "musai-staff-card__inner";
+  const stack = document.createElement("div");
+  const multiSystem = parts.length > 1;
+  stack.className = `flex w-full flex-col ${
+    multiSystem ? opts.systemGapClass : "gap-0"
+  }`;
+
   card.appendChild(shimmer);
   card.appendChild(inner);
-  inner.appendChild(svgHost);
+  inner.appendChild(stack);
   row.appendChild(card);
   wrap.appendChild(row);
-  drawIntoHost(svgHost);
+
+  for (const part of parts) {
+    const svgHost = document.createElement("div");
+    svgHost.className = "musai-staff-svg-host";
+    stack.appendChild(svgHost);
+    part.draw(svgHost);
+  }
 }
 
 export function ScaleTrebleStaff({
@@ -295,11 +346,31 @@ export function ScaleTrebleStaff({
   tonicPitchClass,
   scaleKind,
   className = "",
+  density = "default",
 }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
-  const ascHostRef = useRef<HTMLDivElement>(null);
-  const descHostRef = useRef<HTMLDivElement>(null);
+  const hostRef = useRef<HTMLDivElement>(null);
   const [usableW, setUsableW] = useState(720);
+  const [themeKey, setThemeKey] = useState("light");
+  const pad = density === "pad";
+  const hasAsc = ascendingMidis.length > 0;
+  const hasDesc = descendingMidis.length > 0;
+  const bothDirections = hasAsc && hasDesc;
+
+  useEffect(() => {
+    const syncTheme = () => {
+      setThemeKey(
+        document.documentElement.dataset.theme === "dark" ? "dark" : "light",
+      );
+    };
+    syncTheme();
+    const mo = new MutationObserver(syncTheme);
+    mo.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+    return () => mo.disconnect();
+  }, []);
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -307,12 +378,14 @@ export function ScaleTrebleStaff({
     const measure = () => {
       const w = el.getBoundingClientRect().width;
       if (w > 0) setUsableW(w);
+      const host = hostRef.current;
+      if (pad && host?.firstElementChild) fitPieceIntoHost(host);
     };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [pad]);
 
   const staveWidth = Math.max(280, Math.floor(usableW - 8));
 
@@ -323,9 +396,8 @@ export function ScaleTrebleStaff({
   const descCentsKey = (descendingCents ?? []).map((c) => (c === null ? "n" : c)).join(",");
 
   useEffect(() => {
-    const ascHost = ascHostRef.current;
-    const descHost = descHostRef.current;
-    if (!ascHost || !descHost) return;
+    const host = hostRef.current;
+    if (!host) return;
 
     let cancelled = false;
 
@@ -347,79 +419,131 @@ export function ScaleTrebleStaff({
       await new Promise<void>((r) => requestAnimationFrame(() => r()));
       if (cancelled) return;
 
-      const maxPerRow = maxNotesPerStaffRow(usableW);
+      const maxPerRow = maxNotesPerStaffRow(
+        usableW,
+        pad && bothDirections ? 24 : undefined,
+      );
       const keySig = vexKeySignatureSpec(tonicPitchClass, scaleKind);
+
+      const pieceMidis = [...ascendingMidis, ...descendingMidis];
+      if (pieceMidis.length === 0) {
+        host.innerHTML = "";
+        return;
+      }
+
       const midiToKey = buildMidiToVexKeyMap(
-        ascendingMidis,
+        pieceMidis,
         tonicPitchClass,
         scaleKind,
       );
-      const { ascending: ascChunks, descending: descChunks } =
-        chunkMidisForStaffPaired(ascendingMidis, descendingMidis, maxPerRow);
 
-      ascHost.innerHTML = "";
-      descHost.innerHTML = "";
+      // Ascending and descending as separate staff lines in one piece card.
+      type LineChunk = {
+        midis: number[];
+        cents?: Array<number | null>;
+        direction: "up" | "down";
+      };
+      const lineChunks: LineChunk[] = [];
 
-      const ascWrap = document.createElement("div");
-      ascWrap.className = "flex w-full flex-col gap-7 sm:gap-8";
-      ascChunks.forEach((chunk, idx) => {
-        const startIndex = ascChunks
-          .slice(0, idx)
-          .reduce((s, c) => s + c.length, 0);
-        const centsSlice = ascendingCents
-          ? ascendingCents.slice(startIndex, startIndex + chunk.length)
-          : undefined;
+      if (ascendingMidis.length > 0) {
+        const ascChunks = chunkMidisForStaff(ascendingMidis, maxPerRow);
+        let offset = 0;
+        for (const chunk of ascChunks) {
+          lineChunks.push({
+            midis: chunk,
+            cents: ascendingCents
+              ? ascendingCents.slice(offset, offset + chunk.length)
+              : undefined,
+            direction: "up",
+          });
+          offset += chunk.length;
+        }
+      }
+      if (descendingMidis.length > 0) {
+        const descChunks = chunkMidisForStaff(descendingMidis, maxPerRow);
+        let offset = 0;
+        for (const chunk of descChunks) {
+          lineChunks.push({
+            midis: chunk,
+            cents: descendingCents
+              ? descendingCents.slice(offset, offset + chunk.length)
+              : undefined,
+            direction: "down",
+          });
+          offset += chunk.length;
+        }
+      }
+
+      const longAsc = ascendingMidis.length > 10;
+      const drawOpts = pad
+        ? bothDirections
+          ? { lineSpacingPx: longAsc ? 14 : 16, noteHeadFontSize: longAsc ? 34 : 38 }
+          : {
+              lineSpacingPx: longAsc ? 16 : 18,
+              noteHeadFontSize: longAsc ? 36 : 42,
+            }
+        : { lineSpacingPx: STAVE_LINE_SPACING_PX, noteHeadFontSize: 39 };
+
+      // 2-octave up/down needs a wide gap — high ledger notes almost touch otherwise.
+      const systemGapClass = bothDirections
+        ? longAsc
+          ? pad
+            ? "gap-8 sm:gap-10"
+            : "gap-8 sm:gap-12"
+          : pad
+            ? "gap-4 sm:gap-5"
+            : "gap-3 sm:gap-4"
+        : "gap-0";
+
+      host.innerHTML = "";
+      const pieceWrap = document.createElement("div");
+      pieceWrap.className = "w-full";
+      const colors = notationThemeColors();
+
+      const parts: Array<{
+        kind: "system";
+        draw: (svgHost: HTMLDivElement) => void;
+      }> = [];
+
+      lineChunks.forEach((line, idx) => {
         const keys = vexKeysForMidisOrdered(
-          chunk,
+          line.midis,
           midiToKey,
           tonicPitchClass,
           scaleKind,
         );
-        appendGlassStaffRow(ascWrap, (svgHost) =>
-          drawSystem(VF, svgHost, keys, keySig, staveWidth, {
-            endBarSingle: idx < ascChunks.length - 1,
-            cents: centsSlice ? [...centsSlice] : undefined,
-          }),
-        );
+        parts.push({
+          kind: "system",
+          draw: (svgHost: HTMLDivElement) =>
+            drawSystem(VF, svgHost, keys, keySig, staveWidth, {
+              endBarSingle: idx < lineChunks.length - 1,
+              cents: line.cents ? [...line.cents] : undefined,
+              colors,
+              ...drawOpts,
+            }),
+        });
       });
-      ascHost.appendChild(ascWrap);
 
-      const descWrap = document.createElement("div");
-      descWrap.className = "flex w-full flex-col gap-7 sm:gap-8";
-      descChunks.forEach((chunk, idx) => {
-        const startIndex = descChunks
-          .slice(0, idx)
-          .reduce((s, c) => s + c.length, 0);
-        const centsSlice = descendingCents
-          ? descendingCents.slice(startIndex, startIndex + chunk.length)
-          : undefined;
-        const keys = vexKeysForMidisOrdered(
-          chunk,
-          midiToKey,
-          tonicPitchClass,
-          scaleKind,
-        );
-        appendGlassStaffRow(descWrap, (svgHost) =>
-          drawSystem(VF, svgHost, keys, keySig, staveWidth, {
-            endBarSingle: idx < descChunks.length - 1,
-            cents: centsSlice ? [...centsSlice] : undefined,
-          }),
-        );
-      });
-      descHost.appendChild(descWrap);
+      appendPieceStaffCard(pieceWrap, parts, { pad, systemGapClass });
+      host.appendChild(pieceWrap);
       requestAnimationFrame(() => {
         if (cancelled) return;
-        cropStaffSvgs(ascHost);
-        cropStaffSvgs(descHost);
+        cropStaffSvgs(
+          host,
+          pad ? (longAsc && bothDirections ? 14 : 10) : 22,
+          colors.stroke,
+        );
+        requestAnimationFrame(() => {
+          if (cancelled || !pad) return;
+          fitPieceIntoHost(host);
+        });
       });
     })();
 
     return () => {
       cancelled = true;
-      ascHost.innerHTML = "";
-      descHost.innerHTML = "";
+      host.innerHTML = "";
     };
-    // Keys capture midi/cents identity; arrays themselves are listed for eslint clarity.
   }, [
     ascMidiKey,
     descMidiKey,
@@ -429,31 +553,37 @@ export function ScaleTrebleStaff({
     descendingMidis,
     ascendingCents,
     descendingCents,
+    pad,
+    bothDirections,
     scaleKind,
     staveWidth,
     tonicPitchClass,
     usableW,
+    themeKey,
   ]);
 
-  const hasAsc = ascendingMidis.length > 0;
-  const hasDesc = descendingMidis.length > 0;
-
   return (
-    <div ref={wrapRef} className={`w-full ${className}`}>
-      <div className="flex w-full flex-col gap-12 sm:gap-14">
-        <div className={`w-full space-y-4 ${hasAsc ? "" : "sr-only"}`}>
-          <p className="musai-staff-section-label text-center text-[11px] font-semibold uppercase">
-            Ascending
-          </p>
-          <div ref={ascHostRef} className="min-h-[96px] w-full" />
-        </div>
-        <div className={`w-full space-y-4 ${hasDesc ? "" : "sr-only"}`}>
-          <p className="musai-staff-section-label text-center text-[11px] font-semibold uppercase">
-            Descending
-          </p>
-          <div ref={descHostRef} className="min-h-[96px] w-full" />
-        </div>
-      </div>
+    <div
+      ref={wrapRef}
+      className={`min-h-0 w-full ${pad ? "h-auto max-h-full" : "h-full"} ${className}`}
+    >
+      <div
+        ref={hostRef}
+        className={`flex min-h-0 w-full justify-center overflow-x-hidden ${
+          pad
+            ? "h-auto max-h-full items-start overflow-y-auto"
+            : "h-full items-center overflow-y-auto"
+        }`}
+        aria-label={
+          bothDirections
+            ? "Scale notes, ascending then descending"
+            : hasAsc
+              ? "Scale notes, ascending"
+              : hasDesc
+                ? "Scale notes, descending"
+                : "Scale notes"
+        }
+      />
     </div>
   );
 }

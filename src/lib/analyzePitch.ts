@@ -4,6 +4,13 @@ const FRAME = 4096;
 const HOP = 2048;
 const MIN_HZ = 80;
 const MAX_HZ = 5000;
+/** Violin scale takes rarely need above ~D6; capping cuts false harmonic highs. */
+const SCALE_MAX_HZ = 1200;
+/** Real violin takes often sit below the tuner’s 0.82 clarity floor. */
+const SCALE_CLARITY = 0.72;
+const SCALE_MIN_VOLUME_DB = -45;
+const TUNER_CLARITY = 0.82;
+const TUNER_MIN_VOLUME_DB = -38;
 
 export type PitchEstimateResult = {
   medianHz: number;
@@ -50,8 +57,8 @@ export function estimatePitchMedianHz(
   sampleRate: number,
 ): PitchEstimateResult {
   const detector = PitchDetector.forFloat32Array(FRAME);
-  detector.clarityThreshold = 0.82;
-  detector.minVolumeDecibels = -38;
+  detector.clarityThreshold = TUNER_CLARITY;
+  detector.minVolumeDecibels = TUNER_MIN_VOLUME_DB;
 
   const pitches: number[] = [];
   let totalFrames = 0;
@@ -62,7 +69,7 @@ export function estimatePitchMedianHz(
     if (
       pitch > MIN_HZ &&
       pitch < MAX_HZ &&
-      clarity >= 0.82 &&
+      clarity >= TUNER_CLARITY &&
       Number.isFinite(pitch)
     ) {
       pitches.push(pitch);
@@ -98,6 +105,11 @@ function medianHzFromSorted(hz: number[]): number {
   return s[Math.floor(s.length / 2)]!;
 }
 
+export type CollectPitchFramesOptions = {
+  /** Looser thresholds for scale detection / analysis (default). */
+  mode?: "tuner" | "scale";
+};
+
 /**
  * Pitch track over the clip (same detector settings as aggregate median).
  * Used for per-note / windowed scale analysis — keep separate from UI.
@@ -105,10 +117,16 @@ function medianHzFromSorted(hz: number[]): number {
 export function collectPitchFrames(
   mono: Float32Array,
   sampleRate: number,
+  options?: CollectPitchFramesOptions,
 ): PitchFrame[] {
+  const mode = options?.mode ?? "scale";
+  const clarityMin = mode === "tuner" ? TUNER_CLARITY : SCALE_CLARITY;
+  const minVol = mode === "tuner" ? TUNER_MIN_VOLUME_DB : SCALE_MIN_VOLUME_DB;
+  const maxHz = mode === "tuner" ? MAX_HZ : SCALE_MAX_HZ;
+
   const detector = PitchDetector.forFloat32Array(FRAME);
-  detector.clarityThreshold = 0.82;
-  detector.minVolumeDecibels = -38;
+  detector.clarityThreshold = clarityMin;
+  detector.minVolumeDecibels = minVol;
 
   const out: PitchFrame[] = [];
 
@@ -117,8 +135,8 @@ export function collectPitchFrames(
     const t = (startSample + FRAME / 2) / sampleRate;
     if (
       pitch > MIN_HZ &&
-      pitch < MAX_HZ &&
-      clarity >= 0.82 &&
+      pitch < maxHz &&
+      clarity >= clarityMin &&
       Number.isFinite(pitch)
     ) {
       out.push({ timeSec: t, hz: pitch, clarity });
@@ -275,6 +293,30 @@ export function octaveWrappedAbsCents(hz: number, targetHz: number): number {
 }
 
 /**
+ * Prefer a sub-harmonic when it sits clearly closer to the written note.
+ * Violin pitch trackers often lock onto the 2nd harmonic.
+ */
+export function preferFundamentalNearTargetHz(
+  detectedHz: number,
+  targetHz: number,
+): number {
+  if (!(detectedHz > 0) || !(targetHz > 0)) return detectedHz;
+  let bestHz = detectedHz;
+  let bestErr = octaveWrappedAbsCents(detectedHz, targetHz);
+  for (const div of [2, 3, 4]) {
+    const cand = detectedHz / div;
+    if (cand < MIN_HZ) continue;
+    const e = octaveWrappedAbsCents(cand, targetHz);
+    // Prefer a clearly better fit, or the same fit at a lower (fundamental) octave.
+    if (e + 15 < bestErr || (e <= bestErr + 5 && cand < bestHz * 0.75)) {
+      bestHz = cand;
+      bestErr = e;
+    }
+  }
+  return bestHz;
+}
+
+/**
  * Choose equal-window vs stable-run segmentation by lowest total intonation error
  * against expected MIDI targets.
  */
@@ -299,7 +341,8 @@ export function medianHzPerScaleSteps(
         continue;
       }
       const target = 440 * Math.pow(2, (expectedMidis[i]! - 69) / 12);
-      total += octaveWrappedAbsCents(hz, target);
+      const hzAdj = preferFundamentalNearTargetHz(hz, target);
+      total += octaveWrappedAbsCents(hzAdj, target);
       counted += 1;
     }
     if (counted === 0) return Number.POSITIVE_INFINITY;

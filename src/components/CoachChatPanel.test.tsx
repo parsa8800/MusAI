@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CoachChatPanel } from "@/components/CoachChatPanel";
 import type { ScalePracticeSessionV1 } from "@/lib/scalePracticeTypes";
@@ -67,6 +67,7 @@ describe("CoachChatPanel", () => {
     render(
       <CoachChatPanel
         start
+        embed
         trendLine="Trending sharp."
         tip="Work A4 next."
         source="template"
@@ -75,6 +76,11 @@ describe("CoachChatPanel", () => {
     );
 
     expect(screen.getByPlaceholderText(/Ask anything/i)).toBeInTheDocument();
+    expect(screen.getByText(/Coach · Parsa/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Preview coaching/i })).toBeInTheDocument();
+    expect(screen.queryByText(/^Template$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Live AI is off/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/OPENAI_ENABLED/i)).not.toBeInTheDocument();
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(50);
@@ -82,5 +88,41 @@ describe("CoachChatPanel", () => {
 
     expect(screen.getByText(/Trending sharp/i)).toBeInTheDocument();
     expect(screen.getByText(/Work A4 next/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("group", { name: /Suggested questions/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows Preview coaching tooltip on the status dot", async () => {
+    render(
+      <CoachChatPanel
+        start
+        embed
+        trendLine="Steady take."
+        tip="Keep the bow even."
+        source="template"
+        session={session}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Preview coaching/i }));
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Preview coaching");
+  });
+
+  it("hides the preview dot when live coaching is on", () => {
+    render(
+      <CoachChatPanel
+        start
+        embed
+        trendLine="Steady take."
+        tip="Keep the bow even."
+        source="llm"
+        session={session}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: /Preview coaching/i }),
+    ).not.toBeInTheDocument();
   });
 });

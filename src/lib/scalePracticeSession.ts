@@ -1,31 +1,29 @@
 import type { ScalePracticeSessionV1 } from "@/lib/scalePracticeTypes";
-import { SCALE_PRACTICE_SESSION_VERSION } from "@/lib/scalePracticeTypes";
+import { parseScalePracticeSession } from "@/lib/parseScalePracticeSession";
+import {
+  clearScaleProgressHistory,
+  flattenScaleProgressAttempts,
+  listScaleProgressJourneys,
+  pushScaleProgressAttempt,
+  readScaleProgressAttempt,
+  removeScaleProgressJourney,
+} from "@/lib/scaleProgressHistory";
+
+export { parseScalePracticeSession } from "@/lib/parseScalePracticeSession";
+export {
+  clearScaleProgressHistory,
+  formatLastPractised,
+  getScaleProgressJourney,
+  listScaleProgressJourneys,
+  removeScaleProgressJourney,
+  type ScaleProgressJourneyV1,
+} from "@/lib/scaleProgressHistory";
 
 export const MUSAI_SCALE_PRACTICE_KEY = "musai-scale-practice-session-v1";
+/** @deprecated Prefer progress journeys; kept for migration alias. */
 export const MUSAI_SCALE_HISTORY_KEY = "musai-scale-practice-history-v1";
-export const SCALE_HISTORY_MAX = 8;
-
-/** Shared session contract check for results, history, and APIs. */
-export function parseScalePracticeSession(
-  raw: unknown,
-): ScalePracticeSessionV1 | null {
-  if (!raw || typeof raw !== "object") return null;
-  const v = raw as ScalePracticeSessionV1;
-  if (
-    v.schemaVersion !== SCALE_PRACTICE_SESSION_VERSION ||
-    typeof v.sessionId !== "string" ||
-    v.exerciseType !== "scale_practice" ||
-    !Array.isArray(v.notes) ||
-    !Array.isArray(v.expectedNotesMidi) ||
-    !v.summary ||
-    typeof v.scaleLabel !== "string" ||
-    typeof v.rootMidi !== "number"
-  ) {
-    return null;
-  }
-  if (v.notes.length !== v.expectedNotesMidi.length) return null;
-  return v;
-}
+/** Soft cap for flattened list consumers. */
+export const SCALE_HISTORY_MAX = 48;
 
 export function persistScalePracticeSession(data: ScalePracticeSessionV1): void {
   if (typeof sessionStorage === "undefined") return;
@@ -49,55 +47,38 @@ export function clearScalePracticeSession(): void {
   sessionStorage.removeItem(MUSAI_SCALE_PRACTICE_KEY);
 }
 
-function readHistoryRaw(): ScalePracticeSessionV1[] {
-  if (typeof localStorage === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(MUSAI_SCALE_HISTORY_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .map((item) => parseScalePracticeSession(item))
-      .filter((s): s is ScalePracticeSessionV1 => Boolean(s));
-  } catch {
-    return [];
-  }
-}
-
+/** Newest-first flat list for comparison helpers and legacy callers. */
 export function listScalePracticeHistory(): ScalePracticeSessionV1[] {
-  return readHistoryRaw();
+  return flattenScaleProgressAttempts().slice(0, SCALE_HISTORY_MAX);
 }
 
 export function readScalePracticeHistoryEntry(
   sessionId: string,
 ): ScalePracticeSessionV1 | null {
-  return readHistoryRaw().find((s) => s.sessionId === sessionId) ?? null;
+  return readScaleProgressAttempt(sessionId);
 }
 
-/** Newest first. Dedupes by sessionId. Caps at SCALE_HISTORY_MAX. */
+/** Appends into the scale's journey (grouped by scaleId). */
 export function pushScalePracticeHistory(session: ScalePracticeSessionV1): void {
-  if (typeof localStorage === "undefined") return;
-  if (!parseScalePracticeSession(session)) return;
-  const next = [
-    session,
-    ...readHistoryRaw().filter((s) => s.sessionId !== session.sessionId),
-  ].slice(0, SCALE_HISTORY_MAX);
-  localStorage.setItem(MUSAI_SCALE_HISTORY_KEY, JSON.stringify(next));
+  pushScaleProgressAttempt(session);
 }
 
+/** Removes one attempt; drops the journey if no attempts remain. */
 export function removeScalePracticeHistoryEntry(sessionId: string): void {
   if (typeof localStorage === "undefined") return;
-  const next = readHistoryRaw().filter((s) => s.sessionId !== sessionId);
-  if (next.length === 0) {
-    localStorage.removeItem(MUSAI_SCALE_HISTORY_KEY);
-    return;
+  const journey = listScaleProgressJourneys().find((j) =>
+    j.attempts.some((a) => a.sessionId === sessionId),
+  );
+  if (!journey) return;
+  const remaining = journey.attempts.filter((a) => a.sessionId !== sessionId);
+  removeScaleProgressJourney(journey.progressKey);
+  for (const attempt of remaining) {
+    pushScaleProgressAttempt(attempt);
   }
-  localStorage.setItem(MUSAI_SCALE_HISTORY_KEY, JSON.stringify(next));
 }
 
 export function clearScalePracticeHistory(): void {
-  if (typeof localStorage === "undefined") return;
-  localStorage.removeItem(MUSAI_SCALE_HISTORY_KEY);
+  clearScaleProgressHistory();
 }
 
 export function formatScaleTakeSubtitle(session: ScalePracticeSessionV1): string {

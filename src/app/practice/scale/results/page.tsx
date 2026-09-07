@@ -10,6 +10,7 @@ import {
   readScalePracticeSession,
 } from "@/lib/scalePracticeSession";
 import type { ScalePracticeSessionV1 } from "@/lib/scalePracticeTypes";
+import { scaleWorkspaceHref } from "@/lib/scaleWorkspace";
 
 function ResultsLoading() {
   return (
@@ -64,7 +65,14 @@ function ScalePracticeResultsInner() {
 
   return (
     <div className="flex min-h-full flex-col items-center px-4 pb-20 pt-10 sm:px-6 sm:pb-24 sm:pt-12 lg:px-8">
-      <ScalePracticeResultsView session={session} />
+      <ScalePracticeResultsView
+        session={session}
+        studioHref={scaleWorkspaceHref(
+          session.scaleId,
+          session.octaveSpan,
+          session.rootMidi,
+        )}
+      />
     </div>
   );
 }

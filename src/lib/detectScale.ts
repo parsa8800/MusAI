@@ -38,6 +38,8 @@ export type DetectScaleResult =
     }
   | { ok: false; reason: "no_pitch" | "no_match" };
 
+type RunHint = { midiCenter: number };
+
 function expectedMidisFor(
   rootMidi: number,
   kind: ScaleKind,
@@ -49,7 +51,22 @@ function expectedMidisFor(
     : buildAscendingScaleMidis(rootMidi, kind, span);
 }
 
-/** Prefer expected midis near the take’s absolute MIDI (scoring unwraps octaves). */
+function pitchClassFromMidi(midi: number): number {
+  return ((Math.round(midi) % 12) + 12) % 12;
+}
+
+function nearestOctaveSemitoneDistance(
+  detectedMidi: number,
+  expectedMidi: number,
+): number {
+  let best = Math.abs(detectedMidi - expectedMidi);
+  for (let k = -2; k <= 2; k++) {
+    best = Math.min(best, Math.abs(detectedMidi + 12 * k - expectedMidi));
+  }
+  return best;
+}
+
+/** Prefer expected midis near the take’s pitch (ignore pure octave leaps). */
 function octaveMismatchPenalty(
   analysis: ScaleAnalysisResult,
   expectedMidis: readonly number[],
@@ -59,11 +76,60 @@ function octaveMismatchPenalty(
   for (let i = 0; i < expectedMidis.length; i++) {
     const note = analysis.notes[i];
     if (!note || note.missingData) continue;
-    sum += Math.abs(note.detectedMidi - expectedMidis[i]!);
-    n++;
+    sum += nearestOctaveSemitoneDistance(note.detectedMidi, expectedMidis[i]!);
+    n += 1;
   }
   if (n === 0) return 50;
-  return (sum / n) * 3.2;
+  return (sum / n) * 2.4;
+}
+
+function pitchClassMatchBonus(
+  analysis: ScaleAnalysisResult,
+  expectedMidis: readonly number[],
+): number {
+  let hits = 0;
+  let n = 0;
+  for (let i = 0; i < expectedMidis.length; i++) {
+    const note = analysis.notes[i];
+    if (!note || note.missingData) continue;
+    n += 1;
+    if (
+      pitchClassFromMidi(note.detectedMidi) ===
+      pitchClassFromMidi(expectedMidis[i]!)
+    ) {
+      hits += 1;
+    }
+  }
+  if (n === 0) return 0;
+  return (hits / n) * 12;
+}
+
+/** Opening of a scale take is a strong tonic cue. */
+function openingTonicBonus(
+  tonicPitchClass: number,
+  runs: RunHint[],
+  frames: PitchFrame[],
+): number {
+  if (runs.length > 0) {
+    if (pitchClassFromMidi(runs[0]!.midiCenter) === tonicPitchClass) return 24;
+  }
+  if (frames.length === 0) return 0;
+  const early = frames.slice(0, Math.max(4, Math.floor(frames.length * 0.2)));
+  const counts = new Array(12).fill(0) as number[];
+  for (const f of early) {
+    counts[pitchClassFromMidi(hzToMidi(f.hz))]! += 1;
+  }
+  let mode = 0;
+  for (let i = 1; i < 12; i++) {
+    if (counts[i]! > counts[mode]!) mode = i;
+  }
+  return mode === tonicPitchClass ? 16 : 0;
+}
+
+function distinctRunPitchClasses(runs: RunHint[]): number {
+  const set = new Set<number>();
+  for (const r of runs) set.add(pitchClassFromMidi(r.midiCenter));
+  return set.size;
 }
 
 function medianFrameMidi(frames: PitchFrame[]): number {
@@ -75,6 +141,9 @@ function rankScore(
   analysis: ScaleAnalysisResult,
   expectedMidis: readonly number[],
   runCount: number,
+  tonicPitchClass: number,
+  runs: RunHint[],
+  frames: PitchFrame[],
 ): number {
   const { summary } = analysis;
   if (summary.notesAnalyzed === 0) return Number.NEGATIVE_INFINITY;
@@ -87,7 +156,9 @@ function rankScore(
     summary.overallScore0to100 * cover -
     missingPenalty -
     lengthHint -
-    octaveMismatchPenalty(analysis, expectedMidis)
+    octaveMismatchPenalty(analysis, expectedMidis) +
+    pitchClassMatchBonus(analysis, expectedMidis) +
+    openingTonicBonus(tonicPitchClass, runs, frames)
   );
 }
 
@@ -124,6 +195,17 @@ function preferHonestExerciseCandidate(
 
   const ascAnalyzed = best.analysis.summary.notesAnalyzed;
   const rtAnalyzed = roundTrip.analysis.summary.notesAnalyzed;
+
+  // Never replace a strong long ascent with a collapsed round-trip (e.g. a
+  // 2-octave ascent beating an empty 2-octave round-trip by ~150 points).
+  if (roundTrip.rankScore < best.rankScore - 20) {
+    const shortAscent = best.expectedMidis.length <= 8;
+    if (shortAscent && rtAnalyzed >= Math.max(6, ascAnalyzed)) {
+      return roundTrip;
+    }
+    return best;
+  }
+
   // Incomplete take: round-trip maps more of the audio onto the full exercise.
   if (rtAnalyzed >= ascAnalyzed) return roundTrip;
   // Ascending only barely beats round-trip → keep the full exercise.
@@ -137,6 +219,11 @@ export function detectScaleFromFrames(
   if (frames.length < 4) return { ok: false, reason: "no_pitch" };
 
   const runs = collectStablePitchRuns(frames);
+  // A real scale spans several pitch classes; reject single-note drones.
+  if (distinctRunPitchClasses(runs) < 4) {
+    return { ok: false, reason: "no_match" };
+  }
+
   const anchorMidi = medianFrameMidi(frames);
   const kinds: ScaleKind[] = ["major", "natural_minor"];
   const spans: Array<1 | 2> = [1, 2];
@@ -173,7 +260,14 @@ export function detectScaleFromFrames(
             );
             if (expectedMidis.length < 4) continue;
             const analysis = analyzeScaleFromFrames(frames, expectedMidis);
-            const score = rankScore(analysis, expectedMidis, runs.length);
+            const score = rankScore(
+              analysis,
+              expectedMidis,
+              runs.length,
+              tonicPitchClass,
+              runs,
+              frames,
+            );
             if (!Number.isFinite(score)) continue;
             ranked.push({
               tonicPitchClass,
@@ -197,7 +291,7 @@ export function detectScaleFromFrames(
   if (
     !rawBest ||
     rawBest.analysis.summary.notesAnalyzed < 4 ||
-    rawBest.rankScore < 28
+    rawBest.rankScore < 22
   ) {
     // Incomplete round-trips can score below the usual match floor; still accept
     // when enough notes were measured on a clear tonic family.

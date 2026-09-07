@@ -3,10 +3,12 @@
 import { animate } from "animejs";
 import { useEffect, useRef } from "react";
 import { InfoPopover, InfoPopoverScanLines } from "@/components/InfoPopover";
+import { ScalePitchCueKey } from "@/components/ScalePitchCueKey";
 import { useScalePracticeInfo } from "@/components/scalePracticeInfoContext";
 import { ScaleTrebleStaff } from "@/components/ScaleTrebleStaff";
 import type { ScalePracticeGuideModel } from "@/lib/scalePracticeGuide";
 import type { ScaleKind } from "@/lib/scales";
+import { workspaceTitle } from "@/lib/scaleWorkspace";
 import { MUSAI_DUR, MUSAI_EASE, prefersReducedMotion } from "@/lib/motion";
 
 const INFO_ID = "scale-guide";
@@ -23,12 +25,32 @@ export function ScaleGuidePanel({
   tonicPitchClass,
   scaleKind,
   octaveSpan,
+  ascendingCents,
+  descendingCents,
+  compact = false,
+  density = "default",
+  showSectionLabels = true,
+  focusStrong,
+  focusNext,
 }: {
   guide: ScalePracticeGuideModel;
   exerciseMidis: number[];
   tonicPitchClass: number;
   scaleKind: ScaleKind;
   octaveSpan: 1 | 2;
+  /** Optional intonation colouring from the latest take. */
+  ascendingCents?: (number | null)[];
+  descendingCents?: (number | null)[];
+  /** Pad workspace: tighter chrome so staff + coach fit one viewport. */
+  compact?: boolean;
+  /** Home pick mode: smaller title, denser stack. */
+  density?: "default" | "pad";
+  /** Hide Ascending / Descending captions on the staff. */
+  showSectionLabels?: boolean;
+  /** Short “what went well” under the staff after a take. */
+  focusStrong?: string | null;
+  /** Short “what to work on” under the staff after a take. */
+  focusNext?: string | null;
 }) {
   const ascendingMidis = exerciseMidis.slice(0, guide.ascendingCount);
   const descendingMidis = exerciseMidis.slice(guide.ascendingCount);
@@ -36,10 +58,15 @@ export function ScaleGuidePanel({
   const infoOpen = isOpen(INFO_ID);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const prevLabel = useRef(guide.scaleLabel);
+  const prevSpan = useRef(octaveSpan);
+  const pad = density === "pad";
+  const tight = compact || pad;
 
   useEffect(() => {
-    if (prevLabel.current === guide.scaleLabel) return;
+    if (prevLabel.current === guide.scaleLabel && prevSpan.current === octaveSpan)
+      return;
     prevLabel.current = guide.scaleLabel;
+    prevSpan.current = octaveSpan;
     const el = titleRef.current;
     if (!el || prefersReducedMotion()) return;
 
@@ -58,20 +85,43 @@ export function ScaleGuidePanel({
         /* cleanup */
       }
     };
-  }, [guide.scaleLabel]);
+  }, [guide.scaleLabel, octaveSpan]);
 
-  const kindWord = scaleKind === "major" ? "Major" : "Minor";
-  const spanWord = octaveSpan === 2 ? "2 octaves" : "1 octave";
+  const displayTitle =
+    descendingMidis.length === 0
+      ? `${workspaceTitle(guide.scaleLabel, octaveSpan)} · up`
+      : workspaceTitle(guide.scaleLabel, octaveSpan);
+  const showFeedbackLegend =
+    ascendingCents != null || descendingCents != null;
 
   return (
-    <div data-scale-info-root={INFO_ID} className="space-y-5 sm:space-y-6">
-      <div className="relative flex min-h-[2.75rem] flex-col items-center justify-center px-10 sm:px-12">
-        <h2
-          ref={titleRef}
-          className="sr-only"
-        >
-          {guide.scaleLabel} · {kindWord} · {spanWord}
-        </h2>
+    <div
+      data-scale-info-root={INFO_ID}
+      className={
+        tight
+          ? `flex h-full min-h-0 flex-col ${pad ? "gap-1" : "gap-2"}`
+          : "space-y-4 sm:space-y-5"
+      }
+    >
+      <div
+        className={`relative flex shrink-0 items-start justify-center ${
+          pad ? "px-4" : compact ? "px-6" : "px-8 sm:px-10"
+        }`}
+      >
+        <div className="min-w-0 text-center">
+          <h2
+            ref={titleRef}
+            className={`font-display font-semibold tracking-tight text-[var(--musai-ink)] ${
+              pad
+                ? "text-lg leading-tight sm:text-xl"
+                : compact
+                  ? "text-2xl leading-tight sm:text-3xl"
+                  : "text-2xl sm:text-3xl"
+            }`}
+          >
+            {displayTitle}
+          </h2>
+        </div>
         <div
           className="absolute right-0 top-0 shrink-0"
           onClick={(e) => e.stopPropagation()}
@@ -94,14 +144,52 @@ export function ScaleGuidePanel({
         </div>
       </div>
 
-      <div className="-mx-1 px-1 sm:-mx-2 sm:px-2">
+      <div
+        className={`min-h-0 ${
+          tight
+            ? "flex-1 overflow-hidden -mx-1 px-1"
+            : "-mx-1 px-1 sm:-mx-2 sm:px-2"
+        }`}
+      >
         <ScaleTrebleStaff
           ascendingMidis={ascendingMidis}
           descendingMidis={descendingMidis}
+          ascendingCents={ascendingCents}
+          descendingCents={descendingCents}
           tonicPitchClass={tonicPitchClass}
           scaleKind={scaleKind}
+          density={pad ? "pad" : "default"}
+          showSectionLabels={showSectionLabels}
         />
       </div>
+
+      {showFeedbackLegend ? (
+        <ScalePitchCueKey compact={tight} />
+      ) : null}
+
+      {focusStrong || focusNext ? (
+        <div
+          className="shrink-0 space-y-2 px-1 text-center sm:px-2"
+          aria-label="Take focus"
+        >
+          {focusStrong ? (
+            <p className="text-[14px] leading-snug text-[var(--musai-ink)] sm:text-[15px]">
+              <span className="font-semibold text-[var(--musai-ok)]">Strong</span>
+              <span className="mx-1.5 text-[var(--musai-border)]">·</span>
+              {focusStrong}
+            </p>
+          ) : null}
+          {focusNext ? (
+            <p className="text-[15px] font-medium leading-snug text-[var(--musai-ink)] sm:text-[16px]">
+              <span className="font-semibold text-[var(--musai-key-sharp)]">
+                Work on
+              </span>
+              <span className="mx-1.5 text-[var(--musai-border)]">·</span>
+              {focusNext}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

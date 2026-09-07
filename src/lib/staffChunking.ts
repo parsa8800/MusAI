@@ -14,10 +14,14 @@ export const STAFF_RIGHT_MARGIN_PX = 28;
  */
 export const MAX_NOTES_PER_STAFF_ROW_CAP = 15;
 
-export function maxNotesPerStaffRow(usableWidthPx: number): number {
+export function maxNotesPerStaffRow(
+  usableWidthPx: number,
+  noteGapPx: number = STAFF_NOTE_MIN_GAP_PX,
+): number {
+  const gap = Math.max(18, noteGapPx);
   const inner = usableWidthPx - STAFF_CLEF_ZONE_PX - STAFF_RIGHT_MARGIN_PX;
-  if (inner <= STAFF_NOTE_MIN_GAP_PX) return 2;
-  const fromWidth = Math.max(2, Math.floor(inner / STAFF_NOTE_MIN_GAP_PX) + 1);
+  if (inner <= gap) return 2;
+  const fromWidth = Math.max(2, Math.floor(inner / gap) + 1);
   return Math.min(fromWidth, MAX_NOTES_PER_STAFF_ROW_CAP);
 }
 

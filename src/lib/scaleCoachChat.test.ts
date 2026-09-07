@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildScaleCoachChatContext,
+  coachSuggestedQuestions,
   localCoachChatReply,
   scaleCoachChatDataMessage,
   scaleCoachChatSystemPrompt,
@@ -96,5 +97,17 @@ describe("scaleCoachChat", () => {
   it("system prompt forbids quoting cents to the student", () => {
     expect(scaleCoachChatSystemPrompt()).toMatch(/Never quote cents/i);
     expect(scaleCoachChatSystemPrompt()).toMatch(/bow hair|thumb/i);
+  });
+
+  it("suggests concrete practice questions from weak notes", () => {
+    const ctx = buildScaleCoachChatContext(
+      session,
+      "• Work A4\n• Lighten the finger",
+      "• Trending a bit sharp",
+    );
+    const qs = coachSuggestedQuestions(ctx);
+    expect(qs[0]).toMatch(/A4/);
+    expect(qs.some((q) => /sharp/i.test(q))).toBe(true);
+    expect(qs).toHaveLength(3);
   });
 });

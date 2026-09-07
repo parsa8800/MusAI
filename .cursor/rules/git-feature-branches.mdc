@@ -25,9 +25,11 @@ Do **not** pile unrelated fixes onto an old feature branch. Finish or abandon th
 
 1. `git checkout main && git pull`
 2. `git checkout -b feature/<area>-<short-goal>`
-3. Commit only that feature’s changes
-4. Push and open a **pull request** into `main` (GitHub’s name for a merge request)
+3. Commit only that feature’s changes (when the user asks to commit)
+4. Push / open a **pull request** into `main` only when the user asks to ship or PR
 5. After merge, delete the feature branch locally and on the remote
+
+When a major pass looks finished or the user says they are happy and moving on, **suggest** opening a PR (see **ship-feature-to-main**). Do not push or create the PR automatically.
 
 ## This repo’s current UI pass
 

@@ -4,20 +4,24 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { CoachChatPanel } from "@/components/CoachChatPanel";
 import { AnimatedReveal } from "@/components/motion/AnimatedReveal";
+import {
+  MusaiSplitPane,
+  MUSAI_SCALE_SPLIT_STORAGE_KEY,
+} from "@/components/MusaiSplitPane";
 import { PracticeHubBackLink } from "@/components/PracticeHubBackLink";
-import { ScoreRing } from "@/components/ScoreRing";
+import { PracticeStageRing } from "@/components/PracticeStageRing";
+import { ScalePitchCueKey } from "@/components/ScalePitchCueKey";
 import { ScaleTrebleStaff } from "@/components/ScaleTrebleStaff";
 import { alignExpectedMidisToDetectedOctave } from "@/lib/alignScaleOctave";
 import { buildScaleCoachingFeedback, ensureBulletFeedback } from "@/lib/scalePracticeCopy";
-import { clearScalePracticeSession, formatScaleTakeSubtitle } from "@/lib/scalePracticeSession";
+import {
+  buildAttemptProgress,
+  buildLoopAttemptMeta,
+  findPreviousComparableTake,
+  practiceStageFromSummary,
+  type LoopAttemptMeta,
+} from "@/lib/scalePracticeProgress";
 import type { ScalePracticeSessionV1 } from "@/lib/scalePracticeTypes";
-
-function summaryLabel(inTunePercent: number, trend: "sharp" | "flat" | "balanced"): string {
-  if (inTunePercent >= 90) return "Excellent";
-  if (inTunePercent >= 75) return "Good control";
-  if (inTunePercent >= 55) return trend === "balanced" ? "Getting better" : `Mostly ${trend}`;
-  return "Needs work";
-}
 
 function bulletLines(text: string): string[] {
   return text
@@ -26,23 +30,35 @@ function bulletLines(text: string): string[] {
     .filter(Boolean);
 }
 
-function focusTone(bucket: string): string {
-  if (bucket === "sharp") return "text-[var(--musai-warn)] bg-[color-mix(in_srgb,var(--musai-warn)_12%,white)] border-[color-mix(in_srgb,var(--musai-warn)_28%,var(--musai-border))]";
-  if (bucket === "flat") return "text-[var(--musai-key-flat)] bg-[var(--musai-key-flat-soft)] border-[color-mix(in_srgb,var(--musai-key-flat)_28%,var(--musai-border))]";
-  if (bucket === "in_tune") return "text-[var(--musai-ok)] bg-[var(--musai-accent-soft)] border-[color-mix(in_srgb,var(--musai-ok)_28%,var(--musai-border))]";
-  return "text-[var(--musai-accent-2)] bg-[color-mix(in_srgb,var(--musai-accent-2)_10%,white)] border-[color-mix(in_srgb,var(--musai-accent-2)_28%,var(--musai-border))]";
+function octaveCaption(span: 1 | 2): string {
+  return span === 2 ? "2 octaves" : "1 octave";
+}
+
+function formatDeltaPct(delta: number): string {
+  if (delta > 0) return `+${delta}% from previous`;
+  if (delta < 0) return `${delta}% from previous`;
+  return "Same as previous";
 }
 
 /**
- * Scale results: visual staff always on, coach beside it on desktop.
- * High-level strip stays tiny — notes + chat carry the detail.
+ * Scale results: progress + coaching first; pitch accuracy stays secondary.
+ * When `onTryAgain` is set, retry stays in the live practice loop.
  */
 export function ScalePracticeResultsView({
   session,
+  loopAttempts,
+  onTryAgain,
+  tryAgainLabel = "Try again",
+  studioHref = "/practice/scale",
 }: {
   session: ScalePracticeSessionV1;
+  /** Chronological attempts in the current loop (includes `session`). */
+  loopAttempts?: ScalePracticeSessionV1[];
+  onTryAgain?: () => void;
+  tryAgainLabel?: string;
+  studioHref?: string;
 }) {
-  const { summary, notes, scaleLabel, expectedNotesMidi } = session;
+  const { summary, notes, scaleLabel, expectedNotesMidi, octaveSpan } = session;
   const [scoreBoot, setScoreBoot] = useState(true);
   const [ready, setReady] = useState(false);
   const [chatStart, setChatStart] = useState(false);
@@ -53,7 +69,27 @@ export function ScalePracticeResultsView({
   const [coachReady, setCoachReady] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
 
+  const stage = useMemo(() => practiceStageFromSummary(summary), [summary]);
+
+  const loopMeta: LoopAttemptMeta | null = useMemo(() => {
+    if (!loopAttempts?.length) return null;
+    return buildLoopAttemptMeta(loopAttempts);
+  }, [loopAttempts]);
+
+  const progress = useMemo(() => {
+    const previousInLoop =
+      loopAttempts && loopAttempts.length >= 2
+        ? loopAttempts[loopAttempts.length - 2]!
+        : null;
+    const previous =
+      previousInLoop ?? findPreviousComparableTake(session);
+    return buildAttemptProgress(session, previous);
+  }, [loopAttempts, session]);
+
   useEffect(() => {
+    setScoreBoot(true);
+    setReady(false);
+    setChatStart(false);
     const reduce =
       typeof window !== "undefined" &&
       typeof window.matchMedia === "function" &&
@@ -64,7 +100,7 @@ export function ScalePracticeResultsView({
       setReady(true);
     }, delay);
     return () => window.clearTimeout(t);
-  }, []);
+  }, [session.sessionId]);
 
   useEffect(() => {
     if (scoreBoot) {
@@ -81,7 +117,7 @@ export function ScalePracticeResultsView({
     }
     const t = window.setTimeout(() => setChatStart(true), 900);
     return () => window.clearTimeout(t);
-  }, [scoreBoot]);
+  }, [scoreBoot, session.sessionId]);
 
   useEffect(() => {
     setTrendLine(template.trendLine);
@@ -157,175 +193,214 @@ export function ScalePracticeResultsView({
     [split.descNotes],
   );
 
-  const strengthLine = template.strengths[0] ?? "Completed a full take";
+  const strengthLine = template.strengths[0] ?? "You finished the take";
   const improveLine =
     bulletLines(tip)[0] ??
     (template.focusNotes[0]
-      ? `Work ${template.focusNotes[0].label}`
-      : "Keep the same pulse");
+      ? `Practise ${template.focusNotes[0].label} slowly`
+      : "Keep a steady bow");
+
+  const progressTone =
+    progress.kind === "up"
+      ? "text-[var(--musai-ok)]"
+      : progress.kind === "down"
+        ? "text-[var(--musai-ink)]"
+        : "text-[var(--musai-muted)]";
+
+  const inLoop = Boolean(onTryAgain);
 
   return (
     <AnimatedReveal
+      key={session.sessionId}
       className={`w-full max-w-[min(1180px,100%)] space-y-6 sm:space-y-7 ${
         ready ? "musai-results-ready" : ""
       }`}
       delay={30}
     >
-      <PracticeHubBackLink
-        href="/practice/scale"
-        label="Scale studio"
-        ariaLabel="Back to Scale studio"
-      />
+      {inLoop ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-[12px] font-medium text-[var(--musai-muted)]">
+            Same scale · keep going
+          </p>
+          <Link
+            href={studioHref}
+            className="text-[12px] font-medium text-[var(--musai-muted)] underline decoration-[var(--musai-border)] underline-offset-2 hover:text-[var(--musai-ink)]"
+          >
+            Scale studio
+          </Link>
+        </div>
+      ) : (
+        <PracticeHubBackLink
+          href={studioHref}
+          label="Scale studio"
+          ariaLabel="Back to Scale studio"
+        />
+      )}
 
       <header
         data-anime-enter
-        className="musai-glass-panel flex flex-col gap-5 px-5 py-5 sm:flex-row sm:items-center sm:gap-8 sm:px-7 sm:py-6"
+        className="musai-glass-panel flex flex-col gap-5 px-5 py-5 sm:px-7 sm:py-6"
       >
-        <div className="flex shrink-0 items-center gap-4 sm:gap-5">
-          <ScoreRing
-            score={summary.overallScore0to100}
-            size={108}
-            label="Score"
-            resultsMode
-            resultsLoading={scoreBoot}
-            resultsRevealMs={1800}
-          />
-          <div className="min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--musai-muted)]">
-              Scale feedback
-            </p>
-            <h1 className="font-display mt-1 text-2xl font-semibold tracking-tight text-[var(--musai-ink)] sm:text-[1.75rem]">
-              {scaleLabel}
-            </h1>
-            <p className="mt-1 text-sm text-[var(--musai-muted)]">
-              {summaryLabel(summary.inTunePercent, summary.trend)}
-              <span className="text-[var(--musai-border)]"> · </span>
-              {formatScaleTakeSubtitle(session)}
-            </p>
+        {loopMeta ? (
+          <div
+            className="flex flex-wrap items-center gap-2"
+            aria-label={`Take ${loopMeta.attemptNumber}`}
+          >
+            <span className="rounded-full border border-[var(--musai-border)] bg-[var(--musai-surface-2)] px-2.5 py-1 text-[11px] font-semibold tabular-nums text-[var(--musai-ink)]">
+              Take {loopMeta.attemptNumber}
+            </span>
+            {loopMeta.deltaPct != null && loopMeta.deltaPct !== 0 ? (
+              <span
+                className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold tabular-nums ${
+                  loopMeta.deltaPct > 0
+                    ? "border-[color-mix(in_srgb,var(--musai-ok)_28%,var(--musai-border))] bg-[var(--musai-accent-soft)] text-[var(--musai-ok)]"
+                    : "border-[var(--musai-border)] bg-[var(--musai-surface-2)] text-[var(--musai-muted)]"
+                }`}
+              >
+                {formatDeltaPct(loopMeta.deltaPct)}
+              </span>
+            ) : null}
+            {loopMeta.isNewBest ? (
+              <span className="rounded-full border border-[color-mix(in_srgb,var(--musai-ok)_28%,var(--musai-border))] bg-[var(--musai-accent-soft)] px-2.5 py-1 text-[11px] font-semibold text-[var(--musai-ok)]">
+                New best
+              </span>
+            ) : null}
+            {!loopMeta.isFirst ? (
+              <span className="text-[11px] tabular-nums text-[var(--musai-muted)]">
+                Best so far {loopMeta.bestAccuracy}%
+              </span>
+            ) : null}
           </div>
-        </div>
+        ) : null}
 
-        <div className="grid min-w-0 flex-1 gap-3 sm:grid-cols-2">
-          <div className="rounded-[var(--musai-radius)] border border-[color-mix(in_srgb,var(--musai-ok)_22%,var(--musai-border))] bg-[var(--musai-accent-soft)] px-3.5 py-3">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--musai-ok)]">
-              Strongest
-            </p>
-            <p className="mt-1 text-[13px] font-medium leading-snug text-[var(--musai-ink)]">
-              {strengthLine}
-            </p>
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-7">
+          <div className="flex shrink-0 items-center gap-4 sm:gap-5">
+            <PracticeStageRing
+              fill={stage.fill}
+              label={stage.label}
+              loading={scoreBoot}
+              size={118}
+            />
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--musai-muted)]">
+                This take
+              </p>
+              <p
+                className={`mt-1.5 text-[15px] font-semibold leading-snug ${progressTone}`}
+              >
+                {progress.line}
+              </p>
+              <p className="mt-2 text-[12px] tabular-nums text-[var(--musai-muted)]">
+                Pitch accuracy{" "}
+                <span className="font-medium text-[var(--musai-ink)]">
+                  {Math.round(summary.inTunePercent)}%
+                </span>
+              </p>
+            </div>
           </div>
-          <div className="rounded-[var(--musai-radius)] border border-[color-mix(in_srgb,var(--musai-accent-2)_22%,var(--musai-border))] bg-[color-mix(in_srgb,var(--musai-accent-2)_6%,white)] px-3.5 py-3">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--musai-accent-2)]">
-              Next
-            </p>
-            <p className="mt-1 text-[13px] font-medium leading-snug text-[var(--musai-ink)]">
-              {improveLine}
-            </p>
+
+          <div className="grid min-w-0 flex-1 gap-3 sm:grid-cols-2">
+            <div className="rounded-[var(--musai-radius)] border border-[color-mix(in_srgb,var(--musai-ok)_22%,var(--musai-border))] bg-[var(--musai-accent-soft)] px-3.5 py-3">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--musai-ok)]">
+                Strongest
+              </p>
+              <p className="mt-1 text-[13px] font-medium leading-snug text-[var(--musai-ink)]">
+                {strengthLine}
+              </p>
+            </div>
+            <div className="rounded-[var(--musai-radius)] border border-[color-mix(in_srgb,var(--musai-key-sharp)_28%,var(--musai-border))] bg-[var(--musai-key-sharp-soft)] px-3.5 py-3">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--musai-key-sharp)]">
+                Next
+              </p>
+              <p className="mt-1 text-[13px] font-medium leading-snug text-[var(--musai-ink)]">
+                {improveLine}
+              </p>
+            </div>
           </div>
         </div>
       </header>
 
       <div
         data-anime-enter
-        className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(20rem,0.85fr)] lg:items-stretch lg:gap-6"
+        className="h-[min(70vh,42rem)] min-h-[26rem] overflow-hidden"
       >
-        <section
-          className="musai-glass-panel flex flex-col px-4 py-5 sm:px-6 sm:py-6"
-          aria-label="Colour-coded note feedback"
-        >
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <p className="font-display text-lg font-semibold tracking-tight text-[var(--musai-ink)]">
-              Your notes
-            </p>
-            <div className="flex flex-wrap items-center gap-3 text-[11px] text-[var(--musai-muted)]">
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-[var(--musai-ok)]" /> On pitch
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-[var(--musai-warn)]" /> Sharp
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-[var(--musai-key-flat)]" /> Flat
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-[var(--musai-accent-2)]" /> Missed
-              </span>
-            </div>
-          </div>
+        <MusaiSplitPane
+          storageKey={MUSAI_SCALE_SPLIT_STORAGE_KEY}
+          divider="soft"
+          resizable
+          left={
+            <section
+              className="musai-glass-panel flex h-full min-h-0 flex-col overflow-hidden px-4 py-5 sm:px-6 sm:py-6"
+              aria-label="Colour-coded note feedback"
+            >
+              <div className="mb-4 min-w-0 shrink-0 text-center sm:text-left">
+                <h1 className="font-display text-xl font-semibold tracking-tight text-[var(--musai-ink)] sm:text-2xl">
+                  {scaleLabel}
+                </h1>
+                <p className="mt-0.5 text-[13px] font-medium text-[var(--musai-muted)]">
+                  {octaveCaption(octaveSpan)}
+                </p>
+              </div>
 
-          {template.focusNotes.length > 0 ? (
-            <div className="mb-4 flex flex-wrap gap-2">
-              {template.focusNotes.map((n) => (
-                <span
-                  key={`${n.noteIndex}-${n.label}`}
-                  className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[12px] font-semibold ${focusTone(n.bucket)}`}
-                >
-                  {n.label}
-                  {n.bucket === "sharp"
-                    ? " ↑"
-                    : n.bucket === "flat"
-                      ? " ↓"
-                      : n.centsLabel === "—"
-                        ? " · ?"
-                        : ""}
-                </span>
-              ))}
-            </div>
-          ) : null}
+              <div className="musai-rv-details min-h-0 min-w-0 flex-1 overflow-auto">
+                <ScaleTrebleStaff
+                  ascendingMidis={split.ascMidis}
+                  descendingMidis={split.descMidis}
+                  ascendingCents={ascCents}
+                  descendingCents={descCents}
+                  tonicPitchClass={session.tonicPitchClass}
+                  scaleKind={session.scaleKind}
+                />
+              </div>
 
-          <div className="musai-rv-details min-w-0 flex-1">
-            <ScaleTrebleStaff
-              ascendingMidis={split.ascMidis}
-              descendingMidis={split.descMidis}
-              ascendingCents={ascCents}
-              descendingCents={descCents}
-              tonicPitchClass={session.tonicPitchClass}
-              scaleKind={session.scaleKind}
-            />
-          </div>
-        </section>
-
-        <aside className="musai-glass-panel flex min-h-[22rem] flex-col px-4 py-5 sm:min-h-[28rem] sm:px-5 sm:py-6 lg:min-h-[32rem]">
-          {chatStart && coachReady ? (
-            <CoachChatPanel
-              embed
-              start
-              trendLine={trendLine}
-              tip={tip}
-              source={tipSource}
-              session={session}
-              initialError={aiError}
-            />
-          ) : (
-            <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
-              <div
-                className="h-8 w-8 rounded-full border-2 border-[var(--musai-border)] border-t-[var(--musai-accent)] motion-safe:animate-spin motion-reduce:animate-none"
-                aria-hidden
-              />
-              <p className="font-display text-lg font-semibold text-[var(--musai-ink)]">
-                Coach
-              </p>
-            </div>
-          )}
-        </aside>
+              <div className="mt-4 shrink-0">
+                <ScalePitchCueKey />
+              </div>
+            </section>
+          }
+          right={
+            <aside className="musai-glass-panel flex h-full min-h-0 flex-col overflow-hidden px-4 py-5 sm:px-5 sm:py-6">
+              {chatStart && coachReady ? (
+                <CoachChatPanel
+                  embed
+                  start
+                  title="Coach · Parsa"
+                  trendLine={trendLine}
+                  tip={tip}
+                  source={tipSource}
+                  session={session}
+                  initialError={aiError}
+                />
+              ) : (
+                <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
+                  <div
+                    className="h-8 w-8 rounded-full border-2 border-[var(--musai-border)] border-t-[var(--musai-accent)] motion-safe:animate-spin motion-reduce:animate-none"
+                    aria-hidden
+                  />
+                  <p className="font-display text-lg font-semibold text-[var(--musai-ink)]">
+                    Coach · Parsa
+                  </p>
+                </div>
+              )}
+            </aside>
+          }
+        />
       </div>
 
       <div
         data-anime-enter
         className="flex flex-wrap items-center justify-center gap-3"
       >
-        <Link
-          href="/practice/scale"
-          onClick={() => clearScalePracticeSession()}
-          className="musai-btn-primary"
-        >
-          Retry
-        </Link>
-        <Link
-          href="/"
-          onClick={() => clearScalePracticeSession()}
-          className="musai-btn-secondary"
-        >
+        {onTryAgain ? (
+          <button type="button" onClick={onTryAgain} className="musai-btn-primary">
+            {tryAgainLabel}
+          </button>
+        ) : (
+          <Link href={studioHref} className="musai-btn-primary">
+            {tryAgainLabel}
+          </Link>
+        )}
+        <Link href="/" className="musai-btn-secondary">
           Practice hub
         </Link>
       </div>

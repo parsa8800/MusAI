@@ -3,6 +3,7 @@ import Link from "next/link";
 const NAV = [
   { href: "/", label: "Practice" },
   { href: "/#features", label: "Exercises" },
+  { href: "/settings", label: "Settings" },
 ] as const;
 
 /** Replace with your real profiles when ready. */
