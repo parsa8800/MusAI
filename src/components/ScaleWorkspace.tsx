@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MusaiCaptureDock } from "@/components/MusaiCaptureDock";
 import { MusaiFloatingMiniRecorder } from "@/components/MusaiFloatingMiniRecorder";
+import { MusaiSplitPane } from "@/components/MusaiSplitPane";
 import { PracticeHubBackLink } from "@/components/PracticeHubBackLink";
 import { ScaleDetectAmbiguity } from "@/components/ScaleDetectAmbiguity";
 import { ScaleGuidePanel } from "@/components/ScaleGuidePanel";
@@ -516,47 +517,55 @@ export function ScaleWorkspace({
           </Link>
         </header>
 
-        <div className="relative grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-2">
-          <section
-            className="flex min-h-0 flex-col overflow-hidden px-4 py-3 sm:px-5"
-            aria-label="Scale notes"
-          >
-            <div className="min-h-0 flex-1 overflow-hidden">
-              <ScaleGuidePanel
-                guide={guideModel}
-                exerciseMidis={staffMidis}
-                tonicPitchClass={identity.tonicPitchClass}
-                scaleKind={identity.scaleKind}
-                octaveSpan={identity.octaveSpan}
-                ascendingCents={staffFeedback?.ascendingCents}
-                descendingCents={staffFeedback?.descendingCents}
-                compact
-                focusStrong={
-                  feedbackOpen ? focusHints?.strong ?? null : null
-                }
-                focusNext={feedbackOpen ? focusHints?.next ?? null : null}
-              />
-            </div>
-          </section>
-
-          <section
-            className="flex min-h-0 flex-col overflow-hidden border-t border-[var(--musai-border)] md:border-l md:border-t-0"
-            aria-label="Coach feedback"
-          >
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 py-3 sm:px-5">
-              {feedbackOpen && latestAttempt ? (
-                <ScaleInlineFeedback
-                  session={latestAttempt}
-                  loopAttempts={loopAttempts}
-                  onFocusHints={onFocusHints}
-                />
-              ) : (
-                <p className="py-8 text-center text-[14px] text-[var(--musai-muted)]">
-                  Record to hear feedback
-                </p>
-              )}
-            </div>
-          </section>
+        <div className="relative min-h-0 flex-1 overflow-hidden">
+          <MusaiSplitPane
+            storageKey="musai-scale-workspace-split"
+            left={
+              <section
+                className="flex h-full min-h-0 flex-col overflow-hidden px-4 py-3 sm:px-5"
+                aria-label="Scale notes"
+              >
+                <div className="min-h-0 flex-1 overflow-hidden">
+                  <ScaleGuidePanel
+                    guide={guideModel}
+                    exerciseMidis={staffMidis}
+                    tonicPitchClass={identity.tonicPitchClass}
+                    scaleKind={identity.scaleKind}
+                    octaveSpan={identity.octaveSpan}
+                    ascendingCents={staffFeedback?.ascendingCents}
+                    descendingCents={staffFeedback?.descendingCents}
+                    compact
+                    focusStrong={
+                      feedbackOpen ? focusHints?.strong ?? null : null
+                    }
+                    focusNext={
+                      feedbackOpen ? focusHints?.next ?? null : null
+                    }
+                  />
+                </div>
+              </section>
+            }
+            right={
+              <section
+                className="flex h-full min-h-0 flex-col overflow-hidden px-4 py-3 sm:px-5"
+                aria-label="Coach feedback"
+              >
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                  {feedbackOpen && latestAttempt ? (
+                    <ScaleInlineFeedback
+                      session={latestAttempt}
+                      loopAttempts={loopAttempts}
+                      onFocusHints={onFocusHints}
+                    />
+                  ) : (
+                    <p className="py-8 text-center text-[14px] text-[var(--musai-muted)]">
+                      Record to hear feedback
+                    </p>
+                  )}
+                </div>
+              </section>
+            }
+          />
 
           {pendingDetect ? (
             <ScaleDetectAmbiguity
