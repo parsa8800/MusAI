@@ -2,11 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { CoachChatPanel } from "@/components/CoachChatPanel";
-import {
-  buildAttemptProgress,
-  buildLoopAttemptMeta,
-  practiceStageFromSummary,
-} from "@/lib/scalePracticeProgress";
+import { buildLoopAttemptMeta } from "@/lib/scalePracticeProgress";
 import { buildScaleCoachingFeedback, ensureBulletFeedback } from "@/lib/scalePracticeCopy";
 import type { ScalePracticeSessionV1 } from "@/lib/scalePracticeTypes";
 
@@ -17,23 +13,23 @@ function bulletLines(text: string): string[] {
     .filter(Boolean);
 }
 
-function formatDeltaPct(delta: number): string {
-  if (delta > 0) return `+${delta}%`;
-  if (delta < 0) return `${delta}%`;
-  return "Same";
-}
+export type ScaleFocusHints = {
+  strong: string;
+  next: string;
+};
 
 /**
- * Side-panel coaching for the pad layout — fills height, no page scroll.
+ * Coach-only side panel — play, get feedback. No score chrome.
  */
 export function ScaleInlineFeedback({
   session,
   loopAttempts,
-  compact = false,
+  onFocusHints,
 }: {
   session: ScalePracticeSessionV1;
   loopAttempts: ScalePracticeSessionV1[];
-  compact?: boolean;
+  /** Strong / next lines for the staff column (updated when coaching loads). */
+  onFocusHints?: (hints: ScaleFocusHints) => void;
 }) {
   const template = useMemo(() => buildScaleCoachingFeedback(session), [session]);
   const [tip, setTip] = useState(template.tip);
@@ -41,21 +37,21 @@ export function ScaleInlineFeedback({
   const [tipSource, setTipSource] = useState<"template" | "llm">("template");
   const [coachReady, setCoachReady] = useState(false);
 
-  const stage = useMemo(
-    () => practiceStageFromSummary(session.summary),
-    [session.summary],
-  );
   const loopMeta = useMemo(
     () => buildLoopAttemptMeta(loopAttempts),
     [loopAttempts],
   );
-  const progress = useMemo(() => {
-    const previous =
-      loopAttempts.length >= 2
-        ? loopAttempts[loopAttempts.length - 2]!
-        : null;
-    return buildAttemptProgress(session, previous);
-  }, [loopAttempts, session]);
+
+  const strengthLine = template.strengths[0] ?? "You finished the take";
+  const improveLine =
+    bulletLines(tip)[0] ??
+    (template.focusNotes[0]
+      ? `Practise ${template.focusNotes[0].label} slowly`
+      : "Keep a steady bow");
+
+  useEffect(() => {
+    onFocusHints?.({ strong: strengthLine, next: improveLine });
+  }, [improveLine, onFocusHints, strengthLine]);
 
   useEffect(() => {
     setTip(template.tip);
@@ -97,86 +93,14 @@ export function ScaleInlineFeedback({
     };
   }, [session, template.tip, template.trendLine]);
 
-  const strengthLine = template.strengths[0] ?? "You finished the take";
-  const improveLine =
-    bulletLines(tip)[0] ??
-    (template.focusNotes[0]
-      ? `Practise ${template.focusNotes[0].label} slowly`
-      : "Keep a steady bow");
-
-  const progressTone =
-    progress.kind === "up"
-      ? "text-[var(--musai-ok)]"
-      : progress.kind === "down"
-        ? "text-[var(--musai-ink)]"
-        : "text-[var(--musai-muted)]";
-
   return (
     <div
       key={session.sessionId}
-      className={`flex h-full min-h-0 flex-col gap-2 ${compact ? "" : "gap-3"}`}
+      className="flex h-full min-h-0 flex-col gap-3"
     >
-      <div className="shrink-0 space-y-1.5 rounded-[var(--musai-radius)] border border-[var(--musai-border)] bg-[var(--musai-surface)] px-3 py-2">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="rounded-full border border-[var(--musai-border)] bg-[var(--musai-surface-2)] px-2 py-0.5 text-[10px] font-semibold tabular-nums text-[var(--musai-ink)]">
-            Take {loopMeta.attemptNumber}
-          </span>
-          <span className="text-[11px] font-medium text-[var(--musai-muted)]">
-            {stage.label}
-          </span>
-          {loopMeta.deltaPct != null && loopMeta.deltaPct !== 0 ? (
-            <span
-              className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold tabular-nums ${
-                loopMeta.deltaPct > 0
-                  ? "border-[color-mix(in_srgb,var(--musai-ok)_28%,var(--musai-border))] bg-[var(--musai-accent-soft)] text-[var(--musai-ok)]"
-                  : "border-[var(--musai-border)] bg-[var(--musai-surface-2)] text-[var(--musai-muted)]"
-              }`}
-            >
-              {formatDeltaPct(loopMeta.deltaPct)}
-            </span>
-          ) : null}
-          {loopMeta.isNewBest ? (
-            <span className="rounded-full border border-[color-mix(in_srgb,var(--musai-ok)_28%,var(--musai-border))] bg-[var(--musai-accent-soft)] px-2 py-0.5 text-[10px] font-semibold text-[var(--musai-ok)]">
-              New best
-            </span>
-          ) : null}
-          <span className="ml-auto text-[11px] tabular-nums text-[var(--musai-muted)]">
-            Best {Math.round(loopMeta.bestAccuracy)}% · This{" "}
-            {Math.round(session.summary.inTunePercent)}%
-          </span>
-        </div>
-        <p className={`text-[12px] font-semibold leading-snug ${progressTone}`}>
-          {progress.line}
-        </p>
-        {compact ? (
-          <p className="text-[11px] leading-snug text-[var(--musai-muted)]">
-            <span className="font-medium text-[var(--musai-ok)]">Strong:</span>{" "}
-            {strengthLine}
-            <span className="mx-1.5 text-[var(--musai-border)]">·</span>
-            <span className="font-medium text-[var(--musai-key-sharp)]">Next:</span>{" "}
-            {improveLine}
-          </p>
-        ) : (
-          <div className="grid grid-cols-2 gap-1.5">
-            <div className="rounded-[var(--musai-radius)] bg-[var(--musai-accent-soft)] px-2 py-1.5">
-              <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--musai-ok)]">
-                Strongest
-              </p>
-              <p className="mt-0.5 text-[12px] font-medium leading-snug text-[var(--musai-ink)]">
-                {strengthLine}
-              </p>
-            </div>
-            <div className="rounded-[var(--musai-radius)] bg-[var(--musai-key-sharp-soft)] px-2 py-1.5">
-              <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--musai-key-sharp)]">
-                Next
-              </p>
-              <p className="mt-0.5 text-[12px] font-medium leading-snug text-[var(--musai-ink)]">
-                {improveLine}
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
+      <p className="shrink-0 text-center font-display text-lg font-semibold tracking-tight text-[var(--musai-ink)] sm:text-xl">
+        Take {loopMeta.attemptNumber}
+      </p>
 
       <div className="musai-glass-panel flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-3">
         {coachReady ? (

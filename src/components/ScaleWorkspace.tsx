@@ -64,8 +64,11 @@ export function ScaleWorkspace({
   const [loopAttempts, setLoopAttempts] = useState<ScalePracticeSessionV1[]>(
     [],
   );
-  const [bestAccuracy, setBestAccuracy] = useState(0);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [focusHints, setFocusHints] = useState<{
+    strong: string;
+    next: string;
+  } | null>(null);
   const [pendingDetect, setPendingDetect] = useState<{
     alternatives: ScaleCandidate[];
     sampleRateHz: number;
@@ -77,13 +80,12 @@ export function ScaleWorkspace({
     const journey = getScaleProgressJourney(identity.progressKey);
     if (journey) {
       setLoopAttempts(journey.attempts);
-      setBestAccuracy(journey.bestInTunePercent);
       setFeedbackOpen(journey.attempts.length > 0);
     } else {
       setLoopAttempts([]);
-      setBestAccuracy(0);
       setFeedbackOpen(false);
     }
+    setFocusHints(null);
   }, [identity.progressKey, searchParams]);
 
   const [captureMode, setCaptureModeState] = useState<CaptureMode>("record");
@@ -181,9 +183,6 @@ export function ScaleWorkspace({
         prev[0]!.octaveSpan === session.octaveSpan;
       return same ? [...prev, session] : [session];
     });
-    setBestAccuracy((prev) =>
-      Math.max(prev, session.summary.inTunePercent),
-    );
     setStatus("idle");
     setMessage(null);
     setRecordedBlob(null);
@@ -487,6 +486,12 @@ export function ScaleWorkspace({
   );
 
   const title = workspaceTitle(identity.scaleLabel, identity.octaveSpan);
+  const onFocusHints = useCallback(
+    (hints: { strong: string; next: string }) => {
+      setFocusHints(hints);
+    },
+    [],
+  );
 
   return (
     <ScalePracticeInfoProvider>
@@ -496,25 +501,18 @@ export function ScaleWorkspace({
             href="/practice/scale"
             label="Scale studio"
             ariaLabel="Back to Scale studio"
+            className="!mb-0"
           />
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-[15px] font-semibold tracking-tight text-[var(--musai-ink)] sm:text-[16px]">
               {title}
             </h1>
           </div>
-          {bestAccuracy > 0 ? (
-            <span
-              className="musai-chip musai-chip--on shrink-0 tabular-nums"
-              title="Best in-tune"
-            >
-              Best {Math.round(bestAccuracy)}%
-            </span>
-          ) : null}
           <Link
             href="/practice/scale"
-            className="shrink-0 text-[12px] font-medium text-[var(--musai-muted)] underline decoration-[var(--musai-border)] underline-offset-2 hover:text-[var(--musai-ink)]"
+            className="musai-btn-secondary shrink-0 px-3 py-1.5 text-[13px]"
           >
-            New scale
+            Change scale
           </Link>
         </header>
 
@@ -533,6 +531,10 @@ export function ScaleWorkspace({
                 ascendingCents={staffFeedback?.ascendingCents}
                 descendingCents={staffFeedback?.descendingCents}
                 compact
+                focusStrong={
+                  feedbackOpen ? focusHints?.strong ?? null : null
+                }
+                focusNext={feedbackOpen ? focusHints?.next ?? null : null}
               />
             </div>
           </section>
@@ -546,10 +548,10 @@ export function ScaleWorkspace({
                 <ScaleInlineFeedback
                   session={latestAttempt}
                   loopAttempts={loopAttempts}
-                  compact
+                  onFocusHints={onFocusHints}
                 />
               ) : (
-                <p className="py-8 text-center text-[13px] text-[var(--musai-muted)]">
+                <p className="py-8 text-center text-[14px] text-[var(--musai-muted)]">
                   Record to hear feedback
                 </p>
               )}

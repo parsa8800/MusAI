@@ -26,6 +26,8 @@ export function ScaleGuidePanel({
   ascendingCents,
   descendingCents,
   compact = false,
+  focusStrong,
+  focusNext,
 }: {
   guide: ScalePracticeGuideModel;
   exerciseMidis: number[];
@@ -37,6 +39,10 @@ export function ScaleGuidePanel({
   descendingCents?: (number | null)[];
   /** Pad workspace: tighter chrome so staff + coach fit one viewport. */
   compact?: boolean;
+  /** Short “what went well” under the staff after a take. */
+  focusStrong?: string | null;
+  /** Short “what to work on” under the staff after a take. */
+  focusNext?: string | null;
 }) {
   const ascendingMidis = exerciseMidis.slice(0, guide.ascendingCount);
   const descendingMidis = exerciseMidis.slice(guide.ascendingCount);
@@ -163,6 +169,30 @@ export function ScaleGuidePanel({
           scaleKind={scaleKind}
         />
       </div>
+
+      {focusStrong || focusNext ? (
+        <div
+          className="shrink-0 space-y-2 px-1 text-center sm:px-2"
+          aria-label="Take focus"
+        >
+          {focusStrong ? (
+            <p className="text-[14px] leading-snug text-[var(--musai-ink)] sm:text-[15px]">
+              <span className="font-semibold text-[var(--musai-ok)]">Strong</span>
+              <span className="mx-1.5 text-[var(--musai-border)]">·</span>
+              {focusStrong}
+            </p>
+          ) : null}
+          {focusNext ? (
+            <p className="text-[15px] font-medium leading-snug text-[var(--musai-ink)] sm:text-[16px]">
+              <span className="font-semibold text-[var(--musai-key-sharp)]">
+                Work on
+              </span>
+              <span className="mx-1.5 text-[var(--musai-border)]">·</span>
+              {focusNext}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
