@@ -9,24 +9,13 @@ import type { NoteVisualTone } from "@/lib/scaleNoteVisual";
 
 type StringVisualState = "idle" | "active" | "holding" | "tuned";
 
-type StringGeom = {
-  id: ViolinStringId;
-  farX: number;
-  bridgeX: number;
-  thickness: number;
-};
-
-/** Player’s chin-rest view: near = bridge (bottom), far = up the fingerboard. */
-const FAR_Y = 22;
-const BRIDGE_Y = 132;
-const TAIL_Y = 168;
-
-const STRING_GEOM: StringGeom[] = [
-  { id: "G", farX: 124, bridgeX: 98, thickness: 2.7 },
-  { id: "D", farX: 148, bridgeX: 138, thickness: 1.95 },
-  { id: "A", farX: 172, bridgeX: 182, thickness: 1.35 },
-  { id: "E", farX: 196, bridgeX: 222, thickness: 0.95 },
-];
+/** Even spacing — left → right = G D A E. */
+const XS = [52, 108, 164, 220] as const;
+const TOP_Y = 18;
+const BOTTOM_Y = 118;
+const LABEL_Y = 148;
+const VIEW_W = 272;
+const VIEW_H = 172;
 
 function usePrefersReducedMotion(): boolean {
   const [reduced, setReduced] = useState(false);
@@ -52,40 +41,45 @@ function stringState(
   return "idle";
 }
 
-function stringColor(
+function stringStroke(
   state: StringVisualState,
   liveTone: NoteVisualTone | null,
   isLive: boolean,
-): string {
-  if (state === "tuned") return "var(--musai-ok)";
-  if (isLive) {
-    if (liveTone === "good") return "var(--musai-ok)";
-    if (liveTone === "slight") return "var(--musai-warn)";
-    if (liveTone === "bad") return "var(--musai-accent-2)";
-    return "#2c2620";
+): { color: string; width: number; opacity: number } {
+  if (state === "tuned") {
+    return { color: "var(--musai-ok)", width: 2.2, opacity: 1 };
   }
-  return "#8a8278";
+  if (isLive) {
+    if (liveTone === "good") {
+      return { color: "var(--musai-ok)", width: 2.4, opacity: 1 };
+    }
+    if (liveTone === "slight") {
+      return { color: "var(--musai-warn)", width: 2.35, opacity: 1 };
+    }
+    if (liveTone === "bad") {
+      return { color: "var(--musai-accent-2)", width: 2.4, opacity: 1 };
+    }
+    return { color: "var(--musai-ink)", width: 2.3, opacity: 1 };
+  }
+  return {
+    color: "color-mix(in srgb, var(--musai-ink) 28%, var(--musai-muted))",
+    width: 1.35,
+    opacity: 0.75,
+  };
 }
 
-function wavePath(
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-  offset: number,
-): string {
-  const dx = x2 - x1;
-  const dy = y2 - y1;
-  const len = Math.hypot(dx, dy) || 1;
-  const px = (-dy / len) * offset;
-  const py = (dx / len) * offset;
-  const c1x = x1 + dx * 0.34 + px;
-  const c1y = y1 + dy * 0.34 + py;
-  const c2x = x1 + dx * 0.68 - px * 0.28;
-  const c2y = y1 + dy * 0.68 - py * 0.28;
-  return `M ${x1} ${y1} C ${c1x} ${c1y} ${c2x} ${c2y} ${x2} ${y2}`;
+/** Soft S-curve for a living string without looking busy. */
+function stringPath(x: number, wobble: number): string {
+  if (Math.abs(wobble) < 0.05) {
+    return `M ${x} ${TOP_Y} L ${x} ${BOTTOM_Y}`;
+  }
+  const mid = (TOP_Y + BOTTOM_Y) / 2;
+  return `M ${x} ${TOP_Y} C ${x + wobble} ${mid - 18}, ${x - wobble * 0.55} ${mid + 18}, ${x} ${BOTTOM_Y}`;
 }
 
+/**
+ * Minimal open-string diagram: four quiet lines, one light rail, G–D–A–E.
+ */
 export function ViolinTunerFigure({
   activeId,
   tuned,
@@ -107,205 +101,138 @@ export function ViolinTunerFigure({
     .join(", ");
 
   return (
-    <div className="relative mx-auto w-full max-w-[22rem]">
+    <div className="relative mx-auto w-full max-w-[16.5rem]">
       <svg
-        viewBox="0 0 320 204"
+        viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
         className="h-auto w-full"
         role="img"
         aria-label={
           tunedList
-            ? `Open strings from the chin rest. In tune: ${tunedList}.`
-            : "Open strings G, D, A, and E over the bridge, from the chin rest."
+            ? `Open strings G, D, A, E. In tune: ${tunedList}.`
+            : "Open strings G, D, A, and E."
         }
       >
-        <defs>
-          <linearGradient id="vt-board" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#2a2520" />
-            <stop offset="100%" stopColor="#14110f" />
-          </linearGradient>
-          <linearGradient id="vt-bridge" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#f4e6c4" />
-            <stop offset="42%" stopColor="#ddc08a" />
-            <stop offset="100%" stopColor="#9a7040" />
-          </linearGradient>
-          <linearGradient id="vt-bridge-side" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#8a6236" />
-            <stop offset="50%" stopColor="#f0ddb0" />
-            <stop offset="100%" stopColor="#8a6236" />
-          </linearGradient>
-        </defs>
-
-        {/* Fingerboard receding away from the player */}
-        <path
-          d="M118 18 L202 18 L246 128 L74 128 Z"
-          fill="url(#vt-board)"
-          opacity="0.92"
-        />
-        <path
-          d="M126 18 L194 18"
-          stroke="#f4efe6"
-          strokeWidth="0.45"
-          opacity="0.14"
+        {/* Quiet baseline — reads as the nut / bridge edge */}
+        <line
+          x1={XS[0] - 18}
+          y1={BOTTOM_Y}
+          x2={XS[3] + 18}
+          y2={BOTTOM_Y}
+          stroke="var(--musai-border)"
+          strokeWidth="1.25"
+          strokeLinecap="round"
         />
 
-        {STRING_GEOM.map((geom) => {
-          const state = stringState(geom.id, activeId, tuned, holdingId);
-          const isLive = activeId === geom.id;
-          const color = stringColor(state, isLive ? liveTone : null, isLive);
-          const tailX = geom.bridgeX + (geom.bridgeX - geom.farX) * 0.12;
-          return (
-            <path
-              key={`${geom.id}-tail`}
-              d={`M ${geom.bridgeX} ${BRIDGE_Y} L ${tailX} ${TAIL_Y}`}
-              fill="none"
-              stroke={color}
-              strokeWidth={Math.max(0.8, geom.thickness * 0.78)}
-              strokeLinecap="round"
-              opacity={0.85}
-            />
-          );
-        })}
-
-        {/* Bridge, closest to the chin rest */}
-        <path
-          d="M72 132 L248 132 L236 158 L84 158 Z"
-          fill="url(#vt-bridge)"
-          stroke="#8a6236"
-          strokeWidth="0.7"
-        />
-        <path
-          d="M84 158 L92 172 L228 172 L236 158"
-          fill="url(#vt-bridge-side)"
-          stroke="#8a6236"
-          strokeWidth="0.55"
-        />
-        <path
-          d="M108 158 L114 148 M206 158 L200 148"
-          fill="none"
-          stroke="#6a4828"
-          strokeWidth="0.7"
-        />
-        <path
-          d="M132 146 C148 138 172 138 188 146"
-          fill="none"
-          stroke="#6a4828"
-          strokeWidth="0.8"
-        />
-        {STRING_GEOM.map((g) => (
-          <rect
-            key={`${g.id}-notch`}
-            x={g.bridgeX - 1.15}
-            y={128.2}
-            width="2.3"
-            height="4.2"
-            rx="0.4"
-            fill="#3a2414"
-          />
-        ))}
-
-        {STRING_GEOM.map((geom) => {
-          const state = stringState(geom.id, activeId, tuned, holdingId);
-          const isLive = activeId === geom.id;
-          const color = stringColor(state, isLive ? liveTone : null, isLive);
+        {VIOLIN_STRINGS.map((s, i) => {
+          const x = XS[i]!;
+          const state = stringState(s.id, activeId, tuned, holdingId);
+          const isLive = activeId === s.id;
+          const stroke = stringStroke(state, isLive ? liveTone : null, isLive);
           const vibrating = isLive && !reducedMotion;
           const amp =
-            liveTone === "bad" ? 6.2 : liveTone === "slight" ? 4.6 : 3.2;
-          const offset = vibrating ? Math.sin(wavePhase * Math.PI * 2) * amp : 0;
-          const play = wavePath(
-            geom.farX,
-            FAR_Y,
-            geom.bridgeX,
-            BRIDGE_Y,
-            offset,
-          );
-          const ghost = wavePath(
-            geom.farX,
-            FAR_Y,
-            geom.bridgeX,
-            BRIDGE_Y,
-            -offset * 0.7,
-          );
-          return (
-            <g key={geom.id}>
-              {vibrating ? (
-                <path
-                  d={ghost}
-                  fill="none"
-                  stroke={color}
-                  strokeWidth={geom.thickness + 2.4}
-                  strokeLinecap="round"
-                  opacity={0.18}
-                />
-              ) : null}
-              <path
-                d={play}
-                fill="none"
-                stroke={color}
-                strokeWidth={vibrating ? geom.thickness + 0.4 : geom.thickness}
-                strokeLinecap="round"
-              />
-            </g>
-          );
-        })}
+            liveTone === "bad" ? 5.5 : liveTone === "slight" ? 4 : 2.8;
+          const wobble = vibrating
+            ? Math.sin(wavePhase * Math.PI * 2) * amp
+            : 0;
+          const path = stringPath(x, wobble);
 
-        {STRING_GEOM.map((geom, i) => {
-          const id = VIOLIN_STRINGS[i].id;
-          const state = stringState(id, activeId, tuned, holdingId);
-          const isLive = activeId === id;
-          const fill =
+          const labelFill =
             state === "tuned"
               ? "var(--musai-ok)"
               : isLive
                 ? "var(--musai-ink)"
                 : "var(--musai-muted)";
-          const x = geom.bridgeX;
-          const y = 190;
-          const r = 10.4;
+          const r = 11;
           const circ = 2 * Math.PI * r;
           const showHold =
-            holdingId === id && holdProgress > 0 && state !== "tuned";
+            holdingId === s.id && holdProgress > 0 && state !== "tuned";
+
           return (
-            <g key={`${id}-label`}>
+            <g key={s.id}>
+              {vibrating ? (
+                <path
+                  d={stringPath(x, wobble * 0.55)}
+                  fill="none"
+                  stroke={stroke.color}
+                  strokeWidth={stroke.width + 3}
+                  strokeLinecap="round"
+                  opacity={0.12}
+                />
+              ) : null}
+              <path
+                d={path}
+                fill="none"
+                stroke={stroke.color}
+                strokeWidth={stroke.width}
+                strokeLinecap="round"
+                opacity={stroke.opacity}
+              />
+              {/* Tiny seat on the rail */}
               <circle
                 cx={x}
-                cy={y}
-                r="13"
-                fill="var(--musai-surface)"
-                stroke={
+                cy={BOTTOM_Y}
+                r={state === "tuned" || isLive ? 2.2 : 1.6}
+                fill={
                   state === "tuned"
                     ? "var(--musai-ok)"
                     : isLive
                       ? "var(--musai-ink)"
                       : "var(--musai-border)"
                 }
-                strokeWidth={state === "tuned" || isLive ? 1.6 : 1}
               />
-              {showHold ? (
+
+              <g>
                 <circle
                   cx={x}
-                  cy={y}
-                  r={r}
-                  fill="none"
-                  stroke="var(--musai-ok)"
-                  strokeWidth="2.2"
-                  strokeLinecap="round"
-                  strokeDasharray={circ}
-                  strokeDashoffset={circ * (1 - holdProgress)}
-                  transform={`rotate(-90 ${x} ${y})`}
+                  cy={LABEL_Y}
+                  r="13.5"
+                  fill="var(--musai-surface)"
+                  stroke={
+                    state === "tuned"
+                      ? "var(--musai-ok)"
+                      : isLive
+                        ? "color-mix(in srgb, var(--musai-ink) 45%, var(--musai-border))"
+                        : "var(--musai-border)"
+                  }
+                  strokeWidth={state === "tuned" || isLive ? 1.5 : 1}
                 />
-              ) : null}
-              {state === "tuned" ? (
-                <circle cx={x} cy={y} r="13" fill="var(--musai-ok)" opacity="0.14" />
-              ) : null}
-              <text
-                x={x}
-                y={y + 4.2}
-                textAnchor="middle"
-                className="font-display"
-                style={{ fontSize: "13px", fontWeight: 650, fill }}
-              >
-                {id}
-              </text>
+                {showHold ? (
+                  <circle
+                    cx={x}
+                    cy={LABEL_Y}
+                    r={r}
+                    fill="none"
+                    stroke="var(--musai-ok)"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeDasharray={circ}
+                    strokeDashoffset={circ * (1 - holdProgress)}
+                    transform={`rotate(-90 ${x} ${LABEL_Y})`}
+                  />
+                ) : null}
+                {state === "tuned" ? (
+                  <circle
+                    cx={x}
+                    cy={LABEL_Y}
+                    r="13.5"
+                    fill="var(--musai-ok)"
+                    opacity="0.12"
+                  />
+                ) : null}
+                <text
+                  x={x}
+                  y={LABEL_Y + 4.5}
+                  textAnchor="middle"
+                  className="font-display"
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    fill: labelFill,
+                  }}
+                >
+                  {s.id}
+                </text>
+              </g>
             </g>
           );
         })}
