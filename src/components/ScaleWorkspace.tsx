@@ -529,32 +529,34 @@ export function ScaleWorkspace({
   return (
     <ScalePracticeInfoProvider>
       <StudioViewport>
-        <header className="flex shrink-0 items-center gap-2 px-3 py-2.5 sm:gap-3 sm:px-6">
-          <PracticeHubBackLink
-            href="/practice/scale"
-            label="Scale studio"
-            ariaLabel="Back to Scale studio"
-            className="!mb-0 shrink-0"
-          />
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-[15px] font-semibold tracking-tight text-[var(--musai-ink)] sm:text-[16px]">
-              {title}
-            </h1>
+        <header className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 px-3 py-3 sm:gap-3 sm:px-6">
+          <div className="justify-self-start">
+            <PracticeHubBackLink
+              href="/practice/scale"
+              label="Scale studio"
+              ariaLabel="Back to Scale studio"
+              className="!mb-0 shrink-0"
+            />
           </div>
-          <button
-            type="button"
-            className={`musai-pressable min-h-10 shrink-0 rounded-full px-3 py-2 text-[13px] font-semibold sm:px-3.5 ${
-              changeScaleOpen
-                ? "bg-[var(--musai-accent-soft)] text-[var(--musai-ink)]"
-                : "bg-[var(--musai-surface)] text-[var(--musai-ink)] shadow-[var(--musai-shadow)] hover:bg-[var(--musai-surface-2)]"
-            }`}
-            aria-expanded={changeScaleOpen}
-            aria-controls="scale-workspace-switcher"
-            onClick={() => setChangeScaleOpen((v) => !v)}
-          >
-            <span className="max-sm:hidden">Change scale</span>
-            <span className="sm:hidden">Change</span>
-          </button>
+          <h1 className="font-display max-w-[min(100%,16rem)] truncate text-center text-[1.05rem] font-semibold tracking-tight text-[var(--musai-ink)] sm:max-w-[22rem] sm:text-xl">
+            {title}
+          </h1>
+          <div className="justify-self-end">
+            <button
+              type="button"
+              className={`musai-pressable min-h-10 shrink-0 rounded-full px-3 py-2 text-[13px] font-semibold sm:px-3.5 ${
+                changeScaleOpen
+                  ? "bg-[var(--musai-accent-soft)] text-[var(--musai-ink)]"
+                  : "bg-[var(--musai-surface)] text-[var(--musai-ink)] shadow-[var(--musai-shadow)] hover:bg-[var(--musai-surface-2)]"
+              }`}
+              aria-expanded={changeScaleOpen}
+              aria-controls="scale-workspace-switcher"
+              onClick={() => setChangeScaleOpen((v) => !v)}
+            >
+              <span className="max-sm:hidden">Change scale</span>
+              <span className="sm:hidden">Change</span>
+            </button>
+          </div>
         </header>
 
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
