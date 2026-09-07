@@ -1,0 +1,45 @@
+---
+description: At end of a major task, open a concise PR and merge to main when safe
+alwaysApply: true
+---
+
+# Ship feature work to main
+
+When a **major task is clearly finished** — or the user has moved on to a different product area — do not leave the work only on a local feature branch. Land it on `main` so Vercel and the repo stay current.
+
+## When this applies
+
+Trigger automatically when any of these is true:
+
+- The user says the feature/prompt/pass is done, or asks to ship / PR / merge
+- You completed the stated goal and they start an unrelated request
+- The conversation is wrapping up after substantial app changes (new routes, UX pass, data model, etc.)
+
+Do **not** trigger mid-implementation, for tiny typo-only edits, or when they only asked a question.
+
+## Required flow
+
+Stay on the correct `feature/<area>-<short-goal>` branch (see feature-branch rule). Then:
+
+1. **Commit** pending work if needed (concise why-focused message; never commit secrets)
+2. **Push** the feature branch (`git push -u origin HEAD`)
+3. **Open a PR into `main`** with `gh pr create`:
+   - **Title**: short and specific (e.g. `Scale Studio: dedicated scale workspaces`)
+   - **Body**: 2–4 bullets — what changed and why; include a brief test plan
+4. **Merge when safe**:
+   - If the PR is mergeable (no conflicts) and checks are green or not required, merge with `gh pr merge --merge` (or `--squash` if the repo prefers squash)
+   - If there are conflicts, failing checks, or review blockers: leave the PR open, report the URL and blockers — do **not** force-merge
+5. **Sync local**: `git checkout main && git pull`, then delete the merged feature branch locally/remotely when clean
+
+## PR quality bar
+
+- One feature / one concern per PR (do not dump unrelated WIP)
+- Title readable in the Vercel / GitHub feed
+- No “WIP”, “stuff”, or vague titles
+- Return the PR URL (and merge status) to the user
+
+## Safety
+
+- Never force-push `main`
+- Never `--no-verify` unless the user explicitly asks
+- If uncommitted work spans multiple unrelated features, split or ask before shipping

@@ -1,19 +1,18 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AudioActivityVisualizer } from "@/components/AudioActivityVisualizer";
-import {
-  MusaiMicCapturePanel,
-} from "@/components/MusaiMicCapturePanel";
+import { MusaiCaptureDock } from "@/components/MusaiCaptureDock";
 import { MusaiFloatingMiniRecorder } from "@/components/MusaiFloatingMiniRecorder";
-import { MusaiSegmentedControl } from "@/components/MusaiSegmentedControl";
 import { AnimatedReveal } from "@/components/motion/AnimatedReveal";
 import { ScaleAnalysisPanel } from "@/components/motion/ScaleAnalysisPanel";
+import { PracticeHubBackLink } from "@/components/PracticeHubBackLink";
 import { ScaleChoiceSidebar } from "@/components/ScaleChoiceSidebar";
 import { ScaleGuidePanel } from "@/components/ScaleGuidePanel";
 import { ScalePracticeInfoProvider } from "@/components/scalePracticeInfoContext";
-import { ScaleRecentTakesPanel } from "@/components/ScaleRecentTakesPanel";
+import { ScalePracticeResultsView } from "@/components/ScalePracticeResultsView";
+import { ScaleProgressPanel } from "@/components/ScaleProgressPanel";
+import { ScaleStudioHeader } from "@/components/ScaleStudioHeader";
 import { useFloatingMiniRecorder } from "@/hooks/useFloatingMiniRecorder";
 import { useSyncedRecorderUi } from "@/hooks/useSyncedRecorderUi";
 import { analyzeScalePerformance } from "@/lib/analyzeScalePerformance";
@@ -27,7 +26,13 @@ import {
 } from "@/lib/detectScale";
 import { createMediaRecorder, startMediaRecorder } from "@/lib/mediaRecorderMime";
 import { describeMicOpenError, getMicStream } from "@/lib/micStream";
-import { persistScalePracticeSession } from "@/lib/scalePracticeSession";
+import {
+  getScaleProgressJourney,
+  persistScalePracticeSession,
+  readScalePracticeSession,
+} from "@/lib/scalePracticeSession";
+import type { ScaleProgressJourneyV1 } from "@/lib/scaleProgressHistory";
+import type { ScalePracticeSessionV1 } from "@/lib/scalePracticeTypes";
 import type { ScaleKind } from "@/lib/scales";
 import { buildScalePracticeGuideModel } from "@/lib/scalePracticeGuide";
 import {
@@ -37,9 +42,15 @@ import {
 } from "@/lib/scales";
 
 type CaptureMode = "record" | "upload";
+type PracticePhase = "studio" | "results";
 
 export function ScalePracticeFlow() {
-  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [phase, setPhase] = useState<PracticePhase>("studio");
+  const [loopAttempts, setLoopAttempts] = useState<ScalePracticeSessionV1[]>(
+    [],
+  );
+  const [historyRevision, setHistoryRevision] = useState(0);
   const [tonicPc, setTonicPc] = useState(0);
   const [scaleKind, setScaleKind] = useState<ScaleKind>("major");
   const defaultRoot = useMemo(
@@ -48,17 +59,24 @@ export function ScalePracticeFlow() {
   );
   const [advRoot, setAdvRoot] = useState<number | null>(null);
   const [advSpan, setAdvSpan] = useState<1 | 2 | null>(null);
+  const restoredAgainRef = useRef(false);
 
-  useEffect(() => {
+  const selectTonicPc = useCallback((pc: number) => {
+    setTonicPc(pc);
     setAdvRoot(null);
     setAdvSpan(null);
-  }, [tonicPc, scaleKind]);
+  }, []);
+
+  const selectScaleKind = useCallback((kind: ScaleKind) => {
+    setScaleKind(kind);
+    setAdvRoot(null);
+    setAdvSpan(null);
+  }, []);
 
   const rootMidi = advRoot ?? defaultRoot;
   const octaveSpan = advSpan ?? 1;
 
   const [captureMode, setCaptureModeState] = useState<CaptureMode>("record");
-  const [showWrittenGuide, setShowWrittenGuide] = useState(true);
   const [pendingDetect, setPendingDetect] = useState<{
     alternatives: ScaleCandidate[];
     sampleRateHz: number;
@@ -76,6 +94,23 @@ export function ScalePracticeFlow() {
 
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
+
+  // Resume same scale after leaving results (history / deep link).
+  useEffect(() => {
+    if (restoredAgainRef.current) return;
+    if (searchParams.get("again") !== "1") return;
+    const last = readScalePracticeSession();
+    if (!last) return;
+    restoredAgainRef.current = true;
+    const journey = getScaleProgressJourney(last.scaleId);
+    setTonicPc(last.tonicPitchClass);
+    setScaleKind(last.scaleKind);
+    setAdvRoot(last.rootMidi);
+    setAdvSpan(last.octaveSpan);
+    setLoopAttempts(journey?.attempts ?? [last]);
+    setPhase("studio");
+    setMessage("Same scale ready — record your next take");
+  }, [searchParams]);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -252,6 +287,69 @@ export function ScalePracticeFlow() {
     }
   }, []);
 
+  const completeAttempt = useCallback((session: ScalePracticeSessionV1) => {
+    persistScalePracticeSession(session);
+    setLoopAttempts((prev) => {
+      const sameScale =
+        prev.length > 0 && prev[0]!.scaleId === session.scaleId;
+      return sameScale ? [...prev, session] : [session];
+    });
+    setHistoryRevision((n) => n + 1);
+    setPendingDetect(null);
+    setStatus("idle");
+    setMessage(null);
+    setPhase("results");
+  }, []);
+
+  const continueJourney = useCallback((journey: ScaleProgressJourneyV1) => {
+    setTonicPc(journey.tonicPitchClass);
+    setScaleKind(journey.scaleKind);
+    setAdvRoot(journey.lastRootMidi);
+    setAdvSpan(journey.lastOctaveSpan);
+    setLoopAttempts(journey.attempts);
+    setRecordedBlob(null);
+    setFile(null);
+    setUploadProcessing(false);
+    uploadTokenRef.current += 1;
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    setPendingDetect(null);
+    setStatus("idle");
+    setPhase("studio");
+    setMessage(
+      `Continue ${journey.scaleLabel} — take ${journey.attempts.length + 1} ready`,
+    );
+  }, []);
+
+  const prepareNextTake = useCallback(() => {
+    setRecordedBlob(null);
+    setFile(null);
+    setUploadProcessing(false);
+    uploadTokenRef.current += 1;
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    setPendingDetect(null);
+    setStatus("idle");
+    const nextTake = loopAttempts.length + 1;
+    setMessage(
+      nextTake > 1
+        ? `Take ${nextTake} ready — same scale, fresh listen`
+        : null,
+    );
+    setPhase("studio");
+  }, [loopAttempts.length]);
+
+  const changeScale = useCallback(() => {
+    setLoopAttempts([]);
+    setRecordedBlob(null);
+    setFile(null);
+    setUploadProcessing(false);
+    uploadTokenRef.current += 1;
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    setPendingDetect(null);
+    setStatus("idle");
+    setMessage(null);
+    setPhase("studio");
+  }, []);
+
   const persistDetected = useCallback(
     (
       candidate: ScaleCandidate,
@@ -269,12 +367,13 @@ export function ScalePracticeFlow() {
         expectedNotesMidi: candidate.expectedMidis,
         scaleSource: "detected",
       });
-      persistScalePracticeSession(session);
-      setPendingDetect(null);
-      setStatus("idle");
-      router.push("/practice/scale/results");
+      setTonicPc(candidate.tonicPitchClass);
+      setScaleKind(candidate.scaleKind);
+      setAdvRoot(candidate.rootMidi);
+      setAdvSpan(candidate.octaveSpan);
+      completeAttempt(session);
     },
-    [router],
+    [completeAttempt],
   );
 
   const runAnalyze = useCallback(async () => {
@@ -290,7 +389,7 @@ export function ScalePracticeFlow() {
       return;
     }
 
-    if (showWrittenGuide && !validateScaleMidisInViolinRange(expectedMidis)) {
+    if (!validateScaleMidisInViolinRange(expectedMidis)) {
       setMessage(
         "This range leaves the violin span. Open Range and choose a lower start or one octave.",
       );
@@ -321,21 +420,14 @@ export function ScalePracticeFlow() {
       const audioSourceType =
         captureMode === "record" ? "recorded" : "uploaded";
 
-      if (showWrittenGuide) {
-        const analysis = analyzeScalePerformance({
-          mono,
-          sampleRateHz,
-          expectedMidis,
-        });
+      const analysis = analyzeScalePerformance({
+        mono,
+        sampleRateHz,
+        expectedMidis,
+      });
 
-        if (analysis.summary.notesAnalyzed === 0) {
-          setStatus("error");
-          setMessage(
-            "Couldn’t detect clear pitches. Re-record slower, one note per bow, in a quieter room.",
-          );
-          return;
-        }
-
+      // Happy path: score against the scale the student chose.
+      if (analysis.summary.notesAnalyzed > 0) {
         const aligned = alignAnalysisToDetectedOctave(
           expectedMidis,
           rootMidi,
@@ -353,25 +445,13 @@ export function ScalePracticeFlow() {
           expectedNotesMidi: aligned.expectedMidis,
           scaleSource: "selected",
         });
-        persistScalePracticeSession(session);
-        setStatus("idle");
-        router.push("/practice/scale/results");
+        completeAttempt(session);
         return;
       }
 
+      // Invisible fallback: try to recover the scale if the chosen one didn't match.
       const detected = detectScaleFromAudio(mono, sampleRateHz);
-      if (!detected.ok) {
-        setShowWrittenGuide(true);
-        setStatus("error");
-        setMessage(
-          detected.reason === "no_pitch"
-            ? "Couldn’t hear a clear scale. Play slower, then try again — or show the notes and pick the scale."
-            : "Couldn’t match a scale automatically. Show written notes, pick what you played, then analyse again.",
-        );
-        return;
-      }
-
-      if (detected.ambiguous) {
+      if (detected.ok && detected.ambiguous) {
         setPendingDetect({
           alternatives: detected.alternatives,
           sampleRateHz,
@@ -380,8 +460,17 @@ export function ScalePracticeFlow() {
         setStatus("idle");
         return;
       }
+      if (detected.ok) {
+        persistDetected(detected.best, sampleRateHz, audioSourceType);
+        return;
+      }
 
-      persistDetected(detected.best, sampleRateHz, audioSourceType);
+      setStatus("error");
+      setMessage(
+        detected.reason === "no_pitch"
+          ? "Couldn’t detect clear pitches. Re-record slower, one note per bow, in a quieter room."
+          : "Couldn’t match that take to your scale. Check the key, then try again.",
+      );
     } catch (e) {
       setStatus("error");
       setMessage(
@@ -392,15 +481,14 @@ export function ScalePracticeFlow() {
     }
   }, [
     captureMode,
+    completeAttempt,
     expectedMidis,
     file,
     octaveSpan,
     persistDetected,
     recordedBlob,
     rootMidi,
-    router,
     scaleKind,
-    showWrittenGuide,
     tonicPc,
   ]);
 
@@ -409,14 +497,37 @@ export function ScalePracticeFlow() {
     !uploadProcessing &&
     (captureMode === "upload" ? !!file : !!recordedBlob);
 
-  const miniEnabled = captureMode === "record" && status !== "loading";
+  const miniEnabled =
+    phase === "studio" && captureMode === "record" && status !== "loading";
   const { miniMounted, miniVisible } = useFloatingMiniRecorder(
     mainRecorderRef,
     miniEnabled,
   );
 
+  const latestAttempt = loopAttempts[loopAttempts.length - 1] ?? null;
+
+  if (phase === "results" && latestAttempt) {
+    return (
+      <ScalePracticeInfoProvider>
+        <div className="w-full max-w-[min(1280px,100%)]">
+          <PracticeHubBackLink />
+        </div>
+        <ScalePracticeResultsView
+          session={latestAttempt}
+          loopAttempts={loopAttempts}
+          onTryAgain={prepareNextTake}
+          onChangeScale={changeScale}
+        />
+      </ScalePracticeInfoProvider>
+    );
+  }
+
   return (
     <ScalePracticeInfoProvider>
+    <div className="w-full max-w-[min(1280px,100%)]">
+      <PracticeHubBackLink />
+    </div>
+    <ScaleStudioHeader />
     <AnimatedReveal className="w-full max-w-[min(1280px,100%)] space-y-6 sm:space-y-8">
 
       {status === "loading" ? (
@@ -431,253 +542,109 @@ export function ScalePracticeFlow() {
           status === "loading" ? "pointer-events-none opacity-35" : ""
         }`}
       >
+        {loopAttempts.length > 0 ? (
+          <p
+            data-anime-enter
+            className="mx-auto max-w-6xl px-4 text-[12px] font-medium tabular-nums text-[var(--musai-muted)] sm:px-6"
+          >
+            Session · Take {loopAttempts.length + 1} of {guideModel.scaleLabel}
+          </p>
+        ) : null}
+
         {!pendingDetect && !isRecording ? (
           <div className="mx-auto w-full max-w-md lg:hidden">
-            <ScaleRecentTakesPanel />
+            <ScaleProgressPanel
+              revision={historyRevision}
+              onContinue={continueJourney}
+            />
           </div>
         ) : null}
 
-        <div className="musai-workspace relative mx-auto w-full max-w-5xl px-4 py-5 sm:px-6 sm:py-6">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            {!isRecording ? (
-              <button
-                type="button"
-                onClick={() => setShowWrittenGuide((v) => !v)}
-                className={`musai-chip ${showWrittenGuide ? "musai-chip--on" : "musai-chip--off"} text-sm font-medium`}
-              >
-                {showWrittenGuide ? "Hide notes" : "Notes"}
-              </button>
-            ) : (
+        <div className="musai-workspace relative mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-6">
+          {isRecording ? (
+            <div className="mb-4 flex justify-start">
               <span className="musai-studio-status musai-studio-status--live">
                 <span className="musai-studio-status__dot" aria-hidden />
                 Recording
               </span>
-            )}
-            <p className="rounded-full bg-[var(--musai-accent-soft)] px-3 py-1 text-sm font-semibold text-[var(--musai-accent)]">
-              {guideModel.scaleLabel}
-              {octaveSpan === 2 ? " · 2 oct" : " · 1 oct"}
-            </p>
-          </div>
-
-          {!isRecording && showWrittenGuide ? (
-            <AnimatedReveal
-              key="written-guide"
-              className="relative lg:grid lg:grid-cols-[11rem_minmax(0,1fr)] lg:gap-6"
-              delay={40}
-            >
-              <div data-anime-enter className="mb-4 lg:mb-0">
-                <ScaleChoiceSidebar
-                  tonicPc={tonicPc}
-                  onTonicPc={setTonicPc}
-                  scaleKind={scaleKind}
-                  onScaleKind={setScaleKind}
-                  octaveSpan={octaveSpan}
-                  onOctaveSpan={setAdvSpan}
-                  rootMidi={rootMidi}
-                  onRootMidi={setAdvRoot}
-                  onResetRange={() => {
-                    setAdvRoot(null);
-                    setAdvSpan(null);
-                  }}
-                />
-              </div>
-              <div data-anime-enter className="mx-auto w-full max-w-3xl">
-                <ScaleGuidePanel
-                  guide={guideModel}
-                  exerciseMidis={expectedMidis}
-                  tonicPitchClass={tonicPc}
-                  scaleKind={scaleKind}
-                  octaveSpan={octaveSpan}
-                />
-              </div>
-            </AnimatedReveal>
-          ) : null}
-
-          {!isRecording && !showWrittenGuide ? (
-            <div className="musai-studio-notes-prompt mx-auto max-w-xl px-5 py-5 text-center">
-              <p className="text-xs font-medium uppercase tracking-[0.14em] text-[var(--musai-muted)]">
-                Notes closed
-              </p>
             </div>
           ) : null}
 
-          <div className="relative mx-auto mt-6 w-full max-w-md">
-            <section
-              data-anime-enter
-              className={`relative w-full overflow-visible rounded-[var(--musai-radius-lg)] border border-[var(--musai-border)] bg-[var(--musai-surface-2)] transition-[border-color] duration-300 ${
-                isRecording
-                  ? "border-[color-mix(in_srgb,var(--musai-accent-2)_45%,var(--musai-border))]"
-                  : recordedBlob && captureMode === "record"
-                    ? "border-[color-mix(in_srgb,var(--musai-ok)_35%,var(--musai-border))]"
-                    : ""
-              }`}
-            >
-              <div className="px-4 py-4 sm:px-5 sm:py-5">
-                {!isRecording ? (
-                  <div className="flex items-center justify-between gap-3">
-                    {(captureMode === "record" && recordedBlob) ||
-                    (captureMode === "upload" && file) ? (
-                      <span className="musai-studio-status musai-studio-status--ready">
-                        <span className="musai-studio-status__dot" aria-hidden />
-                        Ready
-                      </span>
-                    ) : (
-                      <span />
-                    )}
-                    <MusaiSegmentedControl<CaptureMode>
-                      ariaLabel="Capture source"
-                      value={captureMode}
-                      onChange={setCaptureMode}
-                      options={[
-                        { value: "record", label: "Record" },
-                        { value: "upload", label: "Import" },
-                      ]}
-                      className="max-w-[12.5rem]"
-                      size="compact"
-                    />
-                  </div>
-                ) : null}
+          <div className="musai-studio-layout">
+            <div className="musai-studio-layout__keys relative z-10">
+              <ScaleChoiceSidebar
+                tonicPc={tonicPc}
+                onTonicPc={selectTonicPc}
+                scaleKind={scaleKind}
+                onScaleKind={selectScaleKind}
+                octaveSpan={octaveSpan}
+                onOctaveSpan={setAdvSpan}
+                rootMidi={rootMidi}
+                onRootMidi={setAdvRoot}
+                onResetRange={() => {
+                  setAdvRoot(null);
+                  setAdvSpan(null);
+                }}
+              />
+            </div>
 
-              {captureMode === "upload" ? (
-                <div
-                  className={`mt-3 overflow-hidden rounded-[var(--musai-radius)] transition-[border-color,background-color] duration-300 ${
-                    uploadProcessing
-                      ? "border border-[color-mix(in_srgb,var(--musai-accent)_35%,var(--musai-border))] bg-[var(--musai-accent-soft)]"
-                      : file
-                        ? "border border-[color-mix(in_srgb,var(--musai-ok)_30%,var(--musai-border))] bg-[var(--musai-surface)]"
-                        : "border border-dashed border-[var(--musai-border)] bg-[var(--musai-surface)] hover:border-[color-mix(in_srgb,var(--musai-accent)_40%,var(--musai-border))]"
-                  }`}
-                >
-                  {file ? (
-                    <div className="relative min-h-[7.5rem]">
-                      <div
-                        className={`absolute inset-0 flex flex-col items-center justify-center px-4 py-4 transition-opacity duration-300 ${
-                          uploadProcessing
-                            ? "z-10 opacity-100"
-                            : "pointer-events-none z-0 opacity-0"
-                        }`}
-                        aria-hidden={!uploadProcessing}
-                        aria-busy={uploadProcessing}
-                        aria-label="Processing selected audio file"
-                      >
-                        <AudioActivityVisualizer variant="compact" className="mb-2" />
-                        <span className="text-sm font-semibold tracking-tight text-[var(--musai-ink)]">
-                          Reading…
-                        </span>
-                        <span className="mt-2 max-w-full truncate px-2 text-center text-xs text-[var(--musai-muted)]">
-                          {file.name}
-                        </span>
-                      </div>
-                      <label
-                        className={`group flex cursor-pointer flex-col items-center justify-center px-4 py-4 transition-opacity duration-300 ${
-                          uploadProcessing
-                            ? "pointer-events-none relative z-0 min-h-[7.5rem] opacity-0"
-                            : "relative z-10 min-h-[7.5rem] opacity-100"
-                        }`}
-                      >
-                        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--musai-accent-soft)] text-[var(--musai-ok)] ring-1 ring-[color-mix(in_srgb,var(--musai-ok)_25%,transparent)]">
-                          <svg
-                            viewBox="0 0 24 24"
-                            className="h-5 w-5"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth={2}
-                            aria-hidden
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M5 13l4 4L19 7"
-                            />
-                          </svg>
-                        </span>
-                          <span className="mt-2 text-sm font-semibold text-[var(--musai-ok)]">
-                            Audio ready
-                          </span>
-                          <span className="mt-1 max-w-full truncate px-2 text-center text-xs text-[var(--musai-muted)]">
-                            {file.name}
-                          </span>
-                          <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="audio/*,.wav,.mp3,.m4a,.ogg,.webm,.flac"
-                            className="sr-only"
-                            onChange={handleFileChange}
-                          />
-                        </label>
-                      </div>
-                    ) : (
-                      <label className="flex cursor-pointer flex-col items-center justify-center px-4 py-5 transition-colors duration-200 hover:bg-[var(--musai-surface-2)]">
-                        <span className="text-sm font-semibold text-[var(--musai-ink)]">
-                          Import audio
-                        </span>
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          accept="audio/*,.wav,.mp3,.m4a,.ogg,.webm,.flac"
-                          className="sr-only"
-                          onChange={handleFileChange}
-                        />
-                      </label>
-                    )}
-                </div>
-              ) : (
-                <div className="mt-3" ref={mainRecorderRef}>
-                  <MusaiMicCapturePanel
-                    selectId="musai-mic-scale"
-                    micDevices={micDevices}
-                    selectedMicId={selectedMicId}
-                    onMicChange={setSelectedMicId}
-                    onMicRefresh={refreshMicDevices}
-                    isRecording={isRecording}
-                    hasSavedClip={!!recordedBlob}
-                    density="compact"
-                    experience="studio"
-                    onDiscardClip={() => {
-                      setRecordedBlob(null);
-                      resetCaptureSession();
-                    }}
-                    onStartRecording={() => void startRecording()}
-                    onStopRecording={stopRecording}
-                    streamRef={streamRef}
-                    elapsedLabelOverride={elapsedLabel}
-                    levelBarsOverride={levelBars}
-                    lastTakeLabelOverride={lastTakeLabel}
+            <div className="musai-studio-layout__notes min-w-0">
+              <AnimatedReveal key="written-guide" delay={40}>
+                <div data-anime-enter className="mx-auto w-full max-w-3xl">
+                  <ScaleGuidePanel
+                    guide={guideModel}
+                    exerciseMidis={expectedMidis}
+                    tonicPitchClass={tonicPc}
+                    scaleKind={scaleKind}
+                    octaveSpan={octaveSpan}
                   />
                 </div>
-              )}
+              </AnimatedReveal>
+            </div>
 
-              {message && status === "error" ? (
-                <AnimatedReveal
-                  className="musai-glass-inset mt-5 border-[color-mix(in_srgb,var(--musai-accent-2)_30%,var(--musai-border))] bg-[color-mix(in_srgb,var(--musai-accent-2)_8%,white)] px-4 py-3 text-center text-sm text-[var(--musai-accent-2)]"
-                  role="alert"
-                  aria-live="assertive"
-                  delay={20}
-                >
-                  <p data-anime-enter>{message}</p>
-                </AnimatedReveal>
-              ) : null}
-
-              <div className="mt-3 flex justify-center">
-                <button
-                  type="button"
-                  disabled={!canAnalyze}
-                  onClick={() => void runAnalyze()}
-                  className="musai-btn-primary"
-                >
-                  Analyse
-                </button>
-              </div>
-              </div>
-            </section>
+            <div className="musai-studio-layout__capture">
+              <MusaiCaptureDock
+                selectId="musai-mic-scale"
+                captureMode={captureMode}
+                onCaptureMode={setCaptureMode}
+                isRecording={isRecording}
+                recordedBlob={recordedBlob}
+                file={file}
+                uploadProcessing={uploadProcessing}
+                fileInputRef={fileInputRef}
+                onFileChange={handleFileChange}
+                mainRecorderRef={mainRecorderRef}
+                micDevices={micDevices}
+                selectedMicId={selectedMicId}
+                onMicChange={setSelectedMicId}
+                onMicRefresh={refreshMicDevices}
+                onDiscardClip={() => {
+                  setRecordedBlob(null);
+                  resetCaptureSession();
+                }}
+                onStartRecording={() => void startRecording()}
+                onStopRecording={stopRecording}
+                streamRef={streamRef}
+                elapsedLabel={elapsedLabel}
+                levelBars={levelBars}
+                lastTakeLabel={lastTakeLabel}
+                message={message}
+                status={status}
+                canAnalyze={canAnalyze}
+                onAnalyze={() => void runAnalyze()}
+              />
+            </div>
 
             {!pendingDetect && !isRecording ? (
               <aside
                 data-anime-enter
-                className="pointer-events-none absolute top-0 left-[calc(100%+1.25rem)] hidden w-[14.5rem] lg:block"
+                className="pointer-events-none absolute top-16 right-0 hidden w-[14.5rem] translate-x-[calc(100%+1rem)] lg:block xl:hidden"
               >
                 <div className="pointer-events-auto sticky top-24">
-                  <ScaleRecentTakesPanel />
+                  <ScaleProgressPanel
+                    revision={historyRevision}
+                    onContinue={continueJourney}
+                  />
                 </div>
               </aside>
             ) : null}
@@ -718,12 +685,9 @@ export function ScalePracticeFlow() {
               data-anime-enter
               type="button"
               className="mt-4 text-[12px] font-medium text-[var(--musai-muted)] underline decoration-[var(--musai-border)] underline-offset-2 hover:text-[var(--musai-ink)]"
-              onClick={() => {
-                setPendingDetect(null);
-                setShowWrittenGuide(true);
-              }}
+              onClick={() => setPendingDetect(null)}
             >
-              Pick manually
+              Cancel
             </button>
           </AnimatedReveal>
         ) : null}

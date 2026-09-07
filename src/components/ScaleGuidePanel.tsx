@@ -23,12 +23,17 @@ export function ScaleGuidePanel({
   tonicPitchClass,
   scaleKind,
   octaveSpan,
+  ascendingCents,
+  descendingCents,
 }: {
   guide: ScalePracticeGuideModel;
   exerciseMidis: number[];
   tonicPitchClass: number;
   scaleKind: ScaleKind;
   octaveSpan: 1 | 2;
+  /** Optional intonation colouring from the latest take. */
+  ascendingCents?: (number | null)[];
+  descendingCents?: (number | null)[];
 }) {
   const ascendingMidis = exerciseMidis.slice(0, guide.ascendingCount);
   const descendingMidis = exerciseMidis.slice(guide.ascendingCount);
@@ -62,16 +67,25 @@ export function ScaleGuidePanel({
 
   const kindWord = scaleKind === "major" ? "Major" : "Minor";
   const spanWord = octaveSpan === 2 ? "2 octaves" : "1 octave";
+  const showFeedbackLegend =
+    ascendingCents != null || descendingCents != null;
 
   return (
-    <div data-scale-info-root={INFO_ID} className="space-y-5 sm:space-y-6">
-      <div className="relative flex min-h-[2.75rem] flex-col items-center justify-center px-10 sm:px-12">
-        <h2
-          ref={titleRef}
-          className="sr-only"
-        >
-          {guide.scaleLabel} · {kindWord} · {spanWord}
-        </h2>
+    <div data-scale-info-root={INFO_ID} className="space-y-4 sm:space-y-5">
+      <div className="relative flex items-start justify-center px-8 sm:px-10">
+        <div className="min-w-0 text-center">
+          <h2
+            ref={titleRef}
+            className="font-display text-xl font-semibold tracking-tight text-[var(--musai-ink)] sm:text-2xl"
+          >
+            {guide.scaleLabel}
+          </h2>
+          <p className="mt-1 text-[12px] font-medium text-[var(--musai-muted)]">
+            {kindWord}
+            <span className="text-[var(--musai-border)]"> · </span>
+            {spanWord}
+          </p>
+        </div>
         <div
           className="absolute right-0 top-0 shrink-0"
           onClick={(e) => e.stopPropagation()}
@@ -94,10 +108,29 @@ export function ScaleGuidePanel({
         </div>
       </div>
 
+      {showFeedbackLegend ? (
+        <div className="flex flex-wrap items-center justify-center gap-3 text-[11px] text-[var(--musai-muted)]">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-[var(--musai-ok)]" /> On pitch
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-[var(--musai-warn)]" /> Sharp
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-[var(--musai-key-flat)]" /> Flat
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-[var(--musai-accent-2)]" /> Missed
+          </span>
+        </div>
+      ) : null}
+
       <div className="-mx-1 px-1 sm:-mx-2 sm:px-2">
         <ScaleTrebleStaff
           ascendingMidis={ascendingMidis}
           descendingMidis={descendingMidis}
+          ascendingCents={ascendingCents}
+          descendingCents={descendingCents}
           tonicPitchClass={tonicPitchClass}
           scaleKind={scaleKind}
         />

@@ -113,11 +113,12 @@ function formatSignedCents(cents: number): string {
 }
 
 function headlineFor(summary: ScalePracticeSummary): string {
-  if (summary.notesAnalyzed === 0) return "Couldn’t hear clear pitches.";
+  if (summary.notesAnalyzed === 0) return "Hard to hear clear pitches this take.";
   if (summary.inTunePercent >= 90) return "Excellent intonation.";
   if (summary.inTunePercent >= 75) return "Strong control.";
-  if (summary.inTunePercent >= 55) return "Getting there.";
-  return "Needs more tuning work.";
+  if (summary.inTunePercent >= 55) return "Getting steadier.";
+  if (summary.inTunePercent >= 30) return "Building — keep going.";
+  return "Getting started — slow bows help.";
 }
 
 function tipFor(

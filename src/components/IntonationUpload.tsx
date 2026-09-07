@@ -5,9 +5,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AudioActivityVisualizer } from "@/components/AudioActivityVisualizer";
 import { NoteRing } from "@/components/NoteRing";
 import { IntonationRecordingHelpButton } from "@/components/IntonationRecordingHelpButton";
-import { MusaiMicCapturePanel } from "@/components/MusaiMicCapturePanel";
+import { MusaiCaptureDock } from "@/components/MusaiCaptureDock";
 import { MusaiFloatingMiniRecorder } from "@/components/MusaiFloatingMiniRecorder";
-import { MusaiSegmentedControl } from "@/components/MusaiSegmentedControl";
 import { ReferenceToneHelpButton } from "@/components/ReferenceToneHelpButton";
 import { useFloatingMiniRecorder } from "@/hooks/useFloatingMiniRecorder";
 import { useSyncedRecorderUi } from "@/hooks/useSyncedRecorderUi";
@@ -27,9 +26,9 @@ import { persistIntonationResult } from "@/lib/musaiResultSession";
 
 type InputMode = "upload" | "record";
 
-/** Long enough that spectrum / EQ motion reads clearly (not a flash). */
-const UPLOAD_PROCESSING_MIN_MS = 2100;
-const UPLOAD_PROCESSING_MIN_MS_REDUCED = 720;
+/** Brief import feedback — keep light so recording stays the focus. */
+const UPLOAD_PROCESSING_MIN_MS = 400;
+const UPLOAD_PROCESSING_MIN_MS_REDUCED = 0;
 
 export function IntonationUpload() {
   const router = useRouter();
@@ -374,165 +373,44 @@ export function IntonationUpload() {
               </div>
             </div>
 
-            {/* Capture + analyze */}
-            <div className="flex flex-col p-6 sm:p-8">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h2 className="text-base font-semibold tracking-tight text-[var(--musai-ink)]">
-                    Record
-                  </h2>
-                </div>
+            {/* Capture + analyze — same dock as Scale Studio */}
+            <div className="flex flex-col justify-center p-6 sm:p-8">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h2 className="text-base font-semibold tracking-tight text-[var(--musai-ink)]">
+                  Record
+                </h2>
                 <IntonationRecordingHelpButton />
               </div>
-
-              <div className="mt-7 flex justify-center sm:mt-8">
-                <MusaiSegmentedControl<InputMode>
-                  ariaLabel="Capture source"
-                  value={inputMode}
-                  onChange={setMode}
-                  options={[
-                    { value: "record", label: "Record" },
-                    { value: "upload", label: "Import" },
-                  ]}
-                  className="max-w-[19rem]"
-                />
-              </div>
-
-              <div className="mt-7 min-h-0 flex-1 sm:mt-8">
-                {inputMode === "upload" ? (
-                  <div
-                    className={`overflow-hidden rounded-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] transition-[border-color,background-color,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
-                      uploadProcessing
-                        ? "border border-[color-mix(in_srgb,var(--musai-accent)_35%,var(--musai-border))] bg-[var(--musai-accent-soft)]"
-                        : file
-                          ? "border border-[color-mix(in_srgb,var(--musai-ok)_30%,var(--musai-border))] bg-[var(--musai-surface)]"
-                          : "border border-dashed border-[var(--musai-border)] bg-[var(--musai-surface)] hover:border-[color-mix(in_srgb,var(--musai-accent)_40%,var(--musai-border))] hover:bg-[var(--musai-surface-2)]"
-                    }`}
-                  >
-                    {file ? (
-                      <div className="relative min-h-[220px] sm:min-h-[240px]">
-                        <div
-                          className={`absolute inset-0 flex flex-col items-center justify-center px-4 py-8 transition-[opacity,transform,filter] duration-[550ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:duration-200 motion-reduce:transition-opacity ${
-                            uploadProcessing
-                              ? "z-10 translate-y-0 opacity-100"
-                              : "pointer-events-none z-0 translate-y-2 opacity-0 blur-[1px] motion-reduce:blur-none"
-                          }`}
-                          aria-hidden={!uploadProcessing}
-                          aria-busy={uploadProcessing}
-                          aria-label="Processing selected audio file"
-                        >
-                          <AudioActivityVisualizer
-                            variant="compact"
-                            className="mb-2"
-                          />
-                          <span className="text-sm font-semibold tracking-tight text-[var(--musai-ink)]">
-                            Reading…
-                          </span>
-                          <span className="mt-2 max-w-full truncate px-2 text-center text-xs text-[var(--musai-muted)]">
-                            {file.name}
-                          </span>
-                        </div>
-                        <label
-                          className={`group flex cursor-pointer flex-col items-center justify-center px-4 py-8 transition-[opacity,transform,filter] duration-[550ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:duration-200 motion-reduce:transition-opacity ${
-                            uploadProcessing
-                              ? "pointer-events-none relative z-0 min-h-[220px] -translate-y-2 opacity-0 blur-[1px] motion-reduce:blur-none sm:min-h-[240px]"
-                              : "relative z-10 min-h-[220px] translate-y-0 opacity-100 sm:min-h-[240px]"
-                          } hover:bg-[var(--musai-surface-2)]`}
-                        >
-                          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--musai-accent-soft)] text-[var(--musai-ok)] ring-1 ring-[color-mix(in_srgb,var(--musai-ok)_25%,transparent)] transition-transform duration-500 ease-out motion-reduce:transition-none group-hover:scale-[1.06]">
-                            <svg
-                              viewBox="0 0 24 24"
-                              className="h-5 w-5"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth={2}
-                              aria-hidden
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M5 13l4 4L19 7"
-                              />
-                            </svg>
-                          </span>
-                          <span className="mt-3 text-sm font-semibold text-[var(--musai-ok)]">
-                            Ready
-                          </span>
-                          <span className="mt-2 max-w-full truncate px-2 text-center text-xs text-[var(--musai-muted)]">
-                            {file.name}
-                          </span>
-                          <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="audio/*,.wav,.mp3,.m4a,.ogg,.webm,.flac"
-                            className="sr-only"
-                            onChange={handleAudioFileChange}
-                          />
-                        </label>
-                      </div>
-                    ) : (
-                      <label className="flex min-h-[220px] cursor-pointer flex-col items-center justify-center px-4 py-8 transition-colors duration-300 hover:bg-[var(--musai-surface-2)] sm:min-h-[240px]">
-                        <span className="text-sm font-semibold text-[var(--musai-ink)]">
-                          Import audio
-                        </span>
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          accept="audio/*,.wav,.mp3,.m4a,.ogg,.webm,.flac"
-                          className="sr-only"
-                          onChange={handleAudioFileChange}
-                        />
-                      </label>
-                    )}
-                  </div>
-                ) : (
-                  <div ref={mainRecorderRef}>
-                    <MusaiMicCapturePanel
-                      selectId="musai-mic-tuning"
-                      micDevices={micDevices}
-                      selectedMicId={selectedMicId}
-                      onMicChange={setSelectedMicId}
-                      onMicRefresh={refreshMicDevices}
-                      isRecording={isRecording}
-                      hasSavedClip={!!recordedBlob}
-                      onDiscardClip={() => {
-                        setRecordedBlob(null);
-                        resetSession();
-                      }}
-                      onStartRecording={() => void startRecording()}
-                      onStopRecording={stopRecording}
-                      streamRef={streamRef}
-                      elapsedLabelOverride={elapsedLabel}
-                      levelBarsOverride={levelBars}
-                      lastTakeLabelOverride={lastTakeLabel}
-                    />
-                  </div>
-                )}
-              </div>
-
-              {message && status === "error" ? (
-                <p
-                  className="musai-glass-inset mt-5 border-[color-mix(in_srgb,var(--musai-accent-2)_30%,var(--musai-border))] bg-[color-mix(in_srgb,var(--musai-accent-2)_8%,white)] px-4 py-3 text-center text-sm leading-relaxed text-[var(--musai-accent-2)]"
-                  role="alert"
-                >
-                  {message}
-                </p>
-              ) : null}
-
-              <div className="mt-8 flex justify-center">
-                <button
-                  type="button"
-                  disabled={!canAnalyze}
-                  onClick={() => void analyze()}
-                  className={`musai-btn-primary ${
-                    inputMode === "record" && recordedBlob
-                      ? "ring-1 ring-[color-mix(in_srgb,var(--musai-ok)_25%,transparent)]"
-                      : ""
-                  }`}
-                >
-                  {status === "loading" ? "Working…" : "Analyse"}
-                </button>
-              </div>
+              <MusaiCaptureDock
+                selectId="musai-mic-tuning"
+                captureMode={inputMode}
+                onCaptureMode={setMode}
+                isRecording={isRecording}
+                recordedBlob={recordedBlob}
+                file={file}
+                uploadProcessing={uploadProcessing}
+                fileInputRef={fileInputRef}
+                onFileChange={handleAudioFileChange}
+                mainRecorderRef={mainRecorderRef}
+                micDevices={micDevices}
+                selectedMicId={selectedMicId}
+                onMicChange={setSelectedMicId}
+                onMicRefresh={refreshMicDevices}
+                onDiscardClip={() => {
+                  setRecordedBlob(null);
+                  resetSession();
+                }}
+                onStartRecording={() => void startRecording()}
+                onStopRecording={stopRecording}
+                streamRef={streamRef}
+                elapsedLabel={elapsedLabel}
+                levelBars={levelBars}
+                lastTakeLabel={lastTakeLabel}
+                message={message}
+                status={status}
+                canAnalyze={canAnalyze}
+                onAnalyze={() => void analyze()}
+              />
             </div>
           </div>
         </div>
