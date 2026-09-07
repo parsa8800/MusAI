@@ -3,6 +3,7 @@
 import { animate } from "animejs";
 import { useEffect, useRef } from "react";
 import { InfoPopover, InfoPopoverScanLines } from "@/components/InfoPopover";
+import { ScalePitchCueKey } from "@/components/ScalePitchCueKey";
 import { useScalePracticeInfo } from "@/components/scalePracticeInfoContext";
 import { ScaleTrebleStaff } from "@/components/ScaleTrebleStaff";
 import type { ScalePracticeGuideModel } from "@/lib/scalePracticeGuide";
@@ -132,27 +133,6 @@ export function ScaleGuidePanel({
         </div>
       </div>
 
-      {showFeedbackLegend ? (
-        <div
-          className={`flex shrink-0 flex-wrap items-center justify-center gap-3 text-[11px] text-[var(--musai-muted)] ${
-            compact ? "gap-2" : ""
-          }`}
-        >
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-[var(--musai-ok)]" /> On pitch
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-[var(--musai-warn)]" /> Sharp
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-[var(--musai-key-flat)]" /> Flat
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-[var(--musai-accent-2)]" /> Missed
-          </span>
-        </div>
-      ) : null}
-
       <div
         className={`min-h-0 ${
           compact
@@ -169,6 +149,10 @@ export function ScaleGuidePanel({
           scaleKind={scaleKind}
         />
       </div>
+
+      {showFeedbackLegend ? (
+        <ScalePitchCueKey compact={compact} />
+      ) : null}
 
       {focusStrong || focusNext ? (
         <div

@@ -6,6 +6,7 @@ import { CoachChatPanel } from "@/components/CoachChatPanel";
 import { AnimatedReveal } from "@/components/motion/AnimatedReveal";
 import { PracticeHubBackLink } from "@/components/PracticeHubBackLink";
 import { PracticeStageRing } from "@/components/PracticeStageRing";
+import { ScalePitchCueKey } from "@/components/ScalePitchCueKey";
 import { ScaleTrebleStaff } from "@/components/ScaleTrebleStaff";
 import { alignExpectedMidisToDetectedOctave } from "@/lib/alignScaleOctave";
 import { buildScaleCoachingFeedback, ensureBulletFeedback } from "@/lib/scalePracticeCopy";
@@ -323,29 +324,13 @@ export function ScalePracticeResultsView({
           className="musai-glass-panel flex flex-col px-4 py-5 sm:px-6 sm:py-6"
           aria-label="Colour-coded note feedback"
         >
-          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-            <div className="min-w-0">
-              <h1 className="font-display text-xl font-semibold tracking-tight text-[var(--musai-ink)] sm:text-2xl">
-                {scaleLabel}
-              </h1>
-              <p className="mt-0.5 text-[13px] font-medium text-[var(--musai-muted)]">
-                {octaveCaption(octaveSpan)}
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-3 text-[11px] text-[var(--musai-muted)]">
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-[var(--musai-ok)]" /> On pitch
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-[var(--musai-warn)]" /> Sharp
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-[var(--musai-key-flat)]" /> Flat
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-[var(--musai-accent-2)]" /> Missed
-              </span>
-            </div>
+          <div className="mb-4 min-w-0 text-center sm:text-left">
+            <h1 className="font-display text-xl font-semibold tracking-tight text-[var(--musai-ink)] sm:text-2xl">
+              {scaleLabel}
+            </h1>
+            <p className="mt-0.5 text-[13px] font-medium text-[var(--musai-muted)]">
+              {octaveCaption(octaveSpan)}
+            </p>
           </div>
 
           <div className="musai-rv-details min-w-0 flex-1">
@@ -357,6 +342,10 @@ export function ScalePracticeResultsView({
               tonicPitchClass={session.tonicPitchClass}
               scaleKind={session.scaleKind}
             />
+          </div>
+
+          <div className="mt-4">
+            <ScalePitchCueKey />
           </div>
         </section>
 
