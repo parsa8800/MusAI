@@ -24,6 +24,8 @@ type MusaiMicCapturePanelProps = {
   onDiscardClip: () => void;
   onStartRecording: () => void;
   onStopRecording: () => void;
+  /** Discard mid-take and restart without analysing. */
+  onRetakeRecording?: () => void;
   /** Live mic stream while recording (drives real level meter). */
   streamRef: RefObject<MediaStream | null>;
   /**
@@ -123,6 +125,7 @@ export function MusaiRecorderControls({
   isRecording,
   onStartRecording,
   onStopRecording,
+  onRetakeRecording,
   elapsedLabel,
   levelBars,
   size = "full",
@@ -133,6 +136,8 @@ export function MusaiRecorderControls({
   isRecording: boolean;
   onStartRecording: () => void;
   onStopRecording: () => void;
+  /** Discard the current take and start again without analysing. */
+  onRetakeRecording?: () => void;
   /** Pre-formatted `MM:SS.cs` string. */
   elapsedLabel: string;
   /** Smoothed 0–1 levels. */
@@ -282,12 +287,21 @@ export function MusaiRecorderControls({
               ) : (
                 <RecordingLevelMeter levels={meterBars} size={size} />
               )}
-              <div className="mt-2 flex flex-col items-center justify-start gap-0.5 text-center">
+              <div className="mt-2 flex flex-col items-center justify-start gap-1.5 text-center">
                 <p
                   className={`font-mono tabular-nums tracking-tight text-[var(--musai-accent-2)] ${timerSize}`}
                 >
                   {elapsedLabel}
                 </p>
+                {onRetakeRecording ? (
+                  <button
+                    type="button"
+                    onClick={onRetakeRecording}
+                    className="rounded-full border border-[var(--musai-border)] bg-[var(--musai-surface)] px-3.5 py-1 text-[13px] font-semibold text-[var(--musai-ink)] shadow-[var(--musai-shadow)] transition hover:border-[color-mix(in_srgb,var(--musai-accent)_35%,var(--musai-border))] hover:bg-[var(--musai-surface-2)]"
+                  >
+                    Retake
+                  </button>
+                ) : null}
               </div>
             </div>
           ) : null}
@@ -379,6 +393,7 @@ export function MusaiMicCapturePanel({
   onDiscardClip,
   onStartRecording,
   onStopRecording,
+  onRetakeRecording,
   streamRef,
   elapsedLabelOverride,
   levelBarsOverride,
@@ -435,6 +450,7 @@ export function MusaiMicCapturePanel({
           isRecording={isRecording}
           onStartRecording={onStartRecording}
           onStopRecording={onStopRecording}
+          onRetakeRecording={onRetakeRecording}
           elapsedLabel={elapsedLabel}
           levelBars={levelBars}
           size={compact ? "mini" : "full"}

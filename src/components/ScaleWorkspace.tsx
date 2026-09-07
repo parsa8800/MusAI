@@ -106,6 +106,7 @@ export function ScaleWorkspace({
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const discardRecordingRef = useRef(false);
+  const retakeAfterStopRef = useRef(false);
   const mainRecorderRef = useRef<HTMLDivElement | null>(null);
 
   const { elapsedLabel, lastTakeLabel, levelBars } = useSyncedRecorderUi(
@@ -434,6 +435,12 @@ export function ScaleWorkspace({
         if (discardRecordingRef.current) {
           discardRecordingRef.current = false;
           chunksRef.current = [];
+          if (retakeAfterStopRef.current) {
+            retakeAfterStopRef.current = false;
+            queueMicrotask(() => {
+              void startRecordingRef.current();
+            });
+          }
           return;
         }
         const blob = new Blob(chunksRef.current, {
@@ -458,6 +465,9 @@ export function ScaleWorkspace({
     }
   }, [refreshMicDevices, runAnalyze, selectedMicId, stopStream]);
 
+  const startRecordingRef = useRef(startRecording);
+  startRecordingRef.current = startRecording;
+
   const stopRecording = useCallback(() => {
     const rec = mediaRecorderRef.current;
     if (rec && rec.state !== "inactive") {
@@ -473,6 +483,13 @@ export function ScaleWorkspace({
       }
     }
   }, []);
+
+  const retakeRecording = useCallback(() => {
+    if (!isRecording) return;
+    retakeAfterStopRef.current = true;
+    discardRecordingRef.current = true;
+    stopRecording();
+  }, [isRecording, stopRecording]);
 
   const canAnalyze =
     status !== "loading" &&
@@ -604,6 +621,7 @@ export function ScaleWorkspace({
             }}
             onStartRecording={() => void startRecording()}
             onStopRecording={stopRecording}
+            onRetakeRecording={retakeRecording}
             streamRef={streamRef}
             elapsedLabel={elapsedLabel}
             levelBars={levelBars}

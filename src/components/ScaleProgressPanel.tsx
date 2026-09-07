@@ -77,78 +77,103 @@ export function ScaleProgressPanel({
     setJourneys(listScaleProgressJourneys());
   }, [revision]);
 
-  if (!journeys || journeys.length === 0) return null;
+  const loading = journeys === null;
+  const empty = !loading && journeys.length === 0;
 
   return (
     <section
-      className="w-full rounded-[var(--musai-radius-lg)] border border-[var(--musai-border)] bg-[var(--musai-surface)] px-3.5 py-3.5 shadow-[var(--musai-shadow)] sm:px-4"
-      aria-label="Scale progress"
+      className="flex h-full w-full flex-col rounded-[var(--musai-radius-lg)] border border-[var(--musai-border)] bg-[var(--musai-surface)] px-3.5 py-4 shadow-[var(--musai-shadow)] sm:px-4"
+      aria-label="Your scale pages"
     >
-      <div className="text-center">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--musai-muted)]">
-          Progress
+      <div className="shrink-0 text-center">
+        <p className="font-display text-lg font-semibold tracking-tight text-[var(--musai-ink)]">
+          Your scales
+        </p>
+        <p className="mt-1 text-[13px] leading-snug text-[var(--musai-muted)]">
+          Tap a scale to open its page again
         </p>
       </div>
-      <ul className="mt-3 max-h-[min(50vh,24rem)] space-y-2 overflow-y-auto">
-        {journeys.map((j) => {
-          const best = Math.round(j.bestInTunePercent);
-          const tone = bestTone(best);
-          const attemptLabel =
-            j.attempts.length === 1
-              ? "1 attempt"
-              : `${j.attempts.length} attempts`;
-          return (
-            <li key={j.progressKey} className="group relative">
-              <button
-                type="button"
-                className={`flex w-full flex-col items-center gap-0.5 rounded-[var(--musai-radius)] border px-3 py-2.5 pr-7 text-center transition-colors duration-200 ${tone.row}`}
-                onClick={() => onContinue(j)}
-              >
-                <span className="flex items-center gap-1.5">
-                  <span
-                    className={`h-1.5 w-1.5 shrink-0 rounded-full ${tone.dot}`}
-                    aria-hidden
-                  />
-                  <span className="truncate text-[13px] font-semibold text-[var(--musai-ink)]">
-                    {workspaceTitle(j.scaleLabel, j.lastOctaveSpan)}
-                  </span>
-                </span>
-                <span className={`text-[12px] font-medium tabular-nums ${tone.best}`}>
-                  Best accuracy {best}%
-                </span>
-                <span className="text-[10px] text-[var(--musai-muted)]">
-                  {attemptLabel}
-                  <span className="mx-1 text-[var(--musai-border)]">·</span>
-                  {formatLastPractised(j.lastPractisedAt)}
-                </span>
-                <AttemptSpark attempts={j.attempts} />
-              </button>
-              <button
-                type="button"
-                aria-label={`Delete ${j.scaleLabel} progress`}
-                className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-[var(--musai-surface-2)] text-[var(--musai-muted)] opacity-100 transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--musai-accent-2)_18%,white)] hover:text-[var(--musai-accent-2)] focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--musai-accent-2)] md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  removeScaleProgressJourney(j.progressKey);
-                  setJourneys(listScaleProgressJourneys());
-                }}
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-3.5 w-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2.2}
-                  aria-hidden
+
+      {loading ? (
+        <div className="flex flex-1 items-center justify-center py-10">
+          <div
+            className="h-8 w-8 rounded-full border-2 border-[var(--musai-border)] border-t-[var(--musai-accent)] motion-safe:animate-spin motion-reduce:animate-none"
+            aria-hidden
+          />
+        </div>
+      ) : empty ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 px-4 py-10 text-center">
+          <p className="text-[15px] font-semibold text-[var(--musai-ink)]">
+            No scales yet
+          </p>
+          <p className="max-w-[14rem] text-[13px] leading-snug text-[var(--musai-muted)]">
+            Record a scale below. It will show up here so you can come back.
+          </p>
+        </div>
+      ) : (
+        <ul className="mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto pb-1">
+          {journeys.map((j) => {
+            const best = Math.round(j.bestInTunePercent);
+            const tone = bestTone(best);
+            const attemptLabel =
+              j.attempts.length === 1
+                ? "1 take"
+                : `${j.attempts.length} takes`;
+            return (
+              <li key={j.progressKey} className="group relative">
+                <button
+                  type="button"
+                  className={`flex w-full flex-col items-center gap-0.5 rounded-[var(--musai-radius)] border px-3 py-2.5 pr-7 text-center transition-colors duration-200 ${tone.row}`}
+                  onClick={() => onContinue(j)}
                 >
-                  <path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" />
-                </svg>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+                  <span className="flex items-center gap-1.5">
+                    <span
+                      className={`h-1.5 w-1.5 shrink-0 rounded-full ${tone.dot}`}
+                      aria-hidden
+                    />
+                    <span className="truncate text-[14px] font-semibold text-[var(--musai-ink)]">
+                      {workspaceTitle(j.scaleLabel, j.lastOctaveSpan)}
+                    </span>
+                  </span>
+                  <span
+                    className={`text-[12px] font-medium tabular-nums ${tone.best}`}
+                  >
+                    Best {best}%
+                  </span>
+                  <span className="text-[11px] text-[var(--musai-muted)]">
+                    {attemptLabel}
+                    <span className="mx-1 text-[var(--musai-border)]">·</span>
+                    {formatLastPractised(j.lastPractisedAt)}
+                  </span>
+                  <AttemptSpark attempts={j.attempts} />
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Delete ${j.scaleLabel} progress`}
+                  className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-[var(--musai-surface-2)] text-[var(--musai-muted)] opacity-100 transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--musai-accent-2)_18%,white)] hover:text-[var(--musai-accent-2)] focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--musai-accent-2)] md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    removeScaleProgressJourney(j.progressKey);
+                    setJourneys(listScaleProgressJourneys());
+                  }}
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-3.5 w-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2.2}
+                    aria-hidden
+                  >
+                    <path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" />
+                  </svg>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </section>
   );
 }

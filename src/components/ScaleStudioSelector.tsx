@@ -27,6 +27,7 @@ import {
 import { buildScalePracticeGuideModel } from "@/lib/scalePracticeGuide";
 import { persistScalePracticeSession } from "@/lib/scalePracticeSession";
 import type { ScaleProgressJourneyV1 } from "@/lib/scaleProgressHistory";
+import { listScaleProgressJourneys } from "@/lib/scaleProgressHistory";
 import {
   buildExerciseScaleMidis,
   defaultRootMidiForTonic,
@@ -61,6 +62,8 @@ export function ScaleStudioSelector() {
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
   const [progressOpen, setProgressOpen] = useState(false);
+  const [progressRevision, setProgressRevision] = useState(0);
+  const [scaleCount, setScaleCount] = useState(0);
   const [pendingDetect, setPendingDetect] = useState<{
     alternatives: ScaleCandidate[];
     sampleRateHz: number;
@@ -72,6 +75,7 @@ export function ScaleStudioSelector() {
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const discardRecordingRef = useRef(false);
+  const retakeAfterStopRef = useRef(false);
   const mainRecorderRef = useRef<HTMLDivElement | null>(null);
 
   const { elapsedLabel, lastTakeLabel, levelBars } = useSyncedRecorderUi(
@@ -112,6 +116,10 @@ export function ScaleStudioSelector() {
     };
   }, [stopStream]);
 
+  useEffect(() => {
+    setScaleCount(listScaleProgressJourneys().length);
+  }, [progressOpen, progressRevision]);
+
   const openDetected = useCallback(
     (
       candidate: ScaleCandidate,
@@ -129,6 +137,7 @@ export function ScaleStudioSelector() {
       setMessage(null);
       setRecordedBlob(null);
       setFile(null);
+      setProgressRevision((n) => n + 1);
       router.push(workspaceHrefForCandidate(candidate));
     },
     [router],
@@ -313,6 +322,12 @@ export function ScaleStudioSelector() {
         if (discardRecordingRef.current) {
           discardRecordingRef.current = false;
           chunksRef.current = [];
+          if (retakeAfterStopRef.current) {
+            retakeAfterStopRef.current = false;
+            queueMicrotask(() => {
+              void startRecordingRef.current();
+            });
+          }
           return;
         }
         const blob = new Blob(chunksRef.current, {
@@ -337,6 +352,9 @@ export function ScaleStudioSelector() {
     }
   }, [refreshMicDevices, runDetect, selectedMicId, stopStream]);
 
+  const startRecordingRef = useRef(startRecording);
+  startRecordingRef.current = startRecording;
+
   const stopRecording = useCallback(() => {
     const rec = mediaRecorderRef.current;
     if (rec && rec.state !== "inactive") {
@@ -352,6 +370,13 @@ export function ScaleStudioSelector() {
       }
     }
   }, []);
+
+  const retakeRecording = useCallback(() => {
+    if (!isRecording) return;
+    retakeAfterStopRef.current = true;
+    discardRecordingRef.current = true;
+    stopRecording();
+  }, [isRecording, stopRecording]);
 
   const canAnalyze =
     status !== "loading" &&
@@ -408,11 +433,25 @@ export function ScaleStudioSelector() {
           </div>
           <button
             type="button"
-            className="shrink-0 text-[12px] font-medium text-[var(--musai-muted)] underline decoration-[var(--musai-border)] underline-offset-2 hover:text-[var(--musai-ink)]"
+            className={`inline-flex shrink-0 items-center gap-2 rounded-[var(--musai-radius)] border px-3 py-1.5 text-[13px] font-semibold transition ${
+              progressOpen
+                ? "border-[color-mix(in_srgb,var(--musai-accent)_40%,var(--musai-border))] bg-[var(--musai-accent-soft)] text-[var(--musai-ink)]"
+                : "border-[var(--musai-border)] bg-[var(--musai-surface)] text-[var(--musai-ink)] shadow-[var(--musai-shadow)] hover:border-[color-mix(in_srgb,var(--musai-accent)_30%,var(--musai-border))]"
+            }`}
             onClick={() => setProgressOpen((v) => !v)}
             aria-expanded={progressOpen}
+            aria-controls="scale-studio-my-scales"
           >
-            {progressOpen ? "Hide" : "In progress"}
+            <span>My scales</span>
+            <span
+              className={`inline-flex min-w-[1.35rem] items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-bold tabular-nums ${
+                scaleCount > 0
+                  ? "bg-[var(--musai-accent)] text-[#fffcf8]"
+                  : "bg-[var(--musai-surface-2)] text-[var(--musai-muted)]"
+              }`}
+            >
+              {scaleCount}
+            </span>
           </button>
         </header>
 
@@ -551,8 +590,21 @@ export function ScaleStudioSelector() {
           ) : null}
 
           {progressOpen ? (
-            <div className="absolute inset-y-0 right-0 z-10 w-full max-w-sm overflow-y-auto border-l border-[var(--musai-border)] bg-[var(--musai-bg)] p-4 shadow-[var(--musai-shadow)]">
-              <ScaleProgressPanel onContinue={continueJourney} />
+            <div
+              id="scale-studio-my-scales"
+              className="absolute inset-y-0 right-0 z-10 flex w-full max-w-sm flex-col border-l border-[var(--musai-border)] bg-[var(--musai-bg)] p-4 shadow-[var(--musai-shadow)]"
+            >
+              <button
+                type="button"
+                className="mb-3 self-end text-[13px] font-medium text-[var(--musai-muted)] underline decoration-[var(--musai-border)] underline-offset-2 hover:text-[var(--musai-ink)]"
+                onClick={() => setProgressOpen(false)}
+              >
+                Close
+              </button>
+              <ScaleProgressPanel
+                revision={progressRevision}
+                onContinue={continueJourney}
+              />
             </div>
           ) : null}
         </div>
@@ -579,6 +631,7 @@ export function ScaleStudioSelector() {
             }}
             onStartRecording={() => void startRecording()}
             onStopRecording={stopRecording}
+            onRetakeRecording={retakeRecording}
             streamRef={streamRef}
             elapsedLabel={elapsedLabel}
             levelBars={levelBars}

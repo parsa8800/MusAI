@@ -46,6 +46,7 @@ export function IntonationUpload() {
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const discardRecordingRef = useRef(false);
+  const retakeAfterStopRef = useRef(false);
   const mainRecorderRef = useRef<HTMLDivElement | null>(null);
   const [micDevices, setMicDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedMicId, setSelectedMicId] = useState("");
@@ -199,6 +200,12 @@ export function IntonationUpload() {
         if (discardRecordingRef.current) {
           discardRecordingRef.current = false;
           chunksRef.current = [];
+          if (retakeAfterStopRef.current) {
+            retakeAfterStopRef.current = false;
+            queueMicrotask(() => {
+              void startRecordingRef.current();
+            });
+          }
           return;
         }
 
@@ -225,6 +232,9 @@ export function IntonationUpload() {
     }
   }, [refreshMicDevices, selectedMicId, stopStream]);
 
+  const startRecordingRef = useRef(startRecording);
+  startRecordingRef.current = startRecording;
+
   const stopRecording = useCallback(() => {
     const rec = mediaRecorderRef.current;
     if (rec && rec.state !== "inactive") {
@@ -240,6 +250,13 @@ export function IntonationUpload() {
       }
     }
   }, []);
+
+  const retakeRecording = useCallback(() => {
+    if (!isRecording) return;
+    retakeAfterStopRef.current = true;
+    discardRecordingRef.current = true;
+    stopRecording();
+  }, [isRecording, stopRecording]);
 
   const analyze = useCallback(async () => {
     const hasUpload = inputMode === "upload" && file;
@@ -402,6 +419,7 @@ export function IntonationUpload() {
                 }}
                 onStartRecording={() => void startRecording()}
                 onStopRecording={stopRecording}
+                onRetakeRecording={retakeRecording}
                 streamRef={streamRef}
                 elapsedLabel={elapsedLabel}
                 levelBars={levelBars}

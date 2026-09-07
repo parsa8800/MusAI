@@ -26,6 +26,8 @@ type Props = {
   onDiscardClip: () => void;
   onStartRecording: () => void;
   onStopRecording: () => void;
+  /** Discard mid-take and restart without analysing. */
+  onRetakeRecording?: () => void;
   streamRef: RefObject<MediaStream | null>;
   elapsedLabel: string;
   levelBars: number[];
@@ -87,6 +89,7 @@ export function MusaiCaptureDock({
   onDiscardClip,
   onStartRecording,
   onStopRecording,
+  onRetakeRecording,
   streamRef,
   elapsedLabel,
   levelBars,
@@ -127,11 +130,7 @@ export function MusaiCaptureDock({
             size="compact"
           />
         </div>
-      ) : (
-        <div className="mb-3 flex justify-center">
-          <CaptureStatus isRecording ready={false} />
-        </div>
-      )}
+      ) : null}
 
       {captureMode === "upload" ? (
         <div
@@ -216,6 +215,7 @@ export function MusaiCaptureDock({
             onDiscardClip={onDiscardClip}
             onStartRecording={onStartRecording}
             onStopRecording={onStopRecording}
+            onRetakeRecording={onRetakeRecording}
             streamRef={streamRef}
             elapsedLabelOverride={elapsedLabel}
             levelBarsOverride={levelBars}
