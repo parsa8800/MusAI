@@ -258,10 +258,10 @@ export function MusaiSplitPane({
   return (
     <div
       ref={rootRef}
-      className={`relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden md:flex-row ${className}`.trim()}
+      className={`relative flex h-full min-h-0 w-full flex-1 flex-col overflow-y-auto md:flex-row md:overflow-hidden ${className}`.trim()}
     >
       <div
-        className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:min-w-[12rem]"
+        className="flex min-h-0 min-w-0 flex-col max-md:h-auto max-md:flex-none max-md:overflow-visible md:h-full md:min-w-[12rem] md:flex-1 md:overflow-hidden"
         style={leftStyle}
       >
         {left}
@@ -305,7 +305,7 @@ export function MusaiSplitPane({
 
       <div
         id={paneId}
-        className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:min-w-[12rem]"
+        className="flex min-h-0 min-w-0 flex-col max-md:h-auto max-md:flex-none max-md:overflow-visible md:h-full md:min-w-[12rem] md:flex-1 md:overflow-hidden"
         style={rightStyle}
       >
         {right}

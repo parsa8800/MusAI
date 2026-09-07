@@ -28,6 +28,7 @@ import {
   stopHoldReference,
   syncLatchedReferences,
 } from "@/lib/referencePitch";
+import { tapFeedback } from "@/lib/motion";
 
 type NoteRingProps = {
   value: number;
@@ -453,7 +454,10 @@ export function NoteRing({ value, onChange, className }: NoteRingProps) {
                         } catch {
                           e.currentTarget.focus();
                         }
-                        if (beginWedgePress(i)) lastDragPcRef.current = i;
+                        if (beginWedgePress(i)) {
+                          lastDragPcRef.current = i;
+                          tapFeedback("light");
+                        }
                       }}
                       onPointerUp={(e) => {
                         if (!interactive || e.pointerType !== "touch") return;
@@ -591,8 +595,11 @@ export function NoteRing({ value, onChange, className }: NoteRingProps) {
                   <button
                     type="button"
                     disabled={!canOctDown}
-                    onClick={() => bumpOctave(-1)}
-                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[var(--musai-border)] bg-[var(--musai-surface-2)] text-sm font-light leading-none text-[var(--musai-ink)] shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] transition hover:border-[color-mix(in_srgb,var(--musai-accent)_30%,var(--musai-border))] hover:bg-[var(--musai-accent-soft)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-20"
+                    onClick={() => {
+                      tapFeedback("light");
+                      bumpOctave(-1);
+                    }}
+                    className="musai-pressable flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--musai-border)] bg-[var(--musai-surface-2)] text-sm font-light leading-none text-[var(--musai-ink)] shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] hover:border-[color-mix(in_srgb,var(--musai-accent)_30%,var(--musai-border))] hover:bg-[var(--musai-accent-soft)] disabled:cursor-not-allowed disabled:opacity-20"
                     aria-label="Lower octave"
                   >
                     −
@@ -603,8 +610,11 @@ export function NoteRing({ value, onChange, className }: NoteRingProps) {
                   <button
                     type="button"
                     disabled={!canOctUp}
-                    onClick={() => bumpOctave(1)}
-                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[var(--musai-border)] bg-[var(--musai-surface-2)] text-sm font-light leading-none text-[var(--musai-ink)] shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] transition hover:border-[color-mix(in_srgb,var(--musai-accent)_30%,var(--musai-border))] hover:bg-[var(--musai-accent-soft)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-20"
+                    onClick={() => {
+                      tapFeedback("light");
+                      bumpOctave(1);
+                    }}
+                    className="musai-pressable flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--musai-border)] bg-[var(--musai-surface-2)] text-sm font-light leading-none text-[var(--musai-ink)] shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] hover:border-[color-mix(in_srgb,var(--musai-accent)_30%,var(--musai-border))] hover:bg-[var(--musai-accent-soft)] disabled:cursor-not-allowed disabled:opacity-20"
                     aria-label="Higher octave"
                   >
                     +

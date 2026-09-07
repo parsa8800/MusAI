@@ -15,6 +15,7 @@ import {
   type TunerReading,
   type ViolinStringId,
 } from "@/lib/violinTuner";
+import { tapFeedback } from "@/lib/motion";
 
 const FRAME = 4096;
 const MIN_HZ = 80;
@@ -363,6 +364,7 @@ export function ViolinTuner() {
           <button
             type="button"
             onClick={() => {
+              tapFeedback("light");
               if (listening) stop();
               else void start();
             }}
@@ -374,6 +376,7 @@ export function ViolinTuner() {
             <button
               type="button"
               onClick={() => {
+                tapFeedback("light");
                 setTuned(new Set());
                 holdRef.current = null;
                 setHoldProgress(0);

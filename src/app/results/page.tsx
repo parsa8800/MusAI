@@ -44,7 +44,7 @@ export default function ResultsPage() {
   }
 
   return (
-    <div className="flex min-h-full flex-col items-center px-5 pb-24 pt-10 sm:px-8 sm:pt-12">
+    <div className="flex min-h-full flex-col items-center px-5 pb-[max(6rem,env(safe-area-inset-bottom))] pt-10 sm:px-8 sm:pt-12">
       <div className="w-full max-w-[460px]">
         <PracticeHubBackLink
           href="/practice/single-note"

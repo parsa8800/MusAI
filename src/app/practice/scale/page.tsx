@@ -3,7 +3,7 @@ import { Suspense } from "react";
 
 function ScaleStudioFallback() {
   return (
-    <div className="flex h-[100dvh] w-full flex-col items-center justify-center overflow-hidden">
+    <div className="flex min-h-[50vh] w-full flex-col items-center justify-center">
       <div
         className="h-10 w-10 rounded-full border-2 border-[var(--musai-border)] border-t-[var(--musai-accent)] motion-safe:animate-spin motion-reduce:animate-none"
         aria-hidden
@@ -14,10 +14,8 @@ function ScaleStudioFallback() {
 
 export default function ScalePracticePage() {
   return (
-    <div className="h-[100dvh] overflow-hidden p-0">
-      <Suspense fallback={<ScaleStudioFallback />}>
-        <ScaleStudioSelector />
-      </Suspense>
-    </div>
+    <Suspense fallback={<ScaleStudioFallback />}>
+      <ScaleStudioSelector />
+    </Suspense>
   );
 }

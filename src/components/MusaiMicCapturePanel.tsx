@@ -11,6 +11,7 @@ import {
 import { LiveRecordingWaveform } from "@/components/motion/LiveRecordingWaveform";
 import { useRecordingLevelBars } from "@/hooks/useRecordingLevelBars";
 import { useScaleRecordingMotion } from "@/hooks/useScaleRecordingMotion";
+import { tapFeedback } from "@/lib/motion";
 
 type MusaiMicCapturePanelProps = {
   /** Unique id for the microphone `<select>` (accessibility). */
@@ -183,6 +184,7 @@ export function MusaiRecorderControls({
         <div className="flex flex-col items-center">
           <button
             type="button"
+            onPointerDown={() => tapFeedback(isRecording ? "medium" : "light")}
             onClick={isRecording ? onStopRecording : onStartRecording}
             aria-label={isRecording ? "Stop recording" : "Start recording"}
             className="musai-vm-trigger"
@@ -241,6 +243,7 @@ export function MusaiRecorderControls({
         )}
         <button
           type="button"
+          onPointerDown={() => tapFeedback(isRecording ? "medium" : "light")}
           onClick={isRecording ? onStopRecording : onStartRecording}
           aria-label={isRecording ? "Stop recording" : "Start recording"}
           className={`musai-vm-trigger ${studio ? "musai-vm-trigger--studio" : ""} ${

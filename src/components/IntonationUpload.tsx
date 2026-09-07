@@ -337,8 +337,8 @@ export function IntonationUpload() {
       : !!recordedBlob);
 
   return (
-    <section className="w-full max-w-[min(1000px,100%)] space-y-7 sm:space-y-9">
-      <div className="musai-glass-surface relative overflow-visible">
+    <section className="w-full max-w-[min(1000px,100%)] space-y-7 overflow-x-hidden sm:space-y-9">
+      <div className="musai-glass-surface relative overflow-hidden">
         {status === "loading" ? (
           <div
             className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-[inherit] bg-[color-mix(in_srgb,var(--musai-surface)_88%,transparent)] px-6 backdrop-blur-[6px]"
@@ -369,7 +369,7 @@ export function IntonationUpload() {
           aria-hidden={status === "loading"}
         >
             {/* Target pitch */}
-            <div className="flex flex-col overflow-visible border-b border-[var(--musai-border)] p-6 pt-7 sm:p-8 sm:pt-9 lg:border-b-0 lg:border-r lg:border-[var(--musai-border)]">
+            <div className="flex flex-col overflow-hidden border-b border-[var(--musai-border)] p-4 pt-6 sm:p-8 sm:pt-9 lg:border-b-0 lg:border-r lg:border-[var(--musai-border)]">
               <div className="flex items-start justify-between gap-3 pr-1 pt-0.5">
                 <div className="min-w-0">
                   <h2 className="text-base font-semibold tracking-tight text-[var(--musai-ink)]">
@@ -381,23 +381,23 @@ export function IntonationUpload() {
                 </div>
               </div>
 
-              <div className="relative mt-7 flex min-h-0 flex-1 items-center justify-center py-4 sm:py-6">
+              <div className="relative mt-5 flex min-h-0 flex-1 items-center justify-center overflow-hidden py-3 sm:mt-7 sm:py-6">
                 <div
-                  className="pointer-events-none absolute left-1/2 top-1/2 h-[min(92vw,380px)] w-[min(92vw,380px)] max-w-full -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,color-mix(in_srgb,var(--musai-accent)_14%,transparent)_0%,color-mix(in_srgb,var(--musai-accent-2)_8%,transparent)_45%,transparent_70%)] blur-[64px]"
+                  className="pointer-events-none absolute left-1/2 top-1/2 aspect-square w-[min(100%,18rem)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,color-mix(in_srgb,var(--musai-accent)_14%,transparent)_0%,color-mix(in_srgb,var(--musai-accent-2)_8%,transparent)_45%,transparent_70%)] blur-[48px] sm:w-[min(100%,22rem)]"
                   aria-hidden
                 />
                 <div className="relative z-[1] flex w-full justify-center">
                   <NoteRing
                     value={midi}
                     onChange={setMidi}
-                    className="mx-auto w-full max-w-[min(100%,420px)]"
+                    className="mx-auto w-full max-w-[min(100%,300px)] sm:max-w-[min(100%,420px)]"
                   />
                 </div>
               </div>
             </div>
 
             {/* Capture + analyze — same dock as Scale Studio */}
-            <div className="flex flex-col justify-center p-6 sm:p-8">
+            <div className="flex flex-col justify-center p-4 sm:p-8">
               <div className="mb-4">
                 <h2 className="text-base font-semibold tracking-tight text-[var(--musai-ink)]">
                   Your take

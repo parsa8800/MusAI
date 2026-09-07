@@ -322,7 +322,7 @@ export function ScalePracticeResultsView({
 
       <div
         data-anime-enter
-        className="h-[min(70vh,42rem)] min-h-[26rem] overflow-hidden"
+        className="h-auto min-h-0 overflow-hidden md:h-[min(70vh,42rem)] md:min-h-[26rem]"
       >
         <MusaiSplitPane
           storageKey={MUSAI_SCALE_SPLIT_STORAGE_KEY}

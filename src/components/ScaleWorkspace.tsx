@@ -13,6 +13,7 @@ import { ScaleGuidePanel } from "@/components/ScaleGuidePanel";
 import { ScaleInlineFeedback } from "@/components/ScaleInlineFeedback";
 import { ScalePracticeInfoProvider } from "@/components/scalePracticeInfoContext";
 import { ScaleProgressPanel } from "@/components/ScaleProgressPanel";
+import { StudioViewport } from "@/components/StudioViewport";
 import { useFloatingMiniRecorder } from "@/hooks/useFloatingMiniRecorder";
 import { useSyncedRecorderUi } from "@/hooks/useSyncedRecorderUi";
 import { analyzeScalePerformance } from "@/lib/analyzeScalePerformance";
@@ -527,13 +528,13 @@ export function ScaleWorkspace({
 
   return (
     <ScalePracticeInfoProvider>
-      <div className="relative flex h-[100dvh] max-h-[100dvh] w-full flex-col overflow-hidden">
-        <header className="flex shrink-0 items-center gap-3 px-4 py-2.5 shadow-[0_10px_28px_rgba(28,25,23,0.04)] sm:px-6">
+      <StudioViewport>
+        <header className="flex shrink-0 items-center gap-2 px-3 py-2.5 sm:gap-3 sm:px-6">
           <PracticeHubBackLink
             href="/practice/scale"
             label="Scale studio"
             ariaLabel="Back to Scale studio"
-            className="!mb-0"
+            className="!mb-0 shrink-0"
           />
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-[15px] font-semibold tracking-tight text-[var(--musai-ink)] sm:text-[16px]">
@@ -542,16 +543,17 @@ export function ScaleWorkspace({
           </div>
           <button
             type="button"
-            className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition ${
+            className={`musai-pressable min-h-10 shrink-0 rounded-full px-3 py-2 text-[13px] font-semibold sm:px-3.5 ${
               changeScaleOpen
                 ? "bg-[var(--musai-accent-soft)] text-[var(--musai-ink)]"
-                : "bg-[var(--musai-surface)] text-[var(--musai-ink)] shadow-[0_6px_20px_rgba(28,25,23,0.06)] hover:bg-[var(--musai-surface-2)]"
+                : "bg-[var(--musai-surface)] text-[var(--musai-ink)] shadow-[var(--musai-shadow)] hover:bg-[var(--musai-surface-2)]"
             }`}
             aria-expanded={changeScaleOpen}
             aria-controls="scale-workspace-switcher"
             onClick={() => setChangeScaleOpen((v) => !v)}
           >
-            Change scale
+            <span className="max-sm:hidden">Change scale</span>
+            <span className="sm:hidden">Change</span>
           </button>
         </header>
 
@@ -642,7 +644,7 @@ export function ScaleWorkspace({
           ) : null}
         </div>
 
-        <div className="shrink-0 px-3 py-2 shadow-[0_-10px_28px_rgba(28,25,23,0.04)] sm:px-4">
+        <div className="shrink-0 px-3 pb-2 pt-2 sm:px-4">
           <MusaiCaptureDock
             selectId="musai-mic-scale-workspace"
             captureMode={captureMode}
@@ -691,7 +693,7 @@ export function ScaleWorkspace({
           elapsedLabel={elapsedLabel}
           levelBars={levelBars}
         />
-      </div>
+      </StudioViewport>
     </ScalePracticeInfoProvider>
   );
 }

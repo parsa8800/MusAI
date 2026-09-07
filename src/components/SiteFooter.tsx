@@ -117,10 +117,10 @@ export function SiteFooter() {
 
   return (
     <footer
-      className="relative z-[1] mt-auto border-t border-[var(--musai-border)] bg-[var(--musai-surface)]"
+      className="musai-site-footer relative z-[1] mt-auto border-t border-[var(--musai-border)] bg-[var(--musai-surface)]"
       aria-labelledby="site-footer-heading"
     >
-      <div className="mx-auto max-w-5xl px-5 py-12 sm:px-8 sm:py-16">
+      <div className="mx-auto max-w-5xl px-5 py-12 pb-[max(3rem,env(safe-area-inset-bottom))] sm:px-8 sm:py-16 sm:pb-16">
         <div className="flex flex-col items-center gap-10 text-center md:flex-row md:items-start md:justify-between md:gap-8 md:text-left">
           {/* Brand */}
           <div className="max-w-xs shrink-0">
