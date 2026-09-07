@@ -13,7 +13,7 @@ import {
 } from "react";
 
 const TRIGGER_CLASS =
-  "flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-[var(--musai-border)] bg-[var(--musai-surface)] text-[16px] font-semibold leading-none tracking-tight text-[var(--musai-ink)] shadow-[var(--musai-shadow)] transition-[transform,background-color,border-color] duration-200 hover:border-[color-mix(in_srgb,var(--musai-accent)_30%,var(--musai-border))] hover:bg-[var(--musai-surface-2)] active:scale-[0.94] motion-reduce:transition-none motion-reduce:active:scale-100";
+  "musai-pressable flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-[var(--musai-border)] bg-[var(--musai-surface)] text-[16px] font-semibold leading-none tracking-tight text-[var(--musai-ink)] shadow-[var(--musai-shadow)] hover:border-[color-mix(in_srgb,var(--musai-accent)_30%,var(--musai-border))] hover:bg-[var(--musai-surface-2)]";
 
 const PANEL_CLASS =
   "musai-info-popover-panel fixed z-[380] max-h-[min(72vh,520px)] w-[min(288px,calc(100vw-1.5rem))] origin-top overflow-y-auto overscroll-contain rounded-[var(--musai-radius-lg)] border border-[var(--musai-border)] bg-[var(--musai-surface)] p-4 text-left opacity-0 shadow-[var(--musai-shadow)] motion-reduce:animate-none";

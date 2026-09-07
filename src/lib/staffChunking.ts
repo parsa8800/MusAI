@@ -2,8 +2,8 @@
  * Split a sequence of notes into staff systems so each row keeps minimum
  * horizontal spacing between note heads (musical spacing, not even squash).
  */
-/** Slightly tighter than a raw 30px heuristic so 15-note lines fit more layouts. */
-export const STAFF_NOTE_MIN_GAP_PX = 28;
+/** Slightly roomier than a raw 30px heuristic so noteheads can breathe. */
+export const STAFF_NOTE_MIN_GAP_PX = 34;
 export const STAFF_CLEF_ZONE_PX = 54;
 export const STAFF_RIGHT_MARGIN_PX = 28;
 

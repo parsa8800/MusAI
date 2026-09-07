@@ -3,7 +3,7 @@ import { ViolinTuner } from "@/components/ViolinTuner";
 
 export default function TunerPracticePage() {
   return (
-    <div className="flex min-h-full flex-col items-center px-4 pb-10 pt-6 sm:px-8 sm:pt-8">
+    <div className="flex min-h-full flex-col items-center px-4 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-6 sm:px-8 sm:pt-8">
       <div className="w-full max-w-[min(1000px,100%)]">
         <PracticeHubBackLink />
       </div>

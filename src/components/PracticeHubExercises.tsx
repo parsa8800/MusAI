@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useAnimeEntrance } from "@/hooks/useAnimeEntrance";
+import { tapFeedback } from "@/lib/motion";
 
 const exercises = [
   {
@@ -50,6 +51,7 @@ export function PracticeHubExercises() {
             key={ex.href}
             data-anime-enter
             href={ex.href}
+            onPointerDown={() => tapFeedback("light")}
             className={`musai-exercise-card musai-exercise-card--${ex.tone}${
               ex.span ? " sm:col-span-2" : ""
             }`}

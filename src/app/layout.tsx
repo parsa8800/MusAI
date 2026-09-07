@@ -1,9 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { Fraunces, Source_Sans_3 } from "next/font/google";
 import { AmbientBackground } from "@/components/AmbientBackground";
 import { PreferLocalhost } from "@/components/PreferLocalhost";
-import { SiteFooter } from "@/components/SiteFooter";
 import {
   ThemeProvider,
   THEME_BOOT_SCRIPT,
@@ -24,6 +23,13 @@ export const metadata: Metadata = {
   title: "MusAI",
   description:
     "Violin practice assistant. Clear intonation feedback from your recordings.",
+};
+
+/** Lets env(safe-area-inset-*) work on notched phones. */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -47,7 +53,6 @@ export default function RootLayout({
           <PreferLocalhost />
           <AmbientBackground />
           <div className="flex flex-1 flex-col">{children}</div>
-          <SiteFooter />
         </ThemeProvider>
       </body>
     </html>

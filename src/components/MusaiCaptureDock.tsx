@@ -5,6 +5,7 @@ import { AudioActivityVisualizer } from "@/components/AudioActivityVisualizer";
 import { MusaiMicCapturePanel } from "@/components/MusaiMicCapturePanel";
 import { MusaiSegmentedControl } from "@/components/MusaiSegmentedControl";
 import { AnimatedReveal } from "@/components/motion/AnimatedReveal";
+import { tapFeedback } from "@/lib/motion";
 
 export type MusaiCaptureMode = "record" | "upload";
 
@@ -246,7 +247,10 @@ export function MusaiCaptureDock({
           <button
             type="button"
             disabled={!canAnalyze}
-            onClick={onAnalyze}
+            onClick={() => {
+              tapFeedback("medium");
+              onAnalyze();
+            }}
             className="musai-btn-primary"
           >
             {status === "loading" ? "Working…" : analyzeLabel}

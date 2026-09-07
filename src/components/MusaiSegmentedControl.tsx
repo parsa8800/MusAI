@@ -1,5 +1,7 @@
 "use client";
 
+import { tapFeedback } from "@/lib/motion";
+
 type Option<V extends string | number> = { value: V; label: string };
 
 type MusaiSegmentedControlProps<V extends string | number> = {
@@ -41,7 +43,11 @@ export function MusaiSegmentedControl<V extends string | number>({
             type="button"
             role="tab"
             aria-selected={selected}
-            onClick={() => onChange(opt.value)}
+            onClick={() => {
+              if (opt.value === value) return;
+              tapFeedback("light");
+              onChange(opt.value);
+            }}
             className="musai-segmented__tab"
           >
             {opt.label}

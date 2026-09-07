@@ -37,17 +37,21 @@ type Props = {
   showSectionLabels?: boolean;
 };
 
-/** Warm ink on paper staff — resolved from theme tokens at draw time. */
+/** Theme-aware engraving colours for VexFlow. */
 function notationThemeColors() {
   if (typeof window === "undefined") {
-    return { fill: "#1c1917", stroke: "#c4bdb4", bg: "#fffcf8" };
+    return {
+      fill: "#1c1917",
+      stroke: "#b7aea3",
+      bg: "#fffcf8",
+    };
   }
   const s = getComputedStyle(document.documentElement);
   const read = (name: string, fallback: string) =>
     s.getPropertyValue(name).trim() || fallback;
   return {
-    fill: read("--musai-ink", "#1c1917"),
-    stroke: read("--musai-border", "#c4bdb4"),
+    fill: read("--musai-notation", read("--musai-ink", "#1c1917")),
+    stroke: read("--musai-staff-line", "#b7aea3"),
     bg: read("--musai-surface", "#fffcf8"),
   };
 }
@@ -60,25 +64,37 @@ function severity01FromAbsCents(absCents: number): number {
   return clamp01((absCents - SCALE_IN_TUNE_CENTS) / 50);
 }
 
+function cssVar(name: string, fallback: string): string {
+  if (typeof window === "undefined") return fallback;
+  return (
+    getComputedStyle(document.documentElement).getPropertyValue(name).trim() ||
+    fallback
+  );
+}
+
 function noteInkForCents(cents: number | null): { fill: string; stroke: string } {
   if (cents === null) {
-    return { fill: "rgba(120,113,108,0.55)", stroke: "rgba(120,113,108,0.55)" };
+    const muted = cssVar("--musai-muted", "#78716c");
+    return { fill: muted, stroke: muted };
   }
   const abs = Math.abs(cents);
   if (abs <= SCALE_IN_TUNE_CENTS) {
-    return { fill: "#3d7a5f", stroke: "#3d7a5f" };
+    const ok = cssVar("--musai-ok", "#3d7a5f");
+    return { fill: ok, stroke: ok };
   }
   /* Sharp = warm amber; flat = cool slate — matches results legend. */
   if (cents > 0) {
     if (abs <= SCALE_CLEAR_MISS_CENTS) {
-      return { fill: "#b45309", stroke: "#b45309" };
+      const warn = cssVar("--musai-warn", "#b45309");
+      return { fill: warn, stroke: warn };
     }
-    return { fill: "#c45c4a", stroke: "#c45c4a" };
+    const danger = cssVar("--musai-accent-2", "#c45c4a");
+    return { fill: danger, stroke: danger };
   }
   if (abs <= SCALE_CLEAR_MISS_CENTS) {
-    return { fill: "#4a6fa5", stroke: "#4a6fa5" };
+    return { fill: "#6b8cce", stroke: "#6b8cce" };
   }
-  return { fill: "#3d5a80", stroke: "#3d5a80" };
+  return { fill: "#5a7ab0", stroke: "#5a7ab0" };
 }
 
 function drawSystem(
@@ -120,17 +136,18 @@ function drawSystem(
   ctx.setFillStyle(notationFill);
   ctx.setStrokeStyle(notationStroke);
   ctx.setBackgroundFillStyle(staveBg);
-  ctx.setLineWidth(1.25);
+  ctx.setLineWidth(1.35);
 
   const stave = new Stave(16, staveY, staveWidth - 32, {
     spacingBetweenLinesPx: lineSpacing,
     spaceAboveStaffLn: STAVE_HEADROOM_SPACES,
     spaceBelowStaffLn: STAVE_HEADROOM_SPACES,
   });
+  // Staff lines use stroke; clef / key use ink fill for contrast in both themes.
   stave.setStyle({ fillStyle: notationFill, strokeStyle: notationStroke });
   stave.setDefaultLedgerLineStyle({
     strokeStyle: notationStroke,
-    lineWidth: 2,
+    lineWidth: 2.15,
   });
   stave.addClef("treble");
   stave.addKeySignature(keySig);
@@ -139,7 +156,8 @@ function drawSystem(
   }
   stave.setContext(ctx).draw();
 
-  const noteStyle = { fillStyle: notationFill, strokeStyle: notationStroke };
+  // Stems + noteheads share ink — never use staff-line grey for stems.
+  const noteStyle = { fillStyle: notationFill, strokeStyle: notationFill };
   const centsForNotes = options.cents ? [...options.cents] : undefined;
   const notes = vexKeys.map((k, noteIdx) => {
     const n = new StaveNote({
@@ -153,7 +171,7 @@ function drawSystem(
     n.getStem()?.setExtension(n.getStemExtension());
     n.setLedgerLineStyle({
       strokeStyle: notationStroke,
-      lineWidth: 2.1,
+      lineWidth: 2.25,
     });
     for (const head of n.noteHeads) {
       head.setFontSize(noteHeadFontSize);
@@ -162,6 +180,11 @@ function drawSystem(
     if (typeof cents === "number" || cents === null) {
       const ink = noteInkForCents(cents);
       n.setStyle({ fillStyle: ink.fill, strokeStyle: ink.stroke });
+      try {
+        n.getStem()?.setStyle({ fillStyle: ink.fill, strokeStyle: ink.stroke });
+      } catch {
+        /* ignore */
+      }
       if (Annotation && typeof cents === "number" && Math.abs(cents) > SCALE_IN_TUNE_CENTS) {
         const arrow = cents > 0 ? "↑" : "↓";
         const ann = new Annotation(arrow);
@@ -196,6 +219,11 @@ function drawSystem(
       }
     } else {
       n.setStyle(noteStyle);
+      try {
+        n.getStem()?.setStyle(noteStyle);
+      } catch {
+        /* ignore */
+      }
     }
     return n;
   });
@@ -214,6 +242,23 @@ function drawSystem(
     svg.style.height = "auto";
     svg.style.display = "block";
     svg.style.overflow = "visible";
+    // VexFlow can leave stems/flags on default black — force theme ink.
+    const ink = notationFill;
+    svg.querySelectorAll("[fill], [stroke]").forEach((el) => {
+      const fill = el.getAttribute("fill");
+      const stroke = el.getAttribute("stroke");
+      if (fill === "#000" || fill === "#000000" || fill === "black") {
+        el.setAttribute("fill", ink);
+      }
+      if (stroke === "#000" || stroke === "#000000" || stroke === "black") {
+        el.setAttribute("stroke", ink);
+      }
+    });
+    svg.querySelectorAll(".vf-stem path, .vf-stem line").forEach((el) => {
+      el.setAttribute("stroke", ink);
+      const sw = Number(el.getAttribute("stroke-width") || "1");
+      if (sw < 1.45) el.setAttribute("stroke-width", "1.55");
+    });
   }
 }
 
@@ -387,7 +432,10 @@ export function ScaleTrebleStaff({
     return () => ro.disconnect();
   }, [pad]);
 
-  const staveWidth = Math.max(280, Math.floor(usableW - 8));
+  const staveWidth = Math.max(
+    pad ? 340 : 300,
+    Math.floor(usableW - (pad ? 4 : 8)),
+  );
 
   // Stable dependency keys so cents updates always redraw.
   const ascMidiKey = ascendingMidis.join(",");
@@ -421,7 +469,7 @@ export function ScaleTrebleStaff({
 
       const maxPerRow = maxNotesPerStaffRow(
         usableW,
-        pad && bothDirections ? 24 : undefined,
+        pad ? (bothDirections ? 30 : 40) : undefined,
       );
       const keySig = vexKeySignatureSpec(tonicPitchClass, scaleKind);
 

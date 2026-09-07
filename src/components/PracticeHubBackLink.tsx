@@ -20,10 +20,10 @@ export function PracticeHubBackLink({
   className = "",
 }: Props) {
   return (
-    <div className={`mb-5 w-full sm:mb-6 ${className}`.trim()}>
+    <div className={`mb-5 w-fit max-w-full sm:mb-6 ${className}`.trim()}>
       <Link
         href={href}
-        className="group inline-flex items-center gap-2.5 rounded-[var(--musai-radius)] border border-[var(--musai-border)] bg-[var(--musai-surface)] py-1.5 pl-1.5 pr-3.5 text-[13px] font-medium text-[var(--musai-muted)] shadow-[var(--musai-shadow)] transition-colors duration-200 hover:border-[color-mix(in_srgb,var(--musai-accent)_28%,var(--musai-border))] hover:text-[var(--musai-ink)] active:scale-[0.98] motion-reduce:active:scale-100"
+        className="group musai-pressable inline-flex min-h-10 items-center gap-2.5 rounded-[var(--musai-radius)] border border-[var(--musai-border)] bg-[var(--musai-surface)] py-1.5 pl-1.5 pr-3.5 text-[13px] font-medium text-[var(--musai-muted)] shadow-[var(--musai-shadow)] hover:border-[color-mix(in_srgb,var(--musai-accent)_28%,var(--musai-border))] hover:text-[var(--musai-ink)]"
         aria-label={ariaLabel ?? `Back to ${label}`}
       >
         <span
@@ -46,7 +46,7 @@ export function PracticeHubBackLink({
             />
           </svg>
         </span>
-        <span>{label}</span>
+        <span className="max-sm:hidden">{label}</span>
       </Link>
     </div>
   );

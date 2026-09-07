@@ -13,6 +13,7 @@ import { DraftNotesFrame } from "@/components/ScaleStudioHomeDraft";
 import { ScaleTrebleStaff } from "@/components/ScaleTrebleStaff";
 import { ScalePracticeInfoProvider } from "@/components/scalePracticeInfoContext";
 import { ScaleProgressPanel } from "@/components/ScaleProgressPanel";
+import { StudioViewport } from "@/components/StudioViewport";
 import { useFloatingMiniRecorder } from "@/hooks/useFloatingMiniRecorder";
 import { useSyncedRecorderUi } from "@/hooks/useSyncedRecorderUi";
 import { bufferToMono } from "@/lib/analyzePitch";
@@ -434,36 +435,39 @@ export function ScaleStudioSelector() {
 
   return (
     <ScalePracticeInfoProvider>
-      <div className="relative flex h-[100dvh] max-h-[100dvh] w-full flex-col overflow-hidden">
-        <header className="flex shrink-0 items-center gap-3 px-4 py-2.5 shadow-[0_10px_28px_rgba(28,25,23,0.04)] sm:px-6">
-          <PracticeHubBackLink className="!mb-0" />
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-[15px] font-semibold tracking-tight text-[var(--musai-ink)] sm:text-[16px]">
-              Scale studio
-            </h1>
+      <StudioViewport>
+        <header className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 px-3 py-3 sm:gap-3 sm:px-6">
+          <div className="justify-self-start">
+            <PracticeHubBackLink className="!mb-0 shrink-0" />
           </div>
-          <button
-            type="button"
-            className={`inline-flex shrink-0 items-center gap-2 rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition ${
-              progressOpen
-                ? "bg-[var(--musai-accent-soft)] text-[var(--musai-ink)]"
-                : "bg-[var(--musai-surface)] text-[var(--musai-ink)] shadow-[0_6px_20px_rgba(28,25,23,0.06)] hover:bg-[var(--musai-surface-2)]"
-            }`}
-            onClick={() => setProgressOpen((v) => !v)}
-            aria-expanded={progressOpen}
-            aria-controls="scale-studio-my-scales"
-          >
-            <span>My scales</span>
-            <span
-              className={`inline-flex min-w-[1.35rem] items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-bold tabular-nums ${
-                scaleCount > 0
-                  ? "bg-[var(--musai-accent)] text-[#fffcf8]"
-                  : "bg-[var(--musai-surface-2)] text-[var(--musai-muted)]"
+          <h1 className="font-display max-w-[min(100%,14rem)] truncate text-center text-[1.15rem] font-semibold tracking-tight text-[var(--musai-ink)] sm:max-w-none sm:text-xl">
+            Scale studio
+          </h1>
+          <div className="justify-self-end">
+            <button
+              type="button"
+              className={`musai-pressable inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full px-3 py-2 text-[13px] font-semibold sm:px-3.5 ${
+                progressOpen
+                  ? "bg-[var(--musai-accent-soft)] text-[var(--musai-ink)]"
+                  : "bg-[var(--musai-surface)] text-[var(--musai-ink)] shadow-[var(--musai-shadow)] hover:bg-[var(--musai-surface-2)]"
               }`}
+              onClick={() => setProgressOpen((v) => !v)}
+              aria-expanded={progressOpen}
+              aria-controls="scale-studio-my-scales"
             >
-              {scaleCount}
-            </span>
-          </button>
+              <span className="max-sm:hidden">My scales</span>
+              <span className="sm:hidden">Scales</span>
+              <span
+                className={`inline-flex min-w-[1.35rem] items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-bold tabular-nums ${
+                  scaleCount > 0
+                    ? "bg-[var(--musai-accent)] text-[#fffcf8]"
+                    : "bg-[var(--musai-surface-2)] text-[var(--musai-muted)]"
+                }`}
+              >
+                {scaleCount}
+              </span>
+            </button>
+          </div>
         </header>
 
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -619,7 +623,7 @@ export function ScaleStudioSelector() {
           ) : null}
         </div>
 
-        <div className="shrink-0 px-3 py-2 shadow-[0_-10px_28px_rgba(28,25,23,0.04)] sm:px-4">
+        <div className="shrink-0 px-3 pb-2 pt-2 sm:px-4">
           <MusaiCaptureDock
             selectId="musai-mic-scale-studio"
             captureMode={captureMode}
@@ -663,7 +667,7 @@ export function ScaleStudioSelector() {
           elapsedLabel={elapsedLabel}
           levelBars={levelBars}
         />
-      </div>
+      </StudioViewport>
     </ScalePracticeInfoProvider>
   );
 }

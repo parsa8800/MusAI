@@ -64,7 +64,7 @@ function ScalePracticeResultsInner() {
   }
 
   return (
-    <div className="flex min-h-full flex-col items-center px-4 pb-20 pt-10 sm:px-6 sm:pb-24 sm:pt-12 lg:px-8">
+    <div className="flex min-h-full flex-col items-center px-4 pb-[max(5rem,env(safe-area-inset-bottom))] pt-10 sm:px-6 sm:pb-24 sm:pt-12 lg:px-8">
       <ScalePracticeResultsView
         session={session}
         studioHref={scaleWorkspaceHref(

@@ -174,7 +174,7 @@ export function ScaleProgressPanel({
                   <button
                     type="button"
                     aria-label={`Delete ${j.scaleLabel} progress`}
-                    className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--musai-surface)_80%,transparent)] text-[var(--musai-muted)] opacity-100 transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--musai-accent-2)_14%,var(--musai-wash))] hover:text-[var(--musai-accent-2)] focus-visible:opacity-100 focus-visible:outline-none md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+                    className="absolute right-1.5 top-1.5 flex h-9 w-9 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--musai-surface)_80%,transparent)] text-[var(--musai-muted)] opacity-100 transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--musai-accent-2)_14%,var(--musai-wash))] hover:text-[var(--musai-accent-2)] focus-visible:opacity-100 focus-visible:outline-none md:h-7 md:w-7 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
