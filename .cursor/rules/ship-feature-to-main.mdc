@@ -1,42 +1,46 @@
 ---
-description: At end of a major task, open a concise PR and merge to main when safe
+description: Suggest a PR when a feature is ready; never auto-push or auto-open PRs
 alwaysApply: true
 ---
 
-# Ship feature work to main
+# Shipping feature work
 
-When a **major task is clearly finished** — or the user has moved on to a different product area — do not leave the work only on a local feature branch. Land it on `main` so Vercel and the repo stay current.
+Do **not** automatically push, open a pull request, or merge after each change.
 
-## When this applies
+Keep work on the correct `feature/<area>-<short-goal>` branch (see feature-branch rule). Implement and iterate locally unless the user asks otherwise.
 
-Trigger automatically when any of these is true:
+## Commits and push
 
-- The user says the feature/prompt/pass is done, or asks to ship / PR / merge
-- You completed the stated goal and they start an unrelated request
-- The conversation is wrapping up after substantial app changes (new routes, UX pass, data model, etc.)
+- **Commit** only when the user asks (or when a separate user rule explicitly allows it for that request).
+- **Push** only when the user asks (`git push`, “push this”, “publish the branch”, etc.).
+- Never open or merge a PR unless the user asks to ship / PR / merge.
 
-Do **not** trigger mid-implementation, for tiny typo-only edits, or when they only asked a question.
+## When to suggest a PR
 
-## Required flow
+After a coherent chunk of work is clearly done — or the user says they are happy and ready to move on — briefly **suggest** that it is a good time to open a PR into `main`. Do not run `gh pr create` or push until they agree.
 
-Stay on the correct `feature/<area>-<short-goal>` branch (see feature-branch rule). Then:
+A good suggestion sounds like: “This Scale Studio pass is in good shape to PR into `main` when you want.”
 
-1. **Commit** pending work if needed (concise why-focused message; never commit secrets)
-2. **Push** the feature branch (`git push -u origin HEAD`)
-3. **Open a PR into `main`** with `gh pr create`:
-   - **Title**: short and specific (e.g. `Scale Studio: dedicated scale workspaces`)
-   - **Body**: 2–4 bullets — what changed and why; include a brief test plan
-4. **Merge when safe**:
-   - If the PR is mergeable (no conflicts) and checks are green or not required, merge with `gh pr merge --merge` (or `--squash` if the repo prefers squash)
-   - If there are conflicts, failing checks, or review blockers: leave the PR open, report the URL and blockers — do **not** force-merge
-5. **Sync local**: `git checkout main && git pull`, then delete the merged feature branch locally/remotely when clean
+Do **not** nag after every small tweak.
+
+## If the user asks to ship / PR / merge
+
+Then:
+
+1. Commit pending work if needed (concise why-focused message; never commit secrets)
+2. Push the feature branch (`git push -u origin HEAD`)
+3. Open a PR into `main` with `gh pr create`:
+   - **Title**: short and specific
+   - **Body**: 2–4 bullets — what changed and why; brief test plan
+4. Merge only if they asked to merge **and** it is safe (no conflicts; checks green or not required). Otherwise leave the PR open and report blockers.
+5. After merge (when requested): `git checkout main && git pull`, then delete the feature branch when clean
 
 ## PR quality bar
 
-- One feature / one concern per PR (do not dump unrelated WIP)
+- One feature / one concern per PR
 - Title readable in the Vercel / GitHub feed
 - No “WIP”, “stuff”, or vague titles
-- Return the PR URL (and merge status) to the user
+- Return the PR URL (and merge status) when you create one
 
 ## Safety
 

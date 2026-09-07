@@ -15,48 +15,139 @@ const DEFAULT_RATIO = 0.5;
 const MIN_RATIO = 0.28;
 const MAX_RATIO = 0.72;
 
-function clampRatio(n: number): number {
-  return Math.min(MAX_RATIO, Math.max(MIN_RATIO, n));
+/** Shared notes | tips split across Scale Studio home, workspace, and results. */
+export const MUSAI_SCALE_SPLIT_STORAGE_KEY = "musai-scale-notes-tips-split";
+
+const LEGACY_SPLIT_KEYS = [
+  "musai-scale-studio-home-split",
+  "musai-scale-workspace-split",
+] as const;
+
+function clampRatio(n: number, min = MIN_RATIO, max = MAX_RATIO): number {
+  return Math.min(max, Math.max(min, n));
 }
 
-function readStoredRatio(storageKey: string | undefined): number {
-  if (!storageKey || typeof window === "undefined") return DEFAULT_RATIO;
+function readStoredRatio(
+  storageKey: string | undefined,
+  min: number,
+  max: number,
+): number {
+  if (!storageKey || typeof window === "undefined") {
+    return clampRatio(DEFAULT_RATIO, min, max);
+  }
   try {
-    const raw = window.localStorage.getItem(storageKey);
-    if (!raw) return DEFAULT_RATIO;
-    const n = Number(raw);
-    return Number.isFinite(n) ? clampRatio(n) : DEFAULT_RATIO;
+    const keys =
+      storageKey === MUSAI_SCALE_SPLIT_STORAGE_KEY
+        ? [storageKey, ...LEGACY_SPLIT_KEYS]
+        : [storageKey];
+    for (const key of keys) {
+      const raw = window.localStorage.getItem(key);
+      if (!raw) continue;
+      const n = Number(raw);
+      if (Number.isFinite(n)) return clampRatio(n, min, max);
+    }
+    return clampRatio(DEFAULT_RATIO, min, max);
   } catch {
-    return DEFAULT_RATIO;
+    return clampRatio(DEFAULT_RATIO, min, max);
   }
 }
 
+function DividerMarks({
+  draft,
+  dragging,
+}: {
+  draft: boolean;
+  dragging: boolean;
+}) {
+  const lineClass = dragging
+    ? "border-[var(--musai-accent)]"
+    : draft
+      ? "border-[color-mix(in_srgb,var(--musai-muted)_42%,var(--musai-border))]"
+      : "border-[color-mix(in_srgb,var(--musai-border)_85%,transparent)]";
+
+  return (
+    <>
+      <span
+        className={`absolute inset-y-0 left-1/2 w-0 -translate-x-1/2 border-l-2 ${
+          draft ? "border-dotted" : "border-solid"
+        } ${lineClass}`}
+        aria-hidden
+      />
+      <span
+        className={`absolute left-1/2 top-1/2 h-10 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full ${
+          dragging
+            ? "bg-[var(--musai-accent)]"
+            : "bg-[color-mix(in_srgb,var(--musai-muted)_42%,var(--musai-surface))]"
+        }`}
+        aria-hidden
+      />
+    </>
+  );
+}
+
 /**
- * Two columns with a draggable vertical divider (desktop).
- * Stacks on small screens — no drag handle.
+ * Two columns with an optional draggable vertical divider (desktop).
+ * Stacks on small screens.
  */
 export function MusaiSplitPane({
   left,
   right,
   storageKey,
   className = "",
+  divider = "soft",
+  resizable,
+  /** When not resizable, lock the left/right split to this (0–1). */
+  fixedRatio,
+  minRatio = MIN_RATIO,
+  maxRatio = MAX_RATIO,
 }: {
   left: ReactNode;
   right: ReactNode;
   /** Persist split ratio in localStorage across visits. */
   storageKey?: string;
   className?: string;
+  /** `draft` = dotted template rule. */
+  divider?: "soft" | "draft";
+  /** When false, show the rule but do not drag (home template). */
+  resizable?: boolean;
+  fixedRatio?: number;
+  /** Left pane minimum share when resizing (e.g. 0.5 = notes stay at least half). */
+  minRatio?: number;
+  maxRatio?: number;
 }) {
   const paneId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
-  const [ratio, setRatio] = useState(DEFAULT_RATIO);
+  const ratioMin = Math.min(minRatio, maxRatio);
+  const ratioMax = Math.max(minRatio, maxRatio);
+  const lockedRatio = clampRatio(fixedRatio ?? DEFAULT_RATIO, ratioMin, ratioMax);
+  const [ratio, setRatio] = useState(lockedRatio);
   const [dragging, setDragging] = useState(false);
   const [desktop, setDesktop] = useState(false);
   const draggingRef = useRef(false);
+  const canResize = resizable ?? divider !== "draft";
+  const draft = divider === "draft";
 
   useEffect(() => {
-    setRatio(readStoredRatio(storageKey));
-  }, [storageKey]);
+    if (!canResize) {
+      setRatio(lockedRatio);
+      return;
+    }
+    setRatio(readStoredRatio(storageKey, ratioMin, ratioMax));
+  }, [canResize, lockedRatio, ratioMax, ratioMin, storageKey]);
+
+  // Keep ratio in sync when another Scale Studio surface updates the shared key.
+  useEffect(() => {
+    if (!canResize || !storageKey) return;
+    const sync = () => {
+      setRatio(readStoredRatio(storageKey, ratioMin, ratioMax));
+    };
+    window.addEventListener("storage", sync);
+    window.addEventListener("focus", sync);
+    return () => {
+      window.removeEventListener("storage", sync);
+      window.removeEventListener("focus", sync);
+    };
+  }, [canResize, ratioMax, ratioMin, storageKey]);
 
   useEffect(() => {
     if (typeof window.matchMedia !== "function") return;
@@ -69,14 +160,19 @@ export function MusaiSplitPane({
 
   const persist = useCallback(
     (next: number) => {
-      if (!storageKey) return;
+      if (!storageKey || !canResize) return;
       try {
         window.localStorage.setItem(storageKey, String(next));
+        if (storageKey === MUSAI_SCALE_SPLIT_STORAGE_KEY) {
+          for (const legacy of LEGACY_SPLIT_KEYS) {
+            window.localStorage.setItem(legacy, String(next));
+          }
+        }
       } catch {
         /* ignore */
       }
     },
-    [storageKey],
+    [canResize, storageKey],
   );
 
   const setRatioFromClientX = useCallback(
@@ -85,15 +181,15 @@ export function MusaiSplitPane({
       if (!root) return;
       const rect = root.getBoundingClientRect();
       if (rect.width < 1) return;
-      const next = clampRatio((clientX - rect.left) / rect.width);
+      const next = clampRatio((clientX - rect.left) / rect.width, ratioMin, ratioMax);
       setRatio(next);
       persist(next);
     },
-    [persist],
+    [persist, ratioMax, ratioMin],
   );
 
   useEffect(() => {
-    if (!dragging) return;
+    if (!dragging || !canResize) return;
 
     const onMove = (e: PointerEvent) => {
       if (!draggingRef.current) return;
@@ -113,7 +209,7 @@ export function MusaiSplitPane({
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
     };
-  }, [dragging, setRatioFromClientX]);
+  }, [canResize, dragging, setRatioFromClientX]);
 
   useEffect(() => {
     if (!dragging) return;
@@ -128,25 +224,27 @@ export function MusaiSplitPane({
   }, [dragging]);
 
   const onHandleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (!canResize) return;
     const step = e.shiftKey ? 0.08 : 0.03;
     if (e.key === "ArrowLeft") {
       e.preventDefault();
       setRatio((r) => {
-        const next = clampRatio(r - step);
+        const next = clampRatio(r - step, ratioMin, ratioMax);
         persist(next);
         return next;
       });
     } else if (e.key === "ArrowRight") {
       e.preventDefault();
       setRatio((r) => {
-        const next = clampRatio(r + step);
+        const next = clampRatio(r + step, ratioMin, ratioMax);
         persist(next);
         return next;
       });
     } else if (e.key === "Home") {
       e.preventDefault();
-      setRatio(DEFAULT_RATIO);
-      persist(DEFAULT_RATIO);
+      const next = clampRatio(DEFAULT_RATIO, ratioMin, ratioMax);
+      setRatio(next);
+      persist(next);
     }
   };
 
@@ -160,56 +258,54 @@ export function MusaiSplitPane({
   return (
     <div
       ref={rootRef}
-      className={`relative flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row ${className}`.trim()}
+      className={`relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden md:flex-row ${className}`.trim()}
     >
       <div
-        className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:min-w-[12rem]"
+        className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:min-w-[12rem]"
         style={leftStyle}
       >
         {left}
       </div>
 
-      <div
-        role="separator"
-        aria-orientation="vertical"
-        aria-controls={paneId}
-        aria-valuenow={Math.round(ratio * 100)}
-        aria-valuemin={Math.round(MIN_RATIO * 100)}
-        aria-valuemax={Math.round(MAX_RATIO * 100)}
-        aria-label="Resize notes and feedback"
-        tabIndex={0}
-        onKeyDown={onHandleKeyDown}
-        onPointerDown={(e) => {
-          if (e.button !== 0) return;
-          e.preventDefault();
-          draggingRef.current = true;
-          setDragging(true);
-          setRatioFromClientX(e.clientX);
-          e.currentTarget.setPointerCapture?.(e.pointerId);
-        }}
-        className={`relative z-10 hidden shrink-0 touch-none md:flex md:w-3 md:cursor-col-resize md:items-stretch md:justify-center ${
-          dragging
-            ? "bg-[color-mix(in_srgb,var(--musai-accent)_12%,transparent)]"
-            : ""
-        }`}
-      >
-        <span
-          className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 ${
-            dragging ? "bg-[var(--musai-accent)]" : "bg-[var(--musai-border)]"
+      {canResize ? (
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-controls={paneId}
+          aria-valuenow={Math.round(ratio * 100)}
+          aria-valuemin={Math.round(ratioMin * 100)}
+          aria-valuemax={Math.round(ratioMax * 100)}
+          aria-label="Resize notes and feedback"
+          tabIndex={0}
+          onKeyDown={onHandleKeyDown}
+          onPointerDown={(e) => {
+            if (e.button !== 0) return;
+            e.preventDefault();
+            draggingRef.current = true;
+            setDragging(true);
+            setRatioFromClientX(e.clientX);
+            e.currentTarget.setPointerCapture?.(e.pointerId);
+          }}
+          className={`relative z-10 hidden shrink-0 touch-none self-stretch md:flex md:w-5 md:cursor-col-resize md:items-stretch md:justify-center ${
+            dragging
+              ? "bg-[color-mix(in_srgb,var(--musai-accent)_10%,transparent)]"
+              : ""
           }`}
+        >
+          <DividerMarks draft={draft} dragging={dragging} />
+        </div>
+      ) : (
+        <div
+          className="relative z-10 hidden h-full min-h-0 shrink-0 self-stretch md:block md:w-5"
           aria-hidden
-        />
-        <span
-          className={`pointer-events-none relative z-[1] my-auto h-10 w-1 rounded-full ${
-            dragging ? "bg-[var(--musai-accent)]" : "bg-[var(--musai-border)]"
-          }`}
-          aria-hidden
-        />
-      </div>
+        >
+          <DividerMarks draft={draft} dragging={false} />
+        </div>
+      )}
 
       <div
         id={paneId}
-        className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-t border-[var(--musai-border)] md:min-w-[12rem] md:border-t-0"
+        className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:min-w-[12rem]"
         style={rightStyle}
       >
         {right}

@@ -5,9 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MusaiCaptureDock } from "@/components/MusaiCaptureDock";
 import { MusaiFloatingMiniRecorder } from "@/components/MusaiFloatingMiniRecorder";
-import { MusaiSplitPane } from "@/components/MusaiSplitPane";
+import { MusaiSplitPane, MUSAI_SCALE_SPLIT_STORAGE_KEY } from "@/components/MusaiSplitPane";
 import { PracticeHubBackLink } from "@/components/PracticeHubBackLink";
 import { ScaleDetectAmbiguity } from "@/components/ScaleDetectAmbiguity";
+import { ScaleExpectCoachPanel } from "@/components/ScaleExpectCoachPanel";
 import { ScaleGuidePanel } from "@/components/ScaleGuidePanel";
 import { ScaleInlineFeedback } from "@/components/ScaleInlineFeedback";
 import { ScalePracticeInfoProvider } from "@/components/scalePracticeInfoContext";
@@ -527,7 +528,7 @@ export function ScaleWorkspace({
   return (
     <ScalePracticeInfoProvider>
       <div className="relative flex h-[100dvh] max-h-[100dvh] w-full flex-col overflow-hidden">
-        <header className="flex shrink-0 items-center gap-3 border-b border-[var(--musai-border)] px-4 py-2.5 sm:px-6">
+        <header className="flex shrink-0 items-center gap-3 px-4 py-2.5 shadow-[0_10px_28px_rgba(28,25,23,0.04)] sm:px-6">
           <PracticeHubBackLink
             href="/practice/scale"
             label="Scale studio"
@@ -541,10 +542,10 @@ export function ScaleWorkspace({
           </div>
           <button
             type="button"
-            className={`musai-btn-secondary shrink-0 px-3 py-1.5 text-[13px] ${
+            className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition ${
               changeScaleOpen
-                ? "border-[color-mix(in_srgb,var(--musai-accent)_40%,var(--musai-border))] bg-[var(--musai-accent-soft)]"
-                : ""
+                ? "bg-[var(--musai-accent-soft)] text-[var(--musai-ink)]"
+                : "bg-[var(--musai-surface)] text-[var(--musai-ink)] shadow-[0_6px_20px_rgba(28,25,23,0.06)] hover:bg-[var(--musai-surface-2)]"
             }`}
             aria-expanded={changeScaleOpen}
             aria-controls="scale-workspace-switcher"
@@ -554,9 +555,11 @@ export function ScaleWorkspace({
           </button>
         </header>
 
-        <div className="relative min-h-0 flex-1 overflow-hidden">
+        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
           <MusaiSplitPane
-            storageKey="musai-scale-workspace-split"
+            storageKey={MUSAI_SCALE_SPLIT_STORAGE_KEY}
+            divider="soft"
+            resizable
             left={
               <section
                 className="flex h-full min-h-0 flex-col overflow-hidden px-4 py-3 sm:px-5"
@@ -595,9 +598,7 @@ export function ScaleWorkspace({
                       onFocusHints={onFocusHints}
                     />
                   ) : (
-                    <p className="py-8 text-center text-[14px] text-[var(--musai-muted)]">
-                      Record to hear feedback
-                    </p>
+                    <ScaleExpectCoachPanel />
                   )}
                 </div>
               </section>
@@ -607,15 +608,8 @@ export function ScaleWorkspace({
           {changeScaleOpen ? (
             <div
               id="scale-workspace-switcher"
-              className="absolute inset-y-0 right-0 z-20 flex w-full max-w-sm flex-col border-l border-[var(--musai-border)] bg-[var(--musai-bg)] p-4 shadow-[var(--musai-shadow)]"
+              className="musai-scales-drawer z-20"
             >
-              <button
-                type="button"
-                className="mb-3 self-end text-[13px] font-medium text-[var(--musai-muted)] underline decoration-[var(--musai-border)] underline-offset-2 hover:text-[var(--musai-ink)]"
-                onClick={() => setChangeScaleOpen(false)}
-              >
-                Close
-              </button>
               <div className="min-h-0 flex-1 overflow-y-auto">
                 <ScaleProgressPanel
                   currentProgressKey={identity.progressKey}
@@ -626,7 +620,7 @@ export function ScaleWorkspace({
               </div>
               <Link
                 href="/practice/scale"
-                className="musai-btn-primary mt-3 w-full justify-center text-center text-[13px]"
+                className="musai-btn-primary mt-3 w-full justify-center rounded-full text-center text-[13px]"
               >
                 New scale
               </Link>
@@ -648,7 +642,7 @@ export function ScaleWorkspace({
           ) : null}
         </div>
 
-        <div className="shrink-0 border-t border-[var(--musai-border)] px-3 py-2 sm:px-4">
+        <div className="shrink-0 px-3 py-2 shadow-[0_-10px_28px_rgba(28,25,23,0.04)] sm:px-4">
           <MusaiCaptureDock
             selectId="musai-mic-scale-workspace"
             captureMode={captureMode}

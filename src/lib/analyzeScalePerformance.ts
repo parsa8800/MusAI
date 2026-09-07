@@ -2,6 +2,7 @@ import {
   collectPitchFrames,
   hzToMidi,
   medianHzPerScaleSteps,
+  preferFundamentalNearTargetHz,
   type PitchFrame,
 } from "@/lib/analyzePitch";
 import { centsFromTarget, formatNoteLabel, midiToHz } from "@/lib/intonation";
@@ -125,9 +126,10 @@ export function notesFromExpectedMidis(
       };
     }
 
-    const rawCents = centsFromTarget(hz, targetHz);
+    const adjustedHz = preferFundamentalNearTargetHz(hz, targetHz);
+    const rawCents = centsFromTarget(adjustedHz, targetHz);
     const cents = unwrapOctaveCents(rawCents);
-    const detectedMidi = Math.round(hzToMidi(hz));
+    const detectedMidi = Math.round(hzToMidi(adjustedHz));
 
     return {
       noteIndex: i,
@@ -135,7 +137,7 @@ export function notesFromExpectedMidis(
       expectedNoteLabel: formatNoteLabel(expectedMidi),
       detectedMidi,
       detectedNoteLabel: formatNoteLabel(detectedMidi),
-      detectedHz: hz,
+      detectedHz: adjustedHz,
       centsDifference: Math.round(cents * 10) / 10,
       intonationBucket: intonationBucketForCents(cents, false),
       missingData: false,

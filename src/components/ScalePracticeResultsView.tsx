@@ -4,6 +4,10 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { CoachChatPanel } from "@/components/CoachChatPanel";
 import { AnimatedReveal } from "@/components/motion/AnimatedReveal";
+import {
+  MusaiSplitPane,
+  MUSAI_SCALE_SPLIT_STORAGE_KEY,
+} from "@/components/MusaiSplitPane";
 import { PracticeHubBackLink } from "@/components/PracticeHubBackLink";
 import { PracticeStageRing } from "@/components/PracticeStageRing";
 import { ScalePitchCueKey } from "@/components/ScalePitchCueKey";
@@ -318,61 +322,69 @@ export function ScalePracticeResultsView({
 
       <div
         data-anime-enter
-        className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(20rem,0.85fr)] lg:items-stretch lg:gap-6"
+        className="h-[min(70vh,42rem)] min-h-[26rem] overflow-hidden"
       >
-        <section
-          className="musai-glass-panel flex flex-col px-4 py-5 sm:px-6 sm:py-6"
-          aria-label="Colour-coded note feedback"
-        >
-          <div className="mb-4 min-w-0 text-center sm:text-left">
-            <h1 className="font-display text-xl font-semibold tracking-tight text-[var(--musai-ink)] sm:text-2xl">
-              {scaleLabel}
-            </h1>
-            <p className="mt-0.5 text-[13px] font-medium text-[var(--musai-muted)]">
-              {octaveCaption(octaveSpan)}
-            </p>
-          </div>
+        <MusaiSplitPane
+          storageKey={MUSAI_SCALE_SPLIT_STORAGE_KEY}
+          divider="soft"
+          resizable
+          left={
+            <section
+              className="musai-glass-panel flex h-full min-h-0 flex-col overflow-hidden px-4 py-5 sm:px-6 sm:py-6"
+              aria-label="Colour-coded note feedback"
+            >
+              <div className="mb-4 min-w-0 shrink-0 text-center sm:text-left">
+                <h1 className="font-display text-xl font-semibold tracking-tight text-[var(--musai-ink)] sm:text-2xl">
+                  {scaleLabel}
+                </h1>
+                <p className="mt-0.5 text-[13px] font-medium text-[var(--musai-muted)]">
+                  {octaveCaption(octaveSpan)}
+                </p>
+              </div>
 
-          <div className="musai-rv-details min-w-0 flex-1">
-            <ScaleTrebleStaff
-              ascendingMidis={split.ascMidis}
-              descendingMidis={split.descMidis}
-              ascendingCents={ascCents}
-              descendingCents={descCents}
-              tonicPitchClass={session.tonicPitchClass}
-              scaleKind={session.scaleKind}
-            />
-          </div>
+              <div className="musai-rv-details min-h-0 min-w-0 flex-1 overflow-auto">
+                <ScaleTrebleStaff
+                  ascendingMidis={split.ascMidis}
+                  descendingMidis={split.descMidis}
+                  ascendingCents={ascCents}
+                  descendingCents={descCents}
+                  tonicPitchClass={session.tonicPitchClass}
+                  scaleKind={session.scaleKind}
+                />
+              </div>
 
-          <div className="mt-4">
-            <ScalePitchCueKey />
-          </div>
-        </section>
-
-        <aside className="musai-glass-panel flex min-h-[22rem] flex-col px-4 py-5 sm:min-h-[28rem] sm:px-5 sm:py-6 lg:min-h-[32rem]">
-          {chatStart && coachReady ? (
-            <CoachChatPanel
-              embed
-              start
-              title="Coach · Parsa"
-              trendLine={trendLine}
-              tip={tip}
-              source={tipSource}
-              session={session}
-              initialError={aiError}
-            />
-          ) : (
-            <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
-              <div
-                className="h-8 w-8 rounded-full border-2 border-[var(--musai-border)] border-t-[var(--musai-accent)] motion-safe:animate-spin motion-reduce:animate-none"
-                aria-hidden
-              />
-              <p className="font-display text-lg font-semibold text-[var(--musai-ink)]">
-                Coach · Parsa
-              </p>
-            </div>
-          )}
-        </aside>
+              <div className="mt-4 shrink-0">
+                <ScalePitchCueKey />
+              </div>
+            </section>
+          }
+          right={
+            <aside className="musai-glass-panel flex h-full min-h-0 flex-col overflow-hidden px-4 py-5 sm:px-5 sm:py-6">
+              {chatStart && coachReady ? (
+                <CoachChatPanel
+                  embed
+                  start
+                  title="Coach · Parsa"
+                  trendLine={trendLine}
+                  tip={tip}
+                  source={tipSource}
+                  session={session}
+                  initialError={aiError}
+                />
+              ) : (
+                <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
+                  <div
+                    className="h-8 w-8 rounded-full border-2 border-[var(--musai-border)] border-t-[var(--musai-accent)] motion-safe:animate-spin motion-reduce:animate-none"
+                    aria-hidden
+                  />
+                  <p className="font-display text-lg font-semibold text-[var(--musai-ink)]">
+                    Coach · Parsa
+                  </p>
+                </div>
+              )}
+            </aside>
+          }
+        />
       </div>
 
       <div

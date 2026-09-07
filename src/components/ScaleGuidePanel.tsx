@@ -8,6 +8,7 @@ import { useScalePracticeInfo } from "@/components/scalePracticeInfoContext";
 import { ScaleTrebleStaff } from "@/components/ScaleTrebleStaff";
 import type { ScalePracticeGuideModel } from "@/lib/scalePracticeGuide";
 import type { ScaleKind } from "@/lib/scales";
+import { workspaceTitle } from "@/lib/scaleWorkspace";
 import { MUSAI_DUR, MUSAI_EASE, prefersReducedMotion } from "@/lib/motion";
 
 const INFO_ID = "scale-guide";
@@ -27,6 +28,8 @@ export function ScaleGuidePanel({
   ascendingCents,
   descendingCents,
   compact = false,
+  density = "default",
+  showSectionLabels = true,
   focusStrong,
   focusNext,
 }: {
@@ -40,6 +43,10 @@ export function ScaleGuidePanel({
   descendingCents?: (number | null)[];
   /** Pad workspace: tighter chrome so staff + coach fit one viewport. */
   compact?: boolean;
+  /** Home pick mode: smaller title, denser stack. */
+  density?: "default" | "pad";
+  /** Hide Ascending / Descending captions on the staff. */
+  showSectionLabels?: boolean;
   /** Short “what went well” under the staff after a take. */
   focusStrong?: string | null;
   /** Short “what to work on” under the staff after a take. */
@@ -51,10 +58,15 @@ export function ScaleGuidePanel({
   const infoOpen = isOpen(INFO_ID);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const prevLabel = useRef(guide.scaleLabel);
+  const prevSpan = useRef(octaveSpan);
+  const pad = density === "pad";
+  const tight = compact || pad;
 
   useEffect(() => {
-    if (prevLabel.current === guide.scaleLabel) return;
+    if (prevLabel.current === guide.scaleLabel && prevSpan.current === octaveSpan)
+      return;
     prevLabel.current = guide.scaleLabel;
+    prevSpan.current = octaveSpan;
     const el = titleRef.current;
     if (!el || prefersReducedMotion()) return;
 
@@ -73,10 +85,12 @@ export function ScaleGuidePanel({
         /* cleanup */
       }
     };
-  }, [guide.scaleLabel]);
+  }, [guide.scaleLabel, octaveSpan]);
 
-  const kindWord = scaleKind === "major" ? "Major" : "Minor";
-  const spanWord = octaveSpan === 2 ? "2 octaves" : "1 octave";
+  const displayTitle =
+    descendingMidis.length === 0
+      ? `${workspaceTitle(guide.scaleLabel, octaveSpan)} · up`
+      : workspaceTitle(guide.scaleLabel, octaveSpan);
   const showFeedbackLegend =
     ascendingCents != null || descendingCents != null;
 
@@ -84,32 +98,29 @@ export function ScaleGuidePanel({
     <div
       data-scale-info-root={INFO_ID}
       className={
-        compact
-          ? "flex h-full min-h-0 flex-col gap-2"
+        tight
+          ? `flex h-full min-h-0 flex-col ${pad ? "gap-1" : "gap-2"}`
           : "space-y-4 sm:space-y-5"
       }
     >
       <div
         className={`relative flex shrink-0 items-start justify-center ${
-          compact ? "px-6" : "px-8 sm:px-10"
+          pad ? "px-4" : compact ? "px-6" : "px-8 sm:px-10"
         }`}
       >
         <div className="min-w-0 text-center">
           <h2
             ref={titleRef}
             className={`font-display font-semibold tracking-tight text-[var(--musai-ink)] ${
-              compact
-                ? "text-lg sm:text-xl"
-                : "text-xl sm:text-2xl"
+              pad
+                ? "text-lg leading-tight sm:text-xl"
+                : compact
+                  ? "text-2xl leading-tight sm:text-3xl"
+                  : "text-2xl sm:text-3xl"
             }`}
           >
-            {guide.scaleLabel}
+            {displayTitle}
           </h2>
-          <p className="mt-0.5 text-[11px] font-medium text-[var(--musai-muted)] sm:text-[12px]">
-            {kindWord}
-            <span className="text-[var(--musai-border)]"> · </span>
-            {spanWord}
-          </p>
         </div>
         <div
           className="absolute right-0 top-0 shrink-0"
@@ -135,7 +146,7 @@ export function ScaleGuidePanel({
 
       <div
         className={`min-h-0 ${
-          compact
+          tight
             ? "flex-1 overflow-hidden -mx-1 px-1"
             : "-mx-1 px-1 sm:-mx-2 sm:px-2"
         }`}
@@ -147,11 +158,13 @@ export function ScaleGuidePanel({
           descendingCents={descendingCents}
           tonicPitchClass={tonicPitchClass}
           scaleKind={scaleKind}
+          density={pad ? "pad" : "default"}
+          showSectionLabels={showSectionLabels}
         />
       </div>
 
       {showFeedbackLegend ? (
-        <ScalePitchCueKey compact={compact} />
+        <ScalePitchCueKey compact={tight} />
       ) : null}
 
       {focusStrong || focusNext ? (

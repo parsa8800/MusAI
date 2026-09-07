@@ -16,21 +16,137 @@
   --musai-ok: #3d7a5f;
   --musai-warn: #b45309;
   --musai-danger: #c45c4a;
-  /* Scale key families — soft wash, not loud accent */
-  --musai-key-flat: #4a6fa5;
-  --musai-key-flat-soft: #eef2f8;
-  --musai-key-sharp: #a67c52;
-  --musai-key-sharp-soft: #f7f1ea;
+  /* Scale key families — quiet chalk tones on paper */
+  --musai-key-flat: #5c6b78;
+  --musai-key-flat-soft: #f2f4f6;
+  --musai-key-sharp: #8a7358;
+  --musai-key-sharp-soft: #f5f2ed;
   --musai-key-natural: #5c574f;
-  --musai-key-natural-soft: #f0ece6;
+  --musai-key-natural-soft: #f3f0ea;
+  /* Mix base for soft washes (white in light, elevated surface in dark) */
+  --musai-wash: #ffffff;
   --musai-radius: 0.75rem;
   --musai-radius-lg: 0.875rem;
   --musai-shadow: 0 1px 2px rgba(28, 25, 23, 0.04),
     0 8px 24px rgba(28, 25, 23, 0.05);
+  --musai-drawer-shadow: -14px 0 36px rgba(28, 25, 23, 0.1);
   --musai-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --musai-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
   --musai-ease-morph: cubic-bezier(0.45, 0, 0.2, 1);
   --musai-dur: 280ms;
+  --musai-grain-blend: multiply;
+  --musai-grain-opacity: 0.04;
+}
+
+/* Warm evening studio — same language as light, lower luminance */
+html[data-theme="dark"] {
+  --background: #141210;
+  --foreground: #f2ebe3;
+  --musai-bg: #141210;
+  --musai-surface: #1e1b18;
+  --musai-surface-2: #282420;
+  --musai-ink: #f2ebe3;
+  --musai-muted: #a39e97;
+  --musai-border: #3a342e;
+  --musai-accent: #5f9e8a;
+  --musai-accent-soft: #24352f;
+  --musai-accent-2: #d47868;
+  --musai-ok: #6aab8f;
+  --musai-warn: #d4a05a;
+  --musai-danger: #d47868;
+  --musai-key-flat: #8fa0b0;
+  --musai-key-flat-soft: #252a30;
+  --musai-key-sharp: #c4a882;
+  --musai-key-sharp-soft: #2c2720;
+  --musai-key-natural: #b8b0a4;
+  --musai-key-natural-soft: #2a2622;
+  --musai-wash: #282420;
+  --musai-shadow: 0 1px 2px rgba(0, 0, 0, 0.28),
+    0 10px 28px rgba(0, 0, 0, 0.35);
+  --musai-drawer-shadow: -14px 0 40px rgba(0, 0, 0, 0.45);
+  --musai-grain-blend: soft-light;
+  --musai-grain-opacity: 0.07;
+}
+
+/* Scale Studio home — shared notes | tips vertical rhythm */
+.musai-studio-pane {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0.625rem 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .musai-studio-pane {
+    padding-inline: 1rem;
+  }
+}
+
+.musai-studio-pane__chrome {
+  display: flex;
+  height: 2.5rem;
+  flex-shrink: 0;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.musai-studio-pane__stage {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 1.15rem;
+  overflow: hidden;
+  padding-top: clamp(1.25rem, 7vh, 3rem);
+  text-align: center;
+}
+
+.musai-studio-pane__title {
+  margin: 0;
+  flex-shrink: 0;
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-size: clamp(1.65rem, 2.4vw, 2.15rem);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+  color: var(--musai-ink);
+}
+
+.musai-studio-pane__stage--pick {
+  gap: 0.75rem;
+  padding-top: 0.35rem;
+  justify-content: stretch;
+}
+
+/* Stacked (mobile): drop the empty tips chrome so spacing stays even */
+@media (max-width: 767px) {
+  .musai-studio-pane__chrome:empty {
+    display: none;
+  }
+
+  .musai-studio-pane__stage {
+    padding-top: 1rem;
+  }
+}
+
+/* My scales drawer — compact professional strip */
+.musai-scales-drawer {
+  position: absolute;
+  inset-block: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  width: min(100%, 17rem);
+  flex-direction: column;
+  border-radius: 1.25rem 0 0 1.25rem;
+  background: color-mix(in srgb, var(--musai-bg) 92%, transparent);
+  padding: 0.75rem;
+  box-shadow: var(--musai-drawer-shadow);
+  backdrop-filter: blur(12px);
 }
 
 @theme inline {
@@ -57,6 +173,16 @@ body {
 html {
   scrollbar-gutter: stable;
   color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+.musai-ambient-grain {
+  opacity: var(--musai-grain-opacity);
+  mix-blend-mode: var(--musai-grain-blend);
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 /* ─── Wordmark ─── */
@@ -165,6 +291,114 @@ body.musai-app-body {
   box-shadow: none;
 }
 
+/* Practice hub — quiet left accent per exercise */
+.musai-exercise-card {
+  position: relative;
+  isolation: isolate;
+  display: block;
+  overflow: hidden;
+  border-radius: var(--musai-radius-lg);
+  border: 1px solid color-mix(in srgb, var(--musai-exercise-tone, var(--musai-border)) 18%, var(--musai-border));
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--musai-exercise-tone, transparent) 11%, transparent) 0%,
+      transparent 42%
+    ),
+    var(--musai-surface);
+  box-shadow: var(--musai-shadow);
+  padding: 2rem 1.75rem 2rem 1.95rem;
+  text-align: left;
+  text-decoration: none;
+  transform: translateZ(0);
+  transition:
+    transform 280ms var(--musai-ease-out),
+    box-shadow 280ms var(--musai-ease-out),
+    border-color 280ms ease,
+    background-color 280ms ease;
+}
+
+.musai-exercise-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  border-radius: 0 3px 3px 0;
+  background: var(--musai-exercise-tone, var(--musai-accent));
+  opacity: 1;
+  transition: width 220ms var(--musai-ease-out), opacity 220ms ease;
+}
+
+.musai-exercise-card--tuner {
+  --musai-exercise-tone: #1f8f72;
+}
+
+.musai-exercise-card--trainer {
+  --musai-exercise-tone: #3d6fa8;
+}
+
+.musai-exercise-card--scale {
+  --musai-exercise-tone: #c45c4a;
+}
+
+.musai-exercise-card--piece {
+  border-style: dashed;
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--musai-exercise-tone) 7%, transparent) 0%,
+      transparent 40%
+    ),
+    var(--musai-surface-2);
+  box-shadow: none;
+  cursor: default;
+  --musai-exercise-tone: #6e5a8a;
+}
+
+.musai-exercise-card--piece::before {
+  opacity: 0.55;
+  width: 3px;
+}
+
+a.musai-exercise-card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(
+    in srgb,
+    var(--musai-exercise-tone) 42%,
+    var(--musai-border)
+  );
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--musai-exercise-tone) 16%, transparent) 0%,
+      transparent 48%
+    ),
+    var(--musai-surface);
+  box-shadow:
+    0 2px 4px rgba(28, 25, 23, 0.04),
+    0 12px 28px rgba(28, 25, 23, 0.07);
+}
+
+a.musai-exercise-card:hover::before {
+  width: 5px;
+}
+
+a.musai-exercise-card:active {
+  transform: translateY(0) scale(0.995);
+  transition-duration: 120ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .musai-exercise-card,
+  .musai-exercise-card::before {
+    transition: none;
+  }
+
+  a.musai-exercise-card:hover {
+    transform: none;
+  }
+}
+
 .musai-glass-surface {
   position: relative;
   isolation: isolate;
@@ -214,6 +448,167 @@ body.musai-app-body {
   opacity: 0.45;
 }
 
+/* Clear mic input control — icon + device name + chevron */
+.musai-mic-picker {
+  position: relative;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  border-radius: 9999px;
+  border: 1px solid var(--musai-border);
+  background: var(--musai-surface);
+  box-shadow: var(--musai-shadow);
+  transition: border-color 200ms ease, box-shadow 200ms ease,
+    background-color 200ms ease;
+}
+
+.musai-mic-picker:hover {
+  border-color: color-mix(in srgb, var(--musai-accent) 28%, var(--musai-border));
+}
+
+.musai-mic-picker:focus-within {
+  border-color: var(--musai-accent);
+  box-shadow: var(--musai-shadow), 0 0 0 3px var(--musai-accent-soft);
+}
+
+.musai-mic-picker__icon {
+  pointer-events: none;
+  position: absolute;
+  left: 0.7rem;
+  z-index: 1;
+  display: flex;
+  color: var(--musai-accent);
+}
+
+.musai-mic-picker__chevron {
+  pointer-events: none;
+  position: absolute;
+  right: 0.65rem;
+  z-index: 1;
+  display: flex;
+  color: var(--musai-muted);
+}
+
+.musai-mic-picker__select {
+  width: 100%;
+  cursor: pointer;
+  appearance: none;
+  border: none;
+  background: transparent;
+  padding: 0.55rem 2rem 0.55rem 2.15rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0.01em;
+  color: var(--musai-ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.musai-mic-picker__select:focus {
+  outline: none;
+}
+
+.musai-mic-picker__select:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+/* Live take chrome */
+.musai-rec-live-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--musai-accent-2) 22%, var(--musai-border));
+  background: color-mix(in srgb, var(--musai-accent-2) 8%, var(--musai-surface));
+  padding: 0.28rem 0.7rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--musai-accent-2);
+}
+
+.musai-rec-live-hint__dot {
+  height: 0.4rem;
+  width: 0.4rem;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  background: var(--musai-accent-2);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--musai-accent-2) 18%, transparent);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .musai-rec-live-hint__dot {
+    animation: musai-rec-hint-pulse 1.5s ease-in-out infinite;
+  }
+}
+
+@keyframes musai-rec-hint-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.85);
+  }
+}
+
+.musai-rec-live__meta {
+  width: min(100%, 12rem);
+}
+
+.musai-rec-live__timer {
+  position: relative;
+  padding-top: 0.55rem;
+}
+
+.musai-rec-live__timer::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 2.25rem;
+  height: 0;
+  transform: translateX(-50%);
+  border-top: 1.5px dotted
+    color-mix(in srgb, var(--musai-muted) 40%, var(--musai-border));
+}
+
+.musai-rec-retake {
+  border-radius: 9999px;
+  border: 1px solid var(--musai-border);
+  background: color-mix(in srgb, var(--musai-surface) 88%, transparent);
+  padding: 0.35rem 1rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--musai-ink);
+  box-shadow: var(--musai-shadow);
+  transition: border-color 180ms ease, background-color 180ms ease,
+    transform 160ms var(--musai-ease-out);
+}
+
+.musai-rec-retake:hover {
+  border-color: color-mix(in srgb, var(--musai-accent) 30%, var(--musai-border));
+  background: var(--musai-surface);
+}
+
+.musai-rec-retake:active {
+  transform: scale(0.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .musai-rec-retake:active {
+    transform: none;
+  }
+  .musai-rec-live-hint__dot {
+    animation: none;
+  }
+}
+
 /* Segmented control */
 .musai-segmented {
   display: inline-flex;
@@ -222,10 +617,10 @@ body.musai-app-body {
   align-items: stretch;
   gap: 0.125rem;
   padding: 0.1875rem;
-  border-radius: var(--musai-radius);
-  border: 1px solid var(--musai-border);
+  border-radius: 999px;
+  border: none;
   background: var(--musai-surface-2);
-  box-shadow: none;
+  box-shadow: 0 4px 16px rgba(28, 25, 23, 0.04);
 }
 
 .musai-segmented--compact {
@@ -234,7 +629,7 @@ body.musai-app-body {
 
 .musai-segmented__tab {
   flex: 1;
-  border-radius: calc(var(--musai-radius) - 2px);
+  border-radius: 999px;
   padding: 0.625rem 0.5rem;
   font-size: 0.75rem;
   font-weight: 550;
@@ -243,15 +638,17 @@ body.musai-app-body {
   background: transparent;
   border: 1px solid transparent;
   cursor: pointer;
+  outline: none;
   transition: color 220ms var(--musai-ease-out),
     background-color 220ms var(--musai-ease-out), border-color 220ms ease,
-    transform 180ms var(--musai-ease-out);
+    transform 180ms var(--musai-ease-out), box-shadow 220ms ease;
 }
 
 .musai-segmented--compact .musai-segmented__tab {
-  padding: 0.45rem 0.35rem;
-  font-size: 0.6875rem;
+  padding: 0.5rem 0.4rem;
+  font-size: 0.75rem;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .musai-segmented__tab:hover {
@@ -260,6 +657,12 @@ body.musai-app-body {
 
 .musai-segmented__tab:active {
   transform: scale(0.98);
+}
+
+.musai-segmented__tab:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--musai-surface),
+    0 0 0 3.5px color-mix(in srgb, var(--musai-accent) 55%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -272,10 +675,10 @@ body.musai-app-body {
 }
 
 .musai-segmented__tab[aria-selected="true"] {
-  color: var(--musai-accent);
-  border-color: color-mix(in srgb, var(--musai-accent) 28%, var(--musai-border));
-  background: var(--musai-accent-soft);
-  box-shadow: none;
+  color: var(--musai-ink);
+  border-color: transparent;
+  background: var(--musai-surface);
+  box-shadow: 0 2px 10px rgba(28, 25, 23, 0.06);
   font-weight: 650;
 }
 
@@ -324,34 +727,340 @@ body.musai-app-body {
   box-shadow: none;
 }
 
+/* Pick notes — key first; even gaps between every bubble row */
+.musai-scale-pick {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+  width: 100%;
+  max-width: 22rem;
+  margin-inline: auto;
+}
+
+.musai-scale-pick__details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.musai-scale-pick .musai-scale-pick__control {
+  max-width: none;
+}
+
+.musai-scale-pick .musai-segmented--compact .musai-segmented__tab {
+  min-height: 1.95rem;
+  padding: 0.28rem 0.35rem;
+  font-size: 0.72rem;
+  letter-spacing: -0.01em;
+  text-align: center;
+}
+
+/* Minimal key menu for Pick notes */
+.musai-key-select {
+  position: relative;
+  display: block;
+  width: 100%;
+  border-radius: 0.95rem;
+  background: var(--musai-surface);
+  box-shadow: 0 6px 18px rgba(28, 25, 23, 0.05);
+  overflow: hidden;
+}
+
+.musai-key-select--hero {
+  flex-shrink: 0;
+}
+
+.musai-key-select__face {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  min-height: 2.55rem;
+  padding: 0.4rem 2.2rem 0.4rem 1rem;
+  pointer-events: none;
+}
+
+.musai-key-select__letter {
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--musai-ink);
+}
+
+.musai-key-select__marks {
+  font-size: 1.05rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  color: var(--musai-muted);
+  font-variant-ligatures: none;
+}
+
+.musai-key-select__marks--flat {
+  color: var(--musai-key-flat);
+}
+
+.musai-key-select__marks--sharp {
+  color: var(--musai-key-sharp);
+}
+
+.musai-key-select__marks--natural {
+  color: var(--musai-key-natural);
+}
+
+.musai-key-select__native {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.musai-key-select::after {
+  content: "";
+  position: absolute;
+  right: 0.95rem;
+  top: 50%;
+  width: 0.4rem;
+  height: 0.4rem;
+  border-right: 2px solid var(--musai-muted);
+  border-bottom: 2px solid var(--musai-muted);
+  transform: translateY(-65%) rotate(45deg);
+  pointer-events: none;
+  opacity: 0.65;
+}
+
 /* Scale Studio key picker — flats | count | sharps */
 .musai-key-board {
   display: grid;
   grid-template-columns: 1fr 1.35rem 1fr;
   gap: 0.3rem 0.35rem;
   align-items: center;
-  padding: 0.55rem 0.45rem 0.6rem;
-  border-radius: var(--musai-radius-lg);
-  background:
-    linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--musai-key-flat-soft) 92%, transparent) 0%,
-      color-mix(in srgb, var(--musai-key-flat-soft) 92%, transparent) 42%,
-      color-mix(in srgb, var(--musai-surface) 70%, transparent) 48%,
-      color-mix(in srgb, var(--musai-surface) 70%, transparent) 52%,
-      color-mix(in srgb, var(--musai-key-sharp-soft) 92%, transparent) 58%,
-      color-mix(in srgb, var(--musai-key-sharp-soft) 92%, transparent) 100%
-    );
-  border: 1px solid var(--musai-border);
+  padding: 0.65rem 0.5rem 0.7rem;
+  border-radius: 1.25rem;
+  background: color-mix(in srgb, var(--musai-surface) 82%, transparent);
+  border: none;
+  box-shadow: 0 8px 22px rgba(28, 25, 23, 0.05);
+}
+
+/* Home pick mode — short board, visible ♭/♯ counts, staff keeps the room */
+.musai-key-board--compact {
+  grid-template-columns: 1fr 1rem 1fr;
+  gap: 0.2rem 0.28rem;
+  max-width: 18.5rem;
+  margin-inline: auto;
+  padding: 0.4rem 0.4rem 0.45rem;
+  border-radius: 0.9rem;
+  box-shadow: 0 4px 14px rgba(28, 25, 23, 0.04);
+}
+
+.musai-key-board--compact .musai-key-natural-slot {
+  margin-bottom: 0;
+  padding-bottom: 0.22rem;
+}
+
+.musai-key-board--compact .musai-key-col-head {
+  flex-direction: row;
+  gap: 0.2rem;
+  padding: 0 0 0.08rem;
+  font-size: 0.625rem;
+  letter-spacing: 0.04em;
+}
+
+.musai-key-board--compact .musai-key-col-head span:first-child {
+  font-size: 0.72rem;
+}
+
+.musai-key-board--compact .musai-key-count-head {
+  padding-bottom: 0.08rem;
+  font-size: 0.5625rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: var(--musai-muted);
+  opacity: 0.9;
+}
+
+.musai-key-board--compact .musai-key-count {
+  min-height: 2.35rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: var(--musai-muted);
+  opacity: 0.95;
+}
+
+.musai-key-board--compact .musai-key-empty {
+  min-height: 2.35rem;
+}
+
+.musai-key-board--compact .musai-key-btn {
+  min-height: 2.35rem;
+  gap: 0.05rem;
+  padding: 0.18rem 0.12rem 0.2rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  border-radius: 0.55rem;
+  border-color: transparent;
+}
+
+.musai-key-board--compact .musai-key-btn__sig {
+  height: 1.15rem;
+  width: 1.55rem;
+}
+
+.musai-key-board--compact .musai-key-btn--flat {
+  background: var(--musai-key-flat-soft);
+  color: var(--musai-key-flat);
+}
+
+.musai-key-board--compact .musai-key-btn--sharp {
+  background: var(--musai-key-sharp-soft);
+  color: var(--musai-key-sharp);
+}
+
+.musai-key-board--compact .musai-key-btn--natural {
+  max-width: 3.4rem;
+  min-height: 2.45rem;
+  font-size: 0.75rem;
+  background: var(--musai-key-natural-soft);
+  color: var(--musai-key-natural);
+}
+
+/* Pick-notes board: short chips — letter + clear ♭/♯ marks */
+.musai-key-board--fit {
+  grid-template-columns: 1fr 0.85rem 1fr;
+  gap: 0.14rem 0.22rem;
+  max-width: 18.5rem;
+  margin-inline: auto;
+  padding: 0.35rem 0.35rem 0.4rem;
+  border-radius: 0.9rem;
+  box-shadow: 0 4px 14px rgba(28, 25, 23, 0.04);
+}
+
+.musai-key-board--fit .musai-key-natural-slot {
+  margin-bottom: 0;
+  padding-bottom: 0.18rem;
+}
+
+.musai-key-board--fit .musai-key-col-head {
+  flex-direction: row;
+  gap: 0.2rem;
+  padding: 0 0 0.06rem;
+  font-size: 0.625rem;
+  letter-spacing: 0.04em;
+}
+
+.musai-key-board--fit .musai-key-col-head span:first-child {
+  font-size: 0.75rem;
+}
+
+.musai-key-board--fit .musai-key-count-head {
+  padding-bottom: 0.06rem;
+  font-size: 0.5625rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: var(--musai-muted);
+  opacity: 0.9;
+}
+
+.musai-key-board--fit .musai-key-count,
+.musai-key-board--fit .musai-key-empty,
+.musai-key-board--fit .musai-key-btn {
+  min-height: 1.95rem;
+}
+
+.musai-key-board--fit .musai-key-count {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--musai-muted);
+  opacity: 0.95;
+}
+
+.musai-key-board--fit .musai-key-btn {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.18rem 0.4rem;
+  font-size: 0.95rem;
+  font-weight: 750;
+  letter-spacing: -0.03em;
+  border-radius: 0.55rem;
+  border-color: transparent;
+}
+
+.musai-key-board--fit .musai-key-btn__letter {
+  flex: 0 0 auto;
+  min-width: 1.25rem;
+  font-size: 1.05rem;
+  font-weight: 750;
+  line-height: 1;
+  text-align: left;
+}
+
+.musai-key-board--fit .musai-key-btn__marks {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 1;
+  text-align: right;
+  font-variant-ligatures: none;
+}
+
+.musai-key-board--fit .musai-key-btn--flat {
+  background: var(--musai-key-flat-soft);
+  color: var(--musai-key-flat);
+}
+
+.musai-key-board--fit .musai-key-btn--sharp {
+  background: var(--musai-key-sharp-soft);
+  color: var(--musai-key-sharp);
+}
+
+.musai-key-board--fit .musai-key-btn--natural {
+  max-width: 5.25rem;
+  min-height: 2.05rem;
+  justify-content: center;
+  gap: 0.3rem;
+  font-size: 1.05rem;
+  background: var(--musai-key-natural-soft);
+  color: var(--musai-key-natural);
+}
+
+.musai-key-board--fit .musai-key-btn--natural .musai-key-btn__letter {
+  font-size: 1.1rem;
+  min-width: 0;
+}
+
+.musai-key-board--fit .musai-key-btn--natural .musai-key-btn__marks {
+  text-align: center;
+  flex: 0 0 auto;
+  font-size: 1rem;
+}
+
+.musai-key-btn--marks {
+  flex-direction: row;
+  min-height: 1.95rem;
+}
+
+.musai-key-btn--inline-sig {
+  flex-direction: row;
+  min-height: 3rem;
 }
 
 .musai-key-natural-slot {
   grid-column: 1 / -1;
   display: flex;
   justify-content: center;
-  margin-bottom: 0.1rem;
-  padding-bottom: 0.4rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--musai-border) 75%, transparent);
+  margin-bottom: 0.15rem;
+  padding-bottom: 0.45rem;
+  border-bottom: none;
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--musai-border) 55%, transparent);
 }
 
 .musai-key-col-head {
@@ -415,15 +1124,19 @@ body.musai-app-body {
   display: inline-flex;
   width: 100%;
   min-height: 2.45rem;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  border-radius: var(--musai-radius);
+  gap: 0.12rem;
+  padding: 0.3rem 0.25rem 0.35rem;
+  border-radius: 999px;
   border: 1px solid transparent;
   font-size: 0.9rem;
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1;
   cursor: pointer;
+  outline: none;
   transition:
     background-color 200ms var(--musai-ease-out),
     border-color 200ms ease,
@@ -444,63 +1157,94 @@ body.musai-app-body {
 
 .musai-key-btn--flat {
   background: var(--musai-key-flat-soft);
-  border-color: color-mix(in srgb, var(--musai-key-flat) 18%, var(--musai-border));
+  border-color: color-mix(in srgb, var(--musai-key-flat) 22%, transparent);
   color: var(--musai-key-flat);
 }
 
 .musai-key-btn--flat:hover {
-  border-color: color-mix(in srgb, var(--musai-key-flat) 35%, var(--musai-border));
-  background: color-mix(in srgb, var(--musai-key-flat-soft) 70%, white);
+  border-color: color-mix(in srgb, var(--musai-key-flat) 40%, transparent);
+  background: color-mix(in srgb, var(--musai-key-flat-soft) 70%, var(--musai-wash));
 }
 
 .musai-key-btn--sharp {
   background: var(--musai-key-sharp-soft);
-  border-color: color-mix(in srgb, var(--musai-key-sharp) 18%, var(--musai-border));
+  border-color: color-mix(in srgb, var(--musai-key-sharp) 22%, transparent);
   color: var(--musai-key-sharp);
 }
 
 .musai-key-btn--sharp:hover {
-  border-color: color-mix(in srgb, var(--musai-key-sharp) 35%, var(--musai-border));
-  background: color-mix(in srgb, var(--musai-key-sharp-soft) 70%, white);
+  border-color: color-mix(in srgb, var(--musai-key-sharp) 40%, transparent);
+  background: color-mix(in srgb, var(--musai-key-sharp-soft) 70%, var(--musai-wash));
+}
+
+.musai-key-btn__letter {
+  line-height: 1;
+}
+
+.musai-key-btn__sig {
+  color: inherit;
+  opacity: 0.92;
+}
+
+.musai-key-btn--with-sig {
+  border-radius: 0.85rem;
+  min-height: 3.05rem;
+}
+
+.musai-key-board--fit .musai-key-btn.musai-key-btn--with-sig {
+  border-radius: 0.7rem;
+  min-height: 2.35rem;
 }
 
 .musai-key-btn--natural {
-  max-width: 5.25rem;
-  min-height: 2.7rem;
+  max-width: 5.75rem;
+  min-height: 3.15rem;
   background: var(--musai-key-natural-soft);
-  border-color: color-mix(in srgb, var(--musai-key-natural) 16%, var(--musai-border));
+  border-color: color-mix(in srgb, var(--musai-key-natural) 18%, transparent);
   color: var(--musai-key-natural);
   font-size: 1.05rem;
 }
 
 .musai-key-btn--natural:hover {
-  border-color: color-mix(in srgb, var(--musai-key-natural) 32%, var(--musai-border));
+  border-color: color-mix(in srgb, var(--musai-key-natural) 34%, transparent);
 }
 
-/* Selected: forest ring — never coral/red */
-.musai-key-btn[aria-pressed="true"] {
+/* Selected: family-coloured ring — never default browser blue */
+.musai-key-btn:focus-visible {
   box-shadow:
     0 0 0 2px var(--musai-surface),
-    0 0 0 3.5px var(--musai-accent);
+    0 0 0 3.5px color-mix(in srgb, var(--musai-accent) 50%, transparent);
+}
+
+.musai-key-btn[aria-pressed="true"] {
   font-weight: 700;
 }
 
 .musai-key-btn--flat[aria-pressed="true"] {
-  background: color-mix(in srgb, var(--musai-key-flat) 16%, white);
-  border-color: color-mix(in srgb, var(--musai-key-flat) 42%, var(--musai-border));
+  background: color-mix(in srgb, var(--musai-key-flat-soft) 55%, var(--musai-wash));
+  border-color: color-mix(in srgb, var(--musai-key-flat) 35%, transparent);
   color: var(--musai-key-flat);
+  box-shadow:
+    0 0 0 2px var(--musai-surface),
+    0 0 0 3px color-mix(in srgb, var(--musai-key-flat) 45%, transparent);
 }
 
 .musai-key-btn--sharp[aria-pressed="true"] {
-  background: color-mix(in srgb, var(--musai-key-sharp) 16%, white);
-  border-color: color-mix(in srgb, var(--musai-key-sharp) 42%, var(--musai-border));
+  background: color-mix(in srgb, var(--musai-key-sharp-soft) 55%, var(--musai-wash));
+  border-color: color-mix(in srgb, var(--musai-key-sharp) 35%, transparent);
   color: var(--musai-key-sharp);
+  box-shadow:
+    0 0 0 2px var(--musai-surface),
+    0 0 0 3px color-mix(in srgb, var(--musai-key-sharp) 45%, transparent);
 }
 
 .musai-key-btn--natural[aria-pressed="true"] {
-  background: color-mix(in srgb, var(--musai-accent-soft) 80%, white);
-  border-color: color-mix(in srgb, var(--musai-accent) 35%, var(--musai-border));
+  background: color-mix(in srgb, var(--musai-accent-soft) 85%, var(--musai-wash));
+  border-color: color-mix(in srgb, var(--musai-accent) 40%, transparent);
   color: var(--musai-ink);
+  box-shadow:
+    0 0 0 2px var(--musai-surface),
+    0 0 0 3.5px color-mix(in srgb, var(--musai-accent) 65%, transparent);
 }
 
 .musai-key-range-popover {
@@ -514,14 +1258,15 @@ body.musai-app-body {
   border-radius: var(--musai-radius-lg);
   border: 1px solid transparent;
   background: transparent;
-  padding: 0.35rem 0.25rem;
-  transition: border-color 240ms ease, background-color 240ms ease;
+  padding: 0.5rem 0.35rem 0.4rem;
+  transition: border-color 240ms ease, background-color 240ms ease,
+    box-shadow 240ms ease;
 }
 
 .musai-capture-strip--live {
-  border-color: color-mix(in srgb, var(--musai-accent) 22%, var(--musai-border));
-  background: color-mix(in srgb, var(--musai-accent-soft) 55%, transparent);
-  box-shadow: 0 0 0 0 color-mix(in srgb, var(--musai-accent) 18%, transparent);
+  border-color: color-mix(in srgb, var(--musai-accent-2) 18%, var(--musai-border));
+  background: color-mix(in srgb, var(--musai-accent-2) 6%, var(--musai-bg));
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--musai-accent-2) 12%, transparent);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -533,10 +1278,10 @@ body.musai-app-body {
 @keyframes musai-capture-live-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--musai-accent) 0%, transparent);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--musai-accent-2) 0%, transparent);
   }
   50% {
-    box-shadow: 0 0 0 6px color-mix(in srgb, var(--musai-accent) 10%, transparent);
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--musai-accent-2) 8%, transparent);
   }
 }
 
@@ -633,7 +1378,7 @@ body.musai-app-body {
 
 .musai-studio-status--live {
   color: var(--musai-accent-2);
-  background: color-mix(in srgb, var(--musai-accent-2) 12%, white);
+  background: color-mix(in srgb, var(--musai-accent-2) 12%, var(--musai-wash));
 }
 
 .musai-studio-status--ready {
@@ -1072,9 +1817,17 @@ body.musai-app-body {
   padding: 0.85rem 0.85rem;
 }
 
+.musai-staff-card__inner--pad {
+  padding: 0.45rem 0.5rem 0.5rem;
+}
+
 @media (min-width: 640px) {
   .musai-staff-card__inner {
     padding: 1.05rem 1.25rem;
+  }
+
+  .musai-staff-card__inner--pad {
+    padding: 0.55rem 0.7rem 0.6rem;
   }
 }
 
@@ -1085,6 +1838,28 @@ body.musai-app-body {
 .musai-staff-svg-host {
   display: block;
   width: 100%;
+}
+
+.musai-staff-turn-cue {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin: 0.05rem 0 0.1rem;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, var(--musai-muted) 88%, var(--musai-ink));
+}
+
+.musai-staff-turn-cue::before,
+.musai-staff-turn-cue::after {
+  content: "";
+  height: 1px;
+  flex: 1 1 auto;
+  max-width: 4.5rem;
+  background: color-mix(in srgb, var(--musai-border) 70%, transparent);
 }
 
 .musai-staff-svg-host svg {
@@ -1197,6 +1972,40 @@ body.musai-app-body {
   font-family: var(--font-fraunces), Georgia, serif;
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  .musai-tuner-lean-flat {
+    animation: musai-tuner-lean-flat 0.9s ease-in-out infinite;
+  }
+
+  .musai-tuner-lean-sharp {
+    animation: musai-tuner-lean-sharp 0.9s ease-in-out infinite;
+  }
+}
+
+@keyframes musai-tuner-lean-flat {
+  0%,
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  50% {
+    transform: translateX(-3px);
+    opacity: 0.72;
+  }
+}
+
+@keyframes musai-tuner-lean-sharp {
+  0%,
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  50% {
+    transform: translateX(3px);
+    opacity: 0.72;
+  }
+}
+
 @keyframes musai-string-pulse {
   0%,
   100% {
@@ -1215,6 +2024,7 @@ body.musai-app-body {
 
 .musai-studio-status--listen {
   color: var(--musai-ok);
+  background: var(--musai-accent-soft);
 }
 
 .musai-studio-status--listen .musai-studio-status__dot {

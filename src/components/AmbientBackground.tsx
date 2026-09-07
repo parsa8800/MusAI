@@ -1,5 +1,6 @@
 /**
  * Quiet warm wash — soft paper grain, no neon blobs.
+ * Colours follow --musai-* tokens (light / dark).
  */
 export function AmbientBackground() {
   return (
@@ -17,7 +18,7 @@ export function AmbientBackground() {
         className="absolute inset-0 opacity-[0.035]"
         style={{
           backgroundImage:
-            "repeating-linear-gradient(to bottom, transparent 0, transparent 27px, #1c1917 27px, #1c1917 28px)",
+            "repeating-linear-gradient(to bottom, transparent 0, transparent 27px, var(--musai-ink) 27px, var(--musai-ink) 28px)",
         }}
       />
 
@@ -47,13 +48,7 @@ export function AmbientBackground() {
         }}
       />
 
-      <div
-        className="absolute inset-0 mix-blend-multiply"
-        style={{
-          opacity: 0.04,
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-        }}
-      />
+      <div className="musai-ambient-grain absolute inset-0" />
     </div>
   );
 }

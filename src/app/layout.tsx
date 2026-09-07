@@ -1,8 +1,13 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Fraunces, Source_Sans_3 } from "next/font/google";
 import { AmbientBackground } from "@/components/AmbientBackground";
 import { PreferLocalhost } from "@/components/PreferLocalhost";
 import { SiteFooter } from "@/components/SiteFooter";
+import {
+  ThemeProvider,
+  THEME_BOOT_SCRIPT,
+} from "@/components/ThemeProvider";
 import "./globals.css";
 
 const fraunces = Fraunces({
@@ -29,13 +34,21 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${fraunces.variable} ${sourceSans.variable} h-full antialiased`}
     >
       <body className="musai-app-body flex min-h-full flex-col font-sans text-[var(--musai-ink)]">
-        <PreferLocalhost />
-        <AmbientBackground />
-        <div className="flex flex-1 flex-col">{children}</div>
-        <SiteFooter />
+        <Script
+          id="musai-theme-boot"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }}
+        />
+        <ThemeProvider>
+          <PreferLocalhost />
+          <AmbientBackground />
+          <div className="flex flex-1 flex-col">{children}</div>
+          <SiteFooter />
+        </ThemeProvider>
       </body>
     </html>
   );
