@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cursor Desktop Prompt</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            line-height: 1.8;
+            max-width: 800px;
+            margin: 60px auto;
+            padding: 40px;
+            color: #2c3e50;
+            background: #f8f9fa;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2980b9;
+            border-bottom: 3px solid #2980b9;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+        }
+        .prompt-box {
+            background: #ecf0f1;
+            border-left: 5px solid #3498db;
+            padding: 25px;
+            margin: 30px 0;
+            font-size: 16px;
+            line-height: 1.7;
+        }
+        .highlight {
+            background: #fff3cd;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #ffc107;
+        }
+        ul {
+            margin: 20px 0;
+            padding-left: 30px;
+        }
+        li {
+            margin: 12px 0;
+        }
+        .instructions {
+            background: #d4edda;
+            padding: 20px;
+            border-radius: 5px;
+            border-left: 4px solid #28a745;
+            margin: 25px 0;
+        }
+        code {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Cursor Desktop Prompt</h1>
+        
+        <div class="instructions">
+            <h2 style="margin-top: 0;">📋 Instructions:</h2>
+            <ol>
+                <li>Open <strong>Cursor Desktop</strong> on your computer</li>
+                <li>Open the <strong>MusAI project</strong></li>
+                <li><strong>Copy the prompt box below</strong></li>
+                <li><strong>Paste it into Cursor Chat</strong></li>
+                <li>Press Enter and let Cursor implement the changes</li>
+            </ol>
+        </div>
+
+        <hr style="margin: 40px 0; border: none; border-top: 2px solid #ecf0f1;">
+
+        <h2>Copy This Entire Box:</h2>
+
+        <div class="prompt-box">
+            <p><strong>Please implement the AI coach customizations from the implementation guide.</strong></p>
+            
+            <p>Update these 2 files:</p>
+            <ul>
+                <li><code>src/lib/scaleCoachingLlm.ts</code> - Initial coaching feedback</li>
+                <li><code>src/lib/scaleCoachChat.ts</code> - Chat conversation system</li>
+            </ul>
+
+            <p><strong>Key changes to make:</strong></p>
+            <ul>
+                <li>Convert note names from letter format (C4, E5) to string+finger format (A2 = A string 2nd finger, D3 = D string 3rd finger)</li>
+                <li>Use kid-friendly language: "too high", "a bit low", "a hair too high", "meet in the middle"</li>
+                <li>Add specific intonation fixes: finger tape guidance, thumb relaxation</li>
+                <li>Add bow technique advice: flat bow, positioning between bridge/fingerboard, relaxed upper arm</li>
+                <li>Implement friendly, supportive but reserved tone with encouragement when needed</li>
+                <li>Break practice into 3-note chunks, slow progression</li>
+                <li>Reference Fiddle Time / Viola Time teaching resources</li>
+            </ul>
+
+            <p><strong>Implementation details are in:</strong> <code>MusAI_Coach_Implementation_Guide.html</code></p>
+            
+            <p>Follow the step-by-step instructions in the guide exactly.</p>
+            
+            <p><strong>After implementing:</strong> Test by recording a scale and verify the AI uses the new string+finger format (A2, D3) instead of letter names (C4, E5).</p>
+        </div>
+
+        <hr style="margin: 40px 0; border: none; border-top: 2px solid #ecf0f1;">
+
+        <div class="highlight">
+            <h3 style="margin-top: 0;">✅ What Happens Next:</h3>
+            <p>Cursor will:</p>
+            <ol>
+                <li>Read the implementation guide</li>
+                <li>Update both files with your teaching style</li>
+                <li>Convert AI to use string+finger notation</li>
+                <li>Make language kid-friendly</li>
+                <li>Add all your specific techniques and advice</li>
+            </ol>
+        </div>
+
+        <div style="margin-top: 40px; padding-top: 20px; border-top: 2px solid #ecf0f1; color: #7f8c8d; font-size: 14px;">
+            <p><strong>Note:</strong> Make sure the implementation guide HTML file is in your project directory so Cursor can access it.</p>
+        </div>
+    </div>
+</body>
+</html>

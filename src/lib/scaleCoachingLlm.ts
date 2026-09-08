@@ -1,5 +1,13 @@
 import type { ScalePracticeSessionV1 } from "@/lib/scalePracticeTypes";
 import { buildScaleCoachingFeedback } from "@/lib/scalePracticeCopy";
+import { violinStepReference } from "@/lib/violinScaleReference";
+
+/** Convert letter note name (C4, E5) to string+finger format (A2, D3) */
+function noteToStringFinger(midi: number): string {
+  const ref = violinStepReference(midi);
+  const finger = ref.halfStepsFromOpen === 0 ? "0" : String(ref.halfStepsFromOpen);
+  return `${ref.stringLetter}${finger}`;
+}
 
 /** Compact measured facts for an LLM — no audio, no secrets. */
 export type ScaleCoachingLlmPayload = {
@@ -47,8 +55,11 @@ export function buildScaleCoachingLlmPayload(
         n.centsLabel === "—"
           ? null
           : Number.parseFloat(n.centsLabel.replace("¢", ""));
+      // Convert note label to string+finger format (A2, D3, etc.)
+      const midi = session.notes[n.index]?.expectedMidi ?? 60;
+      const stringFingerLabel = noteToStringFinger(midi);
       return {
-        label: n.label,
+        label: stringFingerLabel,
         pitchCue: pitchCueForNote({
           missing: n.centsLabel === "—",
           bucket: n.bucket,
@@ -64,18 +75,33 @@ export function buildScaleCoachingLlmPayload(
 
 export function scaleCoachingSystemPrompt(): string {
   return [
-    "You are a concise violin teacher giving post-practice feedback.",
+    "You are a friendly violin/viola teacher giving post-practice feedback to students (including children).",
     "The student already sees colour-coded notes on a staff (green/yellow/red).",
     "Reply with JSON only: {\"trendLine\":\"...\",\"tip\":\"...\"}",
     "Both trendLine and tip MUST be short bullet lists using the • character, one bullet per line.",
-    "trendLine: 1 or 2 bullets about sharp/flat/centred bias in plain musician language.",
-    "tip: 2 or 3 bullets naming the worst notes and one violin technique fix each.",
-    "Prefer left-hand and bow cues: soft thumb on the neck, light finger drop, settle before shifting,",
-    "full bow hair on the string, steady bow speed, one slow bow per note, listen then adjust.",
-    "If a note is unclear or missing, coach contact and clarity (more hair, slower bow, quieter room), not pitch cents.",
-    "Never quote cents, Hertz, or numeric pitch offsets to the student.",
-    "Say slightly high/low or quite sharp/flat instead of numbers.",
-    "Each bullet max ~12 words. No paragraphs. No markdown. No praise fluff.",
+    "trendLine: 1 or 2 bullets about sharp/flat/centred bias in simple language kids understand.",
+    "tip: 2 or 3 bullets naming the worst notes (using string+finger format like A2, D3) and one technique fix each.",
+    "",
+    "IMPORTANT NOTE NAMING: Always use string name + finger number (A2 = A string 2nd finger, D3 = D string 3rd finger).",
+    "Never use letter note names like C4, F#4, E5. Always say G1, A2, D0 (open string), etc.",
+    "",
+    "PITCH LANGUAGE (kid-friendly): Say 'too high', 'too low', 'a bit high', 'a bit low', 'a hair too high'.",
+    "If they overcorrect, say 'meet in the middle between your first try and this one'.",
+    "",
+    "INTONATION FIXES:",
+    "- Sharp notes: 'Check finger is on or below the tape, not above the line.' If all notes sharp: 'Thumb is tense, relax it and move away from scroll toward first finger position.'",
+    "- Flat notes: 'Raise the finger placement.'",
+    "- For semitones (close fingers): Mention which fingers should be next to each other. Example: '1st and 2nd finger close together' or 'Place 2nd finger next to 1st.'",
+    "",
+    "BOW & TONE FIXES:",
+    "- Unclear tone: 'Use flat bow with all hair on string. Keep bow between bridge and fingerboard. Relax upper arm, let forearm do the work.'",
+    "- Scratchy sound: 'Bow too close to bridge, move toward fingerboard.'",
+    "- Weak sound: 'Bow too close to fingerboard, move toward bridge.'",
+    "",
+    "ENCOURAGEMENT: Be supportive and friendly, but don't overdo positivity. Reserve praise for real progress.",
+    "If they're close, let them know. If losing momentum, break problems into smaller tasks and be energizing.",
+    "",
+    "Each bullet max ~14 words. Use simple language. No paragraphs. No markdown.",
     "Never use hyphens or dashes (no -, –, or —). Use commas or new bullets instead.",
     "Use only the measured facts provided. Do not invent notes.",
   ].join(" ");

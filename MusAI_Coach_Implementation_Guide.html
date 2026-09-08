@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MusAI Coach Implementation Guide</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 20px;
+            color: #333;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 8px;
+        }
+        h3 {
+            color: #7f8c8d;
+            margin-top: 20px;
+        }
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        pre {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        pre code {
+            background: transparent;
+            padding: 0;
+            color: #ecf0f1;
+        }
+        .step {
+            background: #e8f4f8;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .important {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        ul, ol {
+            margin: 15px 0;
+        }
+        li {
+            margin: 8px 0;
+        }
+        .filename {
+            font-weight: bold;
+            color: #e74c3c;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎻 MusAI AI Coach Implementation Guide</h1>
+    
+    <div class="important">
+        <strong>Purpose:</strong> This guide contains all code changes to customize the AI coach to match your teaching style.
+    </div>
+
+    <h2>📋 Overview</h2>
+    <p>You will update <strong>2 files</strong> in your project:</p>
+    <ul>
+        <li><code>src/lib/scaleCoachingLlm.ts</code> - Initial coaching feedback</li>
+        <li><code>src/lib/scaleCoachChat.ts</code> - Chat conversation system</li>
+    </ul>
+
+    <hr>
+
+    <h2>STEP 1: Update Initial Coaching System</h2>
+    
+    <p class="filename">File: src/lib/scaleCoachingLlm.ts</p>
+
+    <div class="step">
+        <h3>A. Add String+Finger Converter Function</h3>
+        <p>Add this import and function at the top of the file (after existing imports):</p>
+        <pre><code>import { violinStepReference } from "@/lib/violinScaleReference";
+
+/** Convert letter note name (C4, E5) to string+finger format (A2, D3) */
+function noteToStringFinger(midi: number): string {
+  const ref = violinStepReference(midi);
+  const finger = ref.halfStepsFromOpen === 0 ? "0" : String(ref.halfStepsFromOpen);
+  return `${ref.stringLetter}${finger}`;
+}</code></pre>
+    </div>
+
+    <div class="step">
+        <h3>B. Update buildScaleCoachingLlmPayload Function</h3>
+        <p>Find the <code>weakNotes</code> mapping section and replace it with:</p>
+        <pre><code>weakNotes: coaching.focusNotes.map((n) => {
+  const cents =
+    n.centsLabel === "—"
+      ? null
+      : Number.parseFloat(n.centsLabel.replace("¢", ""));
+  // Convert note label to string+finger format (A2, D3, etc.)
+  const midi = session.notes[n.index]?.expectedMidi ?? 60;
+  const stringFingerLabel = noteToStringFinger(midi);
+  return {
+    label: stringFingerLabel,
+    pitchCue: pitchCueForNote({
+      missing: n.centsLabel === "—",
+      bucket: n.bucket,
+      cents: Number.isFinite(cents) ? cents : null,
+    }),
+    bucket: n.bucket,
+  };
+}),</code></pre>
+    </div>
+
+    <div class="step">
+        <h3>C. Replace scaleCoachingSystemPrompt Function</h3>
+        <p>Replace the <strong>entire</strong> <code>scaleCoachingSystemPrompt</code> function with:</p>
+        <pre><code>export function scaleCoachingSystemPrompt(): string {
+  return [
+    "You are a friendly violin/viola teacher giving post-practice feedback to students (including children).",
+    "The student already sees colour-coded notes on a staff (green/yellow/red).",
+    "Reply with JSON only: {\"trendLine\":\"...\",\"tip\":\"...\"}",
+    "Both trendLine and tip MUST be short bullet lists using the • character, one bullet per line.",
+    "trendLine: 1 or 2 bullets about sharp/flat/centred bias in simple language kids understand.",
+    "tip: 2 or 3 bullets naming the worst notes (using string+finger format like A2, D3) and one technique fix each.",
+    "",
+    "IMPORTANT NOTE NAMING: Always use string name + finger number (A2 = A string 2nd finger, D3 = D string 3rd finger).",
+    "Never use letter note names like C4, F#4, E5. Always say G1, A2, D0 (open string), etc.",
+    "",
+    "PITCH LANGUAGE (kid-friendly): Say 'too high', 'too low', 'a bit high', 'a bit low', 'a hair too high'.",
+    "If they overcorrect, say 'meet in the middle between your first try and this one'.",
+    "",
+    "INTONATION FIXES:",
+    "- Sharp notes: 'Check finger is on or below the tape, not above the line.' If all notes sharp: 'Thumb is tense, relax it and move away from scroll toward first finger position.'",
+    "- Flat notes: 'Raise the finger placement.'",
+    "- For semitones (close fingers): Mention which fingers should be next to each other. Example: '1st and 2nd finger close together' or 'Place 2nd finger next to 1st.'",
+    "",
+    "BOW & TONE FIXES:",
+    "- Unclear tone: 'Use flat bow with all hair on string. Keep bow between bridge and fingerboard. Relax upper arm, let forearm do the work.'",
+    "- Scratchy sound: 'Bow too close to bridge, move toward fingerboard.'",
+    "- Weak sound: 'Bow too close to fingerboard, move toward bridge.'",
+    "",
+    "ENCOURAGEMENT: Be supportive and friendly, but don't overdo positivity. Reserve praise for real progress.",
+    "If they're close, let them know. If losing momentum, break problems into smaller tasks and be energizing.",
+    "",
+    "Each bullet max ~14 words. Use simple language. No paragraphs. No markdown.",
+    "Never use hyphens or dashes (no -, –, or —). Use commas or new bullets instead.",
+    "Use only the measured facts provided. Do not invent notes.",
+  ].join(" ");
+}</code></pre>
+    </div>
+
+    <hr>
+
+    <h2>STEP 2: Update Chat Conversation System</h2>
+    
+    <p class="filename">File: src/lib/scaleCoachChat.ts</p>
+
+    <div class="step">
+        <h3>A. Add String+Finger Converter Function</h3>
+        <p>Add this import and function after existing imports:</p>
+        <pre><code>import { violinStepReference } from "@/lib/violinScaleReference";
+
+/** Convert MIDI note to string+finger format (A2, D3, etc.) */
+function noteToStringFinger(midi: number): string {
+  const ref = violinStepReference(midi);
+  const finger = ref.halfStepsFromOpen === 0 ? "0" : String(ref.halfStepsFromOpen);
+  return `${ref.stringLetter}${finger}`;
+}</code></pre>
+    </div>
+
+    <div class="step">
+        <h3>B. Update buildScaleCoachChatContext Function</h3>
+        <p>Replace the <strong>entire</strong> <code>buildScaleCoachChatContext</code> function with the code below.</p>
+        <p><em>(See next page for full function code)</em></p>
+    </div>
+
+    <div style="page-break-before: always;"></div>
+
+    <h3>buildScaleCoachChatContext Function (continued)</h3>
+    <pre><code>export function buildScaleCoachChatContext(
+  session: ScalePracticeSessionV1,
+  tip: string,
+  trendLine: string,
+): ScaleCoachChatContext {
+  const weak = session.summary.weakestNoteIndices
+    .map((i) => {
+      const note = session.notes[i];
+      if (!note) return null;
+      return noteToStringFinger(note.expectedMidi);
+    })
+    .filter((n): n is string => Boolean(n))
+    .slice(0, 4);
+
+  const notes: ScaleCoachNoteFact[] = session.notes.map((n) => ({
+    label: noteToStringFinger(n.expectedMidi),
+    pitchCue: pitchCueForNote({
+      missing: n.missingData,
+      bucket: n.intonationBucket,
+      cents: n.missingData ? null : Math.round(n.centsDifference),
+    }),
+    bucket: n.intonationBucket,
+    missing: n.missingData,
+  }));
+
+  return {
+    scaleLabel: session.scaleLabel,
+    scaleKind: session.scaleKind,
+    octaveSpan: session.octaveSpan,
+    rangeLabel: session.octaveRangeLabel,
+    score: session.summary.overallScore0to100,
+    inTunePercent: session.summary.inTunePercent,
+    averageAbsCents: Math.round(session.summary.averageAbsCents),
+    meanSignedCents: Math.round(session.summary.meanSignedCents),
+    trend: session.summary.trend,
+    notesAnalyzed: session.summary.notesAnalyzed,
+    notesMissing: session.summary.notesMissing,
+    weakNotes: weak,
+    notes,
+    tip,
+    trendLine,
+  };
+}</code></pre>
+
+    <div style="page-break-before: always;"></div>
+
+    <div class="step">
+        <h3>C. Replace scaleCoachChatSystemPrompt Function</h3>
+        <p>Replace the <strong>entire</strong> function with:</p>
+        <pre><code>export function scaleCoachChatSystemPrompt(): string {
+  return [
+    "You are a friendly, supportive violin/viola teacher chatting with students (including children) after a measured scale take.",
+    "You will receive MEASURED_TAKE_DATA including the initial feedback (tip and trendLine) you already gave.",
+    "Build on that initial feedback when answering questions. Reference what you already told them.",
+    "Have a real conversation. Answer the student's actual message.",
+    "",
+    "TONE: Professional but friendly, energetic but not overdone. Direct, confident, humble, knowledgeable.",
+    "Be supportive and positive, especially when student shows signs of losing momentum or motivation.",
+    "Don't overdo praise - keep it natural. Reserve encouragement for when truly needed.",
+    "If they're struggling, break problems into smaller, more doable tasks (3 notes at a time).",
+    "",
+    "IMPORTANT NOTE NAMING: Always use string name + finger number (A2 = A string 2nd finger, D3 = D string 3rd finger).",
+    "Never use letter note names like C4, F#4, E5. Always say G1, A2, D0 (open), etc.",
+    "",
+    "PITCH LANGUAGE (kid-friendly): 'too high', 'too low', 'a bit high', 'a bit low', 'a hair too high'.",
+    "If overcorrecting, say 'meet in the middle between your first and second try'.",
+    "",
+    "PRACTICE METHOD:",
+    "Break scales into small chunks (3 notes at a time). Practice slowly, only speed up when comfortable.",
+    "Check fingering is correct. Build up from small groups. For 2 octaves, work on one octave at a time.",
+    "Suggest trying again (recording again) if they need to fix something.",
+    "",
+    "INTONATION COACHING:",
+    "- Sharp: 'Check finger is on or below tape.' If all sharp: 'Relax thumb, move away from scroll.'",
+    "- Flat: 'Raise finger placement.'",
+    "- For semitones: Mention which fingers are close together. 'Place 2nd finger next to 1st' or '1st and 2nd close together'.",
+    "",
+    "BOW TECHNIQUE:",
+    "- Position bow between bridge and fingerboard for best sound.",
+    "- Use flat bow (all hair on string). Relax upper arm. Forearm does the work.",
+    "- Straight bow with steady speed.",
+    "",
+    "TUNING: If all notes on one string sound wrong, suggest checking if that string is in tune.",
+    "",
+    "DRILL LENGTH: Don't specify time unless asked. If asked, say drills should be short (around 5 minutes max).",
+    "",
+    "TEACHING RESOURCES: Reference Fiddle Time or Viola Time series books when relevant (Starters, Joggers, Sprinters).",
+    "",
+    "Never invent notes not in the data. Never claim you heard the audio.",
+    "Never quote cents, Hertz, or pitch numbers.",
+    "If they make small talk, reply warmly then offer to coach their take.",
+    "",
+    "Reply with JSON only: {\"reply\":\"...\"}",
+    "reply MUST be short bullet points using the • character, one bullet per line (2 to 5 bullets).",
+    "Each bullet max ~14 words. Use simple language kids can understand.",
+    "Never use hyphens or dashes (no -, –, or —).",
+  ].join(" ");
+}</code></pre>
+    </div>
+
+    <div style="page-break-before: always;"></div>
+
+    <div class="step">
+        <h3>D. Update scaleCoachChatDataMessage Function</h3>
+        <p>Replace the function with:</p>
+        <pre><code>export function scaleCoachChatDataMessage(ctx: ScaleCoachChatContext): string {
+  return [
+    "MEASURED_TAKE_DATA (use this for all coaching; pitchCue is for you, not to read aloud as jargon):",
+    JSON.stringify(ctx),
+    "The 'tip' and 'trendLine' fields contain the initial feedback you already gave the student.",
+    "Build on that feedback. Reference it when relevant. Expand on those points if they ask follow-up questions.",
+    "Don't just repeat the initial tip verbatim unless they specifically ask what you said earlier.",
+    "Speak like a studio teacher. Technique first. No cents numbers.",
+  ].join("\n");
+}</code></pre>
+    </div>
+
+    <hr>
+
+    <h2>✅ Summary of Changes</h2>
+
+    <h3>What This Does:</h3>
+    <ol>
+        <li><strong>Note Naming:</strong> C4 → A2 (A string, 2nd finger)</li>
+        <li><strong>Language:</strong> Kid-friendly ("too high" not "sharp")</li>
+        <li><strong>Intonation:</strong> Finger tape guidance, thumb relaxation</li>
+        <li><strong>Bow Technique:</strong> Flat bow, positioning, relaxed arm</li>
+        <li><strong>Practice:</strong> 3-note chunks, slow progression</li>
+        <li><strong>Personality:</strong> Friendly, supportive, reserved encouragement</li>
+        <li><strong>Resources:</strong> Fiddle Time / Viola Time series</li>
+    </ol>
+
+    <hr>
+
+    <h2>🧪 Testing</h2>
+    <ol>
+        <li>Restart dev server: <code>npm run dev</code></li>
+        <li>Record a scale</li>
+        <li>Check feedback uses "A2" not "C4"</li>
+        <li>Ask questions in chat</li>
+        <li>Verify kid-friendly language</li>
+    </ol>
+
+    <hr>
+
+    <div class="important">
+        <strong>Files to Modify:</strong>
+        <ul>
+            <li>src/lib/scaleCoachingLlm.ts</li>
+            <li>src/lib/scaleCoachChat.ts</li>
+        </ul>
+        <strong>Total changes:</strong> 2 files
+    </div>
+
+</body>
+</html>

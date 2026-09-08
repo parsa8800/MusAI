@@ -1,0 +1,131 @@
+AI COACH SETUP - ANSWER THESE QUESTIONS
+========================================
+
+Copy this entire file, fill in your answers, and send it back.
+
+---
+
+PART 1: TECHNIQUE ADVICE
+=========================
+
+1. When a note is SHARP, what do you tell students to do?
+   Current: "Soften thumb pressure on the neck"
+   
+   YOUR ANSWER:
+
+
+2. When a note is FLAT, what do you tell students to do?
+   Current: "Place finger a touch higher"
+   
+   YOUR ANSWER:
+
+
+3. When tone is UNCLEAR, what do you tell students to do?
+   Current: "Use more bow hair on the string"
+   
+   YOUR ANSWER:
+
+
+4. What's your general BOW technique advice?
+   Current: "Steady bow speed, full bow hair on string"
+   
+   YOUR ANSWER:
+
+
+5. What PRACTICE METHOD do you recommend?
+   Current: "Play slowly, one slow bow per note, listen then adjust"
+   
+   YOUR ANSWER:
+
+
+---
+
+PART 2: LANGUAGE & TONE
+=======================
+
+6. How should the AI describe pitch problems? (no numbers)
+   Current: "slightly high", "noticeably flat", "far too sharp"
+   
+   YOUR ANSWER:
+
+
+7. How FORMAL should it be?
+   Options: Very formal / Professional but friendly / Casual
+   Current: Professional but friendly
+   
+   YOUR ANSWER:
+
+
+8. Should it give ENCOURAGEMENT?
+   Options: No just fixes / Yes start positive / Yes balance both
+   Current: No just fixes
+   
+   YOUR ANSWER:
+
+
+---
+
+PART 3: TEACHING METHODS
+========================
+
+9. Do you follow a specific method? (Suzuki, Galamian, Simon Fischer, etc.)
+   
+   YOUR ANSWER:
+
+
+10. Should it mention any specific techniques or books?
+    
+    YOUR ANSWER:
+
+
+---
+
+PART 4: PRACTICE INSTRUCTIONS
+=============================
+
+11. How long should practice drills be?
+    Options: Don't specify / 5-10 minutes / Other
+    
+    YOUR ANSWER:
+
+
+12. Should it suggest RECORDING themselves?
+    Options: Yes / No
+    
+    YOUR ANSWER:
+
+
+13. Should it suggest using DRONE TONES?
+    Options: Yes / No
+    
+    YOUR ANSWER:
+
+
+14. Should it remind students to TUNE first?
+    Options: Yes always / No
+    
+    YOUR ANSWER:
+
+
+---
+
+PART 5: ANYTHING ELSE
+=====================
+
+15. Is there anything you NEVER want the AI to say?
+    
+    YOUR ANSWER:
+
+
+16. Is there anything you ALWAYS want it to mention?
+    
+    YOUR ANSWER:
+
+
+17. Any other notes about your teaching style?
+    
+    YOUR ANSWER:
+
+
+---
+DONE! Send this back with your answers filled in.
