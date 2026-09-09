@@ -75,8 +75,9 @@ describe("CoachChatPanel", () => {
       />,
     );
 
-    expect(screen.getByPlaceholderText(/Ask anything/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Ask if you want more/i)).toBeInTheDocument();
     expect(screen.getByText(/Coach · Parsa/i)).toBeInTheDocument();
+    expect(screen.getByText(/Colours on the staff show the take/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Preview coaching/i })).toBeInTheDocument();
     expect(screen.queryByText(/^Template$/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Live AI is off/i)).not.toBeInTheDocument();
