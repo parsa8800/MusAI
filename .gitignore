@@ -47,3 +47,4 @@ next-env.d.ts
 # Test audio files
 test-audio/*.wav
 test-audio/real_violin_samples/
+musai audio/
