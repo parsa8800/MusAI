@@ -1,0 +1,25 @@
+---
+description: Scale Studio must fit core practice UI in one viewport with no vertical scrolling
+globs: src/components/Scale*.tsx,src/components/MusaiCapture*.tsx,src/components/StudioViewport.tsx,src/app/globals.css,src/app/practice/scale/**
+alwaysApply: false
+---
+
+# Scale Studio — one viewport, no scroll
+
+Core practice functionality must always fit inside **one viewport** (`100dvh` / `StudioViewport`) with **no vertical scrolling**.
+
+## Must stay visible without scrolling
+
+- Just play / Pick notes mode switch
+- Pick notes controls (key, Major/Minor, octave, direction) when active
+- Scale title and notation area
+- Recording controls (Record/Import, mic, record button / timer)
+- Progress bar
+
+## Layout rules
+
+- Prefer compressing gaps, padding, and control heights with `clamp()` / viewport units over adding scroll.
+- Notation absorbs height changes (`flex: 1`, `min-height: 0`); capture stays `flex-shrink: 0` under the notes column.
+- Switching Just play ↔ Pick notes must not push recording off-screen or require scrolling.
+- Do not introduce page-level or shell-level vertical scroll for the ready/practice state.
+- Test common laptop heights: 768px, 800px, 900px, and MacBook-sized displays.

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { noteVisualTone, shortNoteName } from "@/lib/scaleNoteVisual";
+import {
+  noteVisualTone,
+  pitchCorrectionDir,
+  shortNoteName,
+} from "@/lib/scaleNoteVisual";
 import type { ScalePracticeNoteRow } from "@/lib/scalePracticeTypes";
 
 function row(
@@ -69,5 +73,12 @@ describe("scaleNoteVisual", () => {
         }),
       ),
     ).toBe("bad");
+  });
+
+  it("points the arrow at the fix, not the error", () => {
+    expect(pitchCorrectionDir(30)).toBe("down");
+    expect(pitchCorrectionDir(-30)).toBe("up");
+    expect(pitchCorrectionDir(12)).toBeNull();
+    expect(pitchCorrectionDir(null)).toBeNull();
   });
 });

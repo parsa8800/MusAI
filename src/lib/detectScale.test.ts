@@ -96,7 +96,10 @@ describe("detectScaleFromAudio", () => {
       expect(detected.best.scaleKind).toBe("major");
       expect(detected.best.octaveSpan).toBe(1);
       expect(detected.best.pattern).toBe("round_trip");
-      expect(detected.best.analysis.summary.overallScore0to100).toBeLessThan(80);
+      expect(detected.best.analysis.summary.notesMissing).toBeGreaterThan(0);
+      expect(detected.best.analysis.summary.notesAnalyzed).toBeLessThan(
+        detected.best.expectedMidis.length,
+      );
     },
   );
 

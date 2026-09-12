@@ -20,7 +20,7 @@ export function StudioViewport({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <div className="fixed inset-0 z-[5] flex flex-col overflow-hidden bg-[var(--musai-bg)] pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)]">
+    <div className="fixed inset-0 z-[5] flex h-dvh max-h-dvh flex-col overflow-hidden bg-[var(--musai-bg)] pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)]">
       {children}
     </div>
   );

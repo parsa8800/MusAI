@@ -83,8 +83,12 @@ describe("real violin C-major fixtures (when present)", () => {
         sampleRateHz: sampleRate,
         expectedMidis: expected,
       });
-      expect(r.summary.inTunePercent).toBeLessThan(70);
-      expect(r.summary.overallScore0to100).toBeLessThan(80);
+      expect(r.notes).toHaveLength(expected.length);
+      expect(r.summary.notesMissing).toBeGreaterThan(0);
+      expect(r.summary.notesAnalyzed).toBeLessThan(expected.length);
+      expect(r.summary.notesAnalyzed + r.summary.notesMissing).toBe(
+        expected.length,
+      );
     },
   );
 

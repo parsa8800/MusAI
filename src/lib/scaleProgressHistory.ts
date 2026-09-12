@@ -1,5 +1,6 @@
 import type { ScalePracticeSessionV1 } from "@/lib/scalePracticeTypes";
 import { parseScalePracticeSession } from "@/lib/parseScalePracticeSession";
+import { withMasteryAfterTake } from "@/lib/scaleMasteryTimeline";
 import { progressKeyFor } from "@/lib/scaleWorkspace";
 
 export const MUSAI_SCALE_PROGRESS_KEY = "musai-scale-progress-v1";
@@ -234,41 +235,45 @@ export function flattenScaleProgressAttempts(): ScalePracticeSessionV1[] {
   return out;
 }
 
-export function pushScaleProgressAttempt(session: ScalePracticeSessionV1): void {
-  if (typeof localStorage === "undefined") return;
-  if (!parseScalePracticeSession(session)) return;
+export function pushScaleProgressAttempt(session: ScalePracticeSessionV1): ScalePracticeSessionV1 {
+  if (typeof localStorage === "undefined") {
+    return withMasteryAfterTake(session, []);
+  }
+  if (!parseScalePracticeSession(session)) return session;
 
   const key = progressKeyForSession(session);
   const journeys = listScaleProgressJourneys();
   const existingIdx = journeys.findIndex((j) => j.progressKey === key);
 
+  const prior =
+    existingIdx >= 0
+      ? journeys[existingIdx]!.attempts.filter(
+          (a) => a.sessionId !== session.sessionId,
+        )
+      : [];
+  const stamped = withMasteryAfterTake(session, prior);
+
   let nextJourney: ScaleProgressJourneyV1;
   if (existingIdx >= 0) {
-    const prev = journeys[existingIdx]!;
-    const withoutDup = prev.attempts.filter(
-      (a) => a.sessionId !== session.sessionId,
-    );
-    const attempts = [...withoutDup, session].slice(
-      -SCALE_PROGRESS_MAX_ATTEMPTS,
-    );
+    const attempts = [...prior, stamped].slice(-SCALE_PROGRESS_MAX_ATTEMPTS);
     nextJourney = summarizeJourney({
       schemaVersion: SCALE_PROGRESS_SCHEMA_VERSION,
       progressKey: key,
-      scaleId: session.scaleId,
-      scaleLabel: session.scaleLabel,
-      scaleKind: session.scaleKind,
-      tonicPitchClass: session.tonicPitchClass,
+      scaleId: stamped.scaleId,
+      scaleLabel: stamped.scaleLabel,
+      scaleKind: stamped.scaleKind,
+      tonicPitchClass: stamped.tonicPitchClass,
       attempts,
     });
   } else {
     nextJourney = summarizeJourney({
       schemaVersion: SCALE_PROGRESS_SCHEMA_VERSION,
       progressKey: key,
-      scaleId: session.scaleId,
-      scaleLabel: session.scaleLabel,
-      scaleKind: session.scaleKind,
-      tonicPitchClass: session.tonicPitchClass,
-      attempts: [session],
+      scaleId: stamped.scaleId,
+      scaleLabel: stamped.scaleLabel,
+      scaleKind: stamped.scaleKind,
+      tonicPitchClass: stamped.tonicPitchClass,
+      attempts: [stamped],
     });
   }
 
@@ -276,6 +281,7 @@ export function pushScaleProgressAttempt(session: ScalePracticeSessionV1): void 
   writeProgress(
     [nextJourney, ...others].slice(0, SCALE_PROGRESS_MAX_JOURNEYS),
   );
+  return stamped;
 }
 
 export function removeScaleProgressJourney(progressKey: string): void {

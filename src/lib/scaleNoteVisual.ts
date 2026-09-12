@@ -24,6 +24,22 @@ export function noteVisualTone(row: ScalePracticeNoteRow): NoteVisualTone {
   return toneFromAbsCents(Math.abs(row.centsDifference));
 }
 
+/**
+ * Staff arrow = what to try next, not which way the take went.
+ * Sharp (positive cents) → go lower. Flat → go higher.
+ */
+export function pitchCorrectionDir(
+  cents: number | null,
+): "up" | "down" | null {
+  if (cents == null || !Number.isFinite(cents)) return null;
+  if (Math.abs(cents) <= SCALE_IN_TUNE_CENTS) return null;
+  return cents > 0 ? "down" : "up";
+}
+
+export function pitchCorrectionArrow(dir: "up" | "down"): "↑" | "↓" {
+  return dir === "up" ? "↑" : "↓";
+}
+
 export const NOTE_TONE_STYLES: Record<
   NoteVisualTone,
   { chip: string; glow: string; label: string }

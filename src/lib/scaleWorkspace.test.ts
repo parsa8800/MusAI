@@ -39,8 +39,19 @@ describe("scaleWorkspace", () => {
     );
   });
 
-  it("identityFromSelection matches slug round-trip", () => {
-    const id = identityFromSelection(2, "major", 2);
-    expect(parseScaleWorkspaceSlug(id.slug)?.progressKey).toBe(id.progressKey);
+  it("identityFromSelection keeps major/minor and octave journeys apart", () => {
+    const cMaj1 = identityFromSelection(0, "major", 1);
+    const cMin1 = identityFromSelection(0, "natural_minor", 1);
+    const cMaj2 = identityFromSelection(0, "major", 2);
+    expect(cMaj1.progressKey).toBe("C_major__1");
+    expect(cMin1.progressKey).toBe("C_natural_minor__1");
+    expect(cMaj2.progressKey).toBe("C_major__2");
+    expect(cMaj1.progressKey).not.toBe(cMin1.progressKey);
+    expect(cMaj1.progressKey).not.toBe(cMaj2.progressKey);
+  });
+
+  it("does not put direction in the progress key (workspace is always up & down)", () => {
+    expect(progressKeyFor("C_major", 1)).toBe("C_major__1");
+    expect(progressKeyFor("C_major", 1)).not.toMatch(/asc|desc|up/i);
   });
 });

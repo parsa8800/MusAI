@@ -18,6 +18,7 @@ type ChatBody = {
   session?: ScalePracticeSessionV1;
   tip?: string;
   trendLine?: string;
+  loopAttempts?: unknown;
   messages?: CoachChatMessage[];
 };
 
@@ -34,6 +35,17 @@ function parseReplyJson(raw: string): string | null {
   } catch {
     return null;
   }
+}
+
+function parseLoopAttempts(
+  raw: unknown,
+  fallback: ScalePracticeSessionV1,
+): ScalePracticeSessionV1[] {
+  if (!Array.isArray(raw) || raw.length === 0) return [fallback];
+  const parsed = raw
+    .map((item) => parseScalePracticeSession(item))
+    .filter((item): item is ScalePracticeSessionV1 => Boolean(item));
+  return parsed.length > 0 ? parsed : [fallback];
 }
 
 async function callOpenAiChat(
@@ -112,7 +124,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing user message" }, { status: 400 });
   }
 
-  const ctx = buildScaleCoachChatContext(session, tip, trendLine);
+  const ctx = buildScaleCoachChatContext(
+    session,
+    tip,
+    trendLine,
+    parseLoopAttempts(body.loopAttempts, session),
+  );
   const fallback = localCoachChatReply(lastUser.text, ctx);
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   const llmEnabled = isOpenAiLlmEnabled();

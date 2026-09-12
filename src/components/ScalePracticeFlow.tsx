@@ -35,6 +35,7 @@ import type { ScaleProgressJourneyV1 } from "@/lib/scaleProgressHistory";
 import type { ScalePracticeSessionV1 } from "@/lib/scalePracticeTypes";
 import type { ScaleKind } from "@/lib/scales";
 import { buildScalePracticeGuideModel } from "@/lib/scalePracticeGuide";
+import { nextScaleTakeCopy } from "@/lib/scaleTakeLoop";
 import {
   buildExerciseScaleMidis,
   defaultRootMidiForTonic,
@@ -116,10 +117,17 @@ export function ScalePracticeFlow() {
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const discardRecordingRef = useRef(false);
-  const retakeAfterStopRef = useRef(false);
   const mainRecorderRef = useRef<HTMLDivElement | null>(null);
 
-  const { elapsedLabel, lastTakeLabel, levelBars } = useSyncedRecorderUi(
+  const {
+    elapsedLabel,
+    lastTakeLabel,
+    levelBars,
+    waveformSamples,
+    waveformRef,
+    waveformLiveRef,
+    resetTakeUi,
+  } = useSyncedRecorderUi(
     isRecording,
     streamRef,
   );
@@ -248,13 +256,11 @@ export function ScalePracticeFlow() {
         mediaRecorderRef.current = null;
         if (discardRecordingRef.current) {
           discardRecordingRef.current = false;
+          resetTakeUi();
           chunksRef.current = [];
-          if (retakeAfterStopRef.current) {
-            retakeAfterStopRef.current = false;
-            queueMicrotask(() => {
-              void startRecordingRef.current();
-            });
-          }
+          setRecordedBlob(null);
+          setStatus("idle");
+          setMessage(null);
           return;
         }
         const blob = new Blob(chunksRef.current, {
@@ -276,10 +282,7 @@ export function ScalePracticeFlow() {
       setMessage(describeMicOpenError(err));
       setStatus("error");
     }
-  }, [refreshMicDevices, selectedMicId, stopStream]);
-
-  const startRecordingRef = useRef(startRecording);
-  startRecordingRef.current = startRecording;
+  }, [refreshMicDevices, resetTakeUi, selectedMicId, stopStream]);
 
   const stopRecording = useCallback(() => {
     const rec = mediaRecorderRef.current;
@@ -297,19 +300,19 @@ export function ScalePracticeFlow() {
     }
   }, []);
 
-  const retakeRecording = useCallback(() => {
+  const discardRecording = useCallback(() => {
     if (!isRecording) return;
-    retakeAfterStopRef.current = true;
     discardRecordingRef.current = true;
+    resetTakeUi();
     stopRecording();
-  }, [isRecording, stopRecording]);
+  }, [isRecording, resetTakeUi, stopRecording]);
 
   const completeAttempt = useCallback((session: ScalePracticeSessionV1) => {
-    persistScalePracticeSession(session);
+    const stamped = persistScalePracticeSession(session);
     setLoopAttempts((prev) => {
       const sameScale =
-        prev.length > 0 && prev[0]!.scaleId === session.scaleId;
-      return sameScale ? [...prev, session] : [session];
+        prev.length > 0 && prev[0]!.scaleId === stamped.scaleId;
+      return sameScale ? [...prev, stamped] : [stamped];
     });
     setHistoryRevision((n) => n + 1);
     setPendingDetect(null);
@@ -370,6 +373,7 @@ export function ScalePracticeFlow() {
         analysis: candidate.analysis,
         expectedNotesMidi: candidate.expectedMidis,
         scaleSource: "detected",
+        waveformAmplitudes: waveformRef.current,
       });
       setTonicPc(candidate.tonicPitchClass);
       setScaleKind(candidate.scaleKind);
@@ -377,7 +381,7 @@ export function ScalePracticeFlow() {
       setAdvSpan(candidate.octaveSpan);
       completeAttempt(session);
     },
-    [completeAttempt],
+    [completeAttempt, waveformRef],
   );
 
   const runAnalyze = useCallback(async () => {
@@ -448,6 +452,7 @@ export function ScalePracticeFlow() {
           analysis: aligned.analysis,
           expectedNotesMidi: aligned.expectedMidis,
           scaleSource: "selected",
+          waveformAmplitudes: waveformRef.current,
         });
         completeAttempt(session);
         return;
@@ -494,6 +499,7 @@ export function ScalePracticeFlow() {
     rootMidi,
     scaleKind,
     tonicPc,
+    waveformRef,
   ]);
 
   const canAnalyze =
@@ -520,6 +526,7 @@ export function ScalePracticeFlow() {
           session={latestAttempt}
           loopAttempts={loopAttempts}
           onTryAgain={prepareNextTake}
+          tryAgainLabel={`Record ${nextScaleTakeCopy(loopAttempts.length).label.toLowerCase()}`}
         />
       </ScalePracticeInfoProvider>
     );
@@ -559,6 +566,7 @@ export function ScalePracticeFlow() {
             <ScaleProgressPanel
               revision={historyRevision}
               onContinue={continueJourney}
+              framed
             />
           </div>
         ) : null}
@@ -621,11 +629,14 @@ export function ScalePracticeFlow() {
                 }}
                 onStartRecording={() => void startRecording()}
                 onStopRecording={stopRecording}
-                onRetakeRecording={retakeRecording}
+                onDiscardRecording={discardRecording}
                 streamRef={streamRef}
                 elapsedLabel={elapsedLabel}
                 levelBars={levelBars}
+                waveformSamples={waveformSamples}
+                waveformLiveRef={waveformLiveRef}
                 lastTakeLabel={lastTakeLabel}
+                nextTake={nextScaleTakeCopy(loopAttempts.length)}
                 message={message}
                 status={status}
                 canAnalyze={canAnalyze}
@@ -642,6 +653,7 @@ export function ScalePracticeFlow() {
                   <ScaleProgressPanel
                     revision={historyRevision}
                     onContinue={continueJourney}
+                    framed
                   />
                 </div>
               </aside>
@@ -699,6 +711,8 @@ export function ScalePracticeFlow() {
         onStopRecording={stopRecording}
         elapsedLabel={elapsedLabel}
         levelBars={levelBars}
+        idleTitle={nextScaleTakeCopy(loopAttempts.length).label}
+        startAriaLabel={nextScaleTakeCopy(loopAttempts.length).ariaLabel}
       />
     </AnimatedReveal>
     </ScalePracticeInfoProvider>

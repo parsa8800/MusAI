@@ -4,6 +4,7 @@ import {
   advanceTunerHold,
   identifyTunerPitch,
   IN_TUNE_HOLD_MS,
+  tunerCueCopy,
   type TunerReading,
 } from "@/lib/violinTuner";
 
@@ -44,6 +45,24 @@ describe("identifyTunerPitch", () => {
     expect(r!.tone).toBe("slight");
   });
 
+  it("keeps a clearly flat A on A instead of renaming it G♯", () => {
+    const flat = 440 * Math.pow(2, -70 / 1200);
+    const r = identifyTunerPitch(flat);
+    expect(r).not.toBeNull();
+    expect(r!.stringId).toBe("A");
+    expect(r!.pitchClassName).toBe("A");
+    expect(r!.direction).toBe("low");
+    expect(r!.cents).toBeLessThan(-50);
+  });
+
+  it("stays on the previous string through a wobble toward the next note", () => {
+    const wobble = 440 * Math.pow(2, -90 / 1200);
+    const r = identifyTunerPitch(wobble, "A");
+    expect(r).not.toBeNull();
+    expect(r!.stringId).toBe("A");
+    expect(r!.direction).toBe("low");
+  });
+
   it("marks a clearly sharp A as a miss", () => {
     const sharp = 440 * Math.pow(2, 40 / 1200);
     const r = identifyTunerPitch(sharp);
@@ -51,6 +70,24 @@ describe("identifyTunerPitch", () => {
     expect(r!.stringId).toBe("A");
     expect(r!.direction).toBe("high");
     expect(r!.tone).toBe("bad");
+  });
+});
+
+describe("tunerCueCopy", () => {
+  it("tells the player to go higher when the string is low", () => {
+    const r = identifyTunerPitch(440 * Math.pow(2, -22 / 1200));
+    expect(tunerCueCopy(r)).toEqual({
+      headline: "Too low",
+      hint: "Go higher",
+    });
+  });
+
+  it("tells the player to go lower when the string is high", () => {
+    const r = identifyTunerPitch(440 * Math.pow(2, 22 / 1200));
+    expect(tunerCueCopy(r)).toEqual({
+      headline: "Too high",
+      hint: "Go lower",
+    });
   });
 });
 

@@ -27,10 +27,10 @@ const session: ScalePracticeSessionV1 = {
     {
       noteIndex: 0,
       expectedMidi: 60,
-      expectedNoteLabel: "A4",
+      expectedNoteLabel: "C4",
       detectedMidi: 60,
-      detectedNoteLabel: "A4",
-      detectedHz: 440,
+      detectedNoteLabel: "C4",
+      detectedHz: 261.6,
       centsDifference: 30,
       intonationBucket: "sharp",
       missingData: false,
@@ -49,65 +49,119 @@ const session: ScalePracticeSessionV1 = {
 };
 
 describe("scaleCoachChat", () => {
-  it("builds measured note facts for the LLM", () => {
+  it("builds measured note facts with string+finger labels", () => {
     const ctx = buildScaleCoachChatContext(
       session,
-      "• Work A4\n• Lighten the finger",
-      "• Trending a bit sharp",
+      "• Work G3\n• Soften the thumb",
+      "• Trending a bit high",
     );
+    // C4 (midi 60) → G string 3rd finger (not G5 half-steps)
     expect(ctx.notes[0]).toMatchObject({
-      label: "A4",
+      label: "G3",
       pitchCue: "slightly_sharp",
       bucket: "sharp",
     });
+    expect(ctx.weakNotes[0]).toBe("G3");
     expect(scaleCoachChatDataMessage(ctx)).toMatch(/MEASURED_TAKE_DATA/);
+    expect(scaleCoachChatDataMessage(ctx)).toMatch(/staff colours/i);
     expect(scaleCoachChatSystemPrompt()).toMatch(/measured/i);
+    expect(scaleCoachChatSystemPrompt()).toMatch(/only when they ask/i);
+    expect(scaleCoachChatSystemPrompt()).toMatch(/progress bar/i);
+    expect(scaleCoachChatSystemPrompt()).toMatch(/Do not quote percents/i);
   });
 
   it("answers small talk without dumping the tip", () => {
     const ctx = buildScaleCoachChatContext(
       session,
-      "• Work A4\n• Lighten the finger",
-      "• Trending a bit sharp",
+      "• Work G3\n• Soften the thumb",
+      "• Trending a bit high",
     );
     const reply = localCoachChatReply("how is your day today", ctx);
-    expect(reply.toLowerCase()).toMatch(/good|thanks|ready/);
-    expect(reply).not.toMatch(/Work A4/);
+    expect(reply.toLowerCase()).toMatch(/good|help/);
+    expect(reply).not.toMatch(/Work G3/);
   });
 
   it("answers thanks without dumping the tip", () => {
     const ctx = buildScaleCoachChatContext(
       session,
-      "• Work A4\n• Lighten the finger",
-      "• Trending a bit sharp",
+      "• Work G3\n• Soften the thumb",
+      "• Trending a bit high",
     );
     const reply = localCoachChatReply("okay great thanks for that!", ctx);
     expect(reply).toMatch(/welcome/i);
-    expect(reply).not.toMatch(/^• Work A4$/m);
+    expect(reply).not.toMatch(/^• Work G3$/m);
   });
 
-  it("answers note questions with technique, not cents", () => {
+  it("tells them a clean full take fills the bar", () => {
     const ctx = buildScaleCoachChatContext(session, "• Tip", "• Trend");
-    const reply = localCoachChatReply("how do I fix A4?", ctx);
-    expect(reply).toMatch(/A4/i);
-    expect(reply).toMatch(/thumb|bow|soft|settle|high|sharp/i);
+    const reply = localCoachChatReply("how do I fill the progress bar?", ctx);
+    expect(reply).toMatch(/in tune|fills the bar/i);
+    expect(reply).not.toMatch(/%/);
+    expect(reply).not.toMatch(/G3/i);
+    expect(reply).not.toMatch(/3 times/i);
+  });
+
+  it("answers string+finger questions with kid-friendly technique", () => {
+    const ctx = buildScaleCoachChatContext(session, "• Tip", "• Trend");
+    const reply = localCoachChatReply("how do I fix G3?", ctx);
+    expect(reply).toMatch(/G3/i);
+    expect(reply).toMatch(/high|tape|bow|slow/i);
     expect(reply).not.toMatch(/\d+\s*cents/i);
   });
 
-  it("system prompt forbids quoting cents to the student", () => {
-    expect(scaleCoachChatSystemPrompt()).toMatch(/Never quote cents/i);
-    expect(scaleCoachChatSystemPrompt()).toMatch(/bow hair|thumb/i);
+  it("system prompt forbids cents and requires string+finger naming", () => {
+    const prompt = scaleCoachChatSystemPrompt();
+    expect(prompt).toMatch(/Never quote cents/i);
+    expect(prompt).toMatch(/string \+ finger/i);
+    expect(prompt).toMatch(/Fiddle Time|Viola Time/i);
+    expect(prompt).toMatch(/too high/i);
+    expect(prompt).toMatch(/cannot see/i);
+    expect(prompt).toMatch(/coloured notes on the staff/i);
+    expect(prompt).toMatch(/only when they ask/i);
   });
 
-  it("suggests concrete practice questions from weak notes", () => {
+  it("suggests short questions from this take", () => {
     const ctx = buildScaleCoachChatContext(
       session,
-      "• Work A4\n• Lighten the finger",
-      "• Trending a bit sharp",
+      "• G3 was a bit high",
+      "",
     );
-    const qs = coachSuggestedQuestions(ctx);
-    expect(qs[0]).toMatch(/A4/);
-    expect(qs.some((q) => /sharp/i.test(q))).toBe(true);
-    expect(qs).toHaveLength(3);
+    expect(coachSuggestedQuestions(ctx)).toEqual([
+      "How do I fix G3?",
+      "Why was it high?",
+    ]);
+    expect(coachSuggestedQuestions(ctx).join(" ")).not.toMatch(/3 times/i);
+
+    const perfect: ScalePracticeSessionV1 = {
+      ...session,
+      notes: [
+        {
+          ...session.notes[0]!,
+          centsDifference: 2,
+          intonationBucket: "in_tune",
+        },
+      ],
+      summary: {
+        ...session.summary,
+        overallScore0to100: 100,
+        inTunePercent: 100,
+        averageAbsCents: 2,
+        meanSignedCents: 1,
+        trend: "balanced",
+        weakestNoteIndices: [0],
+      },
+    };
+    const cleanCtx = buildScaleCoachChatContext(
+      perfect,
+      "• Every note was right on",
+      "",
+    );
+    expect(cleanCtx.weakNotes).toEqual([]);
+    expect(cleanCtx.greatStreak).toBe(1);
+    expect(cleanCtx.greatTakesNeeded).toBe(3);
+    expect(cleanCtx.barFull).toBe(true);
+    expect(coachSuggestedQuestions(cleanCtx)).toEqual([
+      "What should I try next?",
+    ]);
   });
 });

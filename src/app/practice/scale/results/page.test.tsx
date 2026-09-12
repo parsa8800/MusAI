@@ -1,14 +1,11 @@
 import { render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 
-vi.mock("next/link", () => ({
-  default: ({ href, children }: { href: string; children: React.ReactNode }) => (
-    <a href={href}>{children}</a>
-  ),
-}));
+const replace = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ replace, push: vi.fn() }),
 }));
 
 const readScalePracticeSessionMock = vi.fn();
@@ -20,45 +17,34 @@ vi.mock("@/lib/scalePracticeSession", () => ({
   formatScaleTakeSubtitle: () => "Detected · 1 octave",
 }));
 
-vi.mock("@/components/ScalePracticeResultsView", () => ({
-  ScalePracticeResultsView: ({
-    session,
-  }: {
-    session: { scaleLabel: string; summary: { overallScore0to100: number } };
-  }) => (
-    <div>
-      <h1>{session.scaleLabel}</h1>
-      <p>{session.summary.overallScore0to100}</p>
-    </div>
-  ),
-}));
-
 import ScalePracticeResultsPage from "@/app/practice/scale/results/page";
 
 describe("ScalePracticeResultsPage", () => {
+  beforeEach(() => {
+    replace.mockClear();
+  });
+
   it("renders a hydration-safe loading shell first", () => {
     readScalePracticeSessionMock.mockReturnValue(null);
     render(<ScalePracticeResultsPage />);
     expect(screen.getByText(/Loading…/i)).toBeInTheDocument();
   });
 
-  it("shows the empty state when there is no stored session", async () => {
+  it("sends an empty session back to Scale studio", async () => {
     readScalePracticeSessionMock.mockReturnValue(null);
     render(<ScalePracticeResultsPage />);
-    expect(await screen.findByText(/No take yet/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Scale studio/i })).toHaveAttribute(
-      "href",
-      "/practice/scale",
-    );
+    await waitFor(() => {
+      expect(replace).toHaveBeenCalledWith("/practice/scale");
+    });
   });
 
-  it("shows the results view when a session exists", async () => {
+  it("opens the matching scale page when a session exists", async () => {
     readScalePracticeSessionMock.mockReturnValue({
       schemaVersion: 1,
       sessionId: "s1",
       exerciseType: "scale_practice",
       recordedAt: "2026-01-01T00:00:00.000Z",
-      scaleId: "pc0-major",
+      scaleId: "C_major",
       scaleLabel: "C major",
       scaleKind: "major",
       tonicPitchClass: 0,
@@ -68,19 +54,7 @@ describe("ScalePracticeResultsPage", () => {
       expectedNotesMidi: [60],
       audioSourceType: "uploaded",
       sampleRateHz: 48000,
-      notes: [
-        {
-          noteIndex: 0,
-          expectedMidi: 60,
-          expectedNoteLabel: "C4",
-          detectedMidi: 60,
-          detectedNoteLabel: "C4",
-          detectedHz: 261.6,
-          centsDifference: 0,
-          intonationBucket: "in_tune",
-          missingData: false,
-        },
-      ],
+      notes: [],
       summary: {
         overallScore0to100: 90,
         averageAbsCents: 4.2,
@@ -95,8 +69,7 @@ describe("ScalePracticeResultsPage", () => {
 
     render(<ScalePracticeResultsPage />);
     await waitFor(() => {
-      expect(screen.getByText(/C major/i)).toBeInTheDocument();
+      expect(replace).toHaveBeenCalledWith("/practice/scale/c-major-1oct?root=60");
     });
-    expect(screen.getByText("90")).toBeInTheDocument();
   });
 });

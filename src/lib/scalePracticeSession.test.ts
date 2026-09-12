@@ -10,6 +10,7 @@ import {
   readScalePracticeHistoryEntry,
   readScalePracticeSession,
   removeScalePracticeHistoryEntry,
+  resetScaleProgressJourney,
 } from "@/lib/scalePracticeSession";
 import { listScaleProgressJourneys } from "@/lib/scaleProgressHistory";
 import type { ScalePracticeSessionV1 } from "@/lib/scalePracticeTypes";
@@ -162,5 +163,26 @@ describe("scalePracticeSession history", () => {
     clearScalePracticeHistory();
     expect(readScalePracticeSession()).toBeNull();
     expect(listScalePracticeHistory()).toHaveLength(0);
+  });
+
+  it("resetScaleProgressJourney removes that scale and its current session", () => {
+    persistScalePracticeSession(makeSession({ sessionId: "c1", scaleId: "C_major" }));
+    persistScalePracticeSession(
+      makeSession({
+        sessionId: "d1",
+        scaleId: "D_major",
+        scaleLabel: "D major",
+        tonicPitchClass: 2,
+      }),
+    );
+    expect(readScalePracticeSession()?.sessionId).toBe("d1");
+    resetScaleProgressJourney("C_major__1");
+    expect(listScaleProgressJourneys().map((j) => j.progressKey)).toEqual([
+      "D_major__1",
+    ]);
+    expect(readScalePracticeSession()?.sessionId).toBe("d1");
+    resetScaleProgressJourney("D_major__1");
+    expect(listScaleProgressJourneys()).toHaveLength(0);
+    expect(readScalePracticeSession()).toBeNull();
   });
 });

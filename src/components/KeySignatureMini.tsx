@@ -17,8 +17,45 @@ function notationColors() {
   };
 }
 
+const SIZE = {
+  sm: {
+    width: 138,
+    height: 38,
+    lineSpacing: 5.15,
+    staveY: 3,
+    box: "h-[2.15rem] w-[7.35rem]",
+    viewW: 118,
+  },
+  md: {
+    width: 118,
+    height: 52,
+    lineSpacing: 6.2,
+    staveY: 2,
+    box: "h-[2.65rem] w-[6.1rem]",
+    viewW: null,
+  },
+  row: {
+    width: 156,
+    height: 40,
+    lineSpacing: 5.25,
+    staveY: 3,
+    box: "h-[2.35rem] w-[8.35rem]",
+    viewW: 128,
+  },
+  lg: {
+    width: 148,
+    height: 64,
+    lineSpacing: 7.4,
+    staveY: 4,
+    box: "h-[3.35rem] w-[7.75rem]",
+    viewW: null,
+  },
+} as const;
+
 /**
  * Real VexFlow treble clef + key signature — same engraving as the staff notes.
+ * Browser sizes (sm/row) share a fixed viewBox so 1 sharp and 6 sharps
+ * stay at the same scale instead of each signature filling the box.
  */
 export function KeySignatureMini({
   option,
@@ -29,14 +66,11 @@ export function KeySignatureMini({
   option: TonicAccidentalOption;
   scaleKind: ScaleKind;
   className?: string;
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "row" | "lg";
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [themeKey, setThemeKey] = useState("light");
-  const width = size === "lg" ? 148 : size === "md" ? 118 : 72;
-  const height = size === "lg" ? 64 : size === "md" ? 52 : 36;
-  const lineSpacing = size === "lg" ? 7.4 : size === "md" ? 6.2 : 4.2;
-  const staveY = size === "lg" ? 4 : size === "md" ? 2 : 1;
+  const { width, height, lineSpacing, staveY, box, viewW } = SIZE[size];
 
   useEffect(() => {
     const sync = () => {
@@ -86,10 +120,10 @@ export function KeySignatureMini({
       ctx.setStrokeStyle(stroke);
       ctx.setBackgroundFillStyle("transparent");
 
-      const stave = new Stave(2, staveY, width - 6, {
+      const stave = new Stave(1, staveY, width - 2, {
         spacingBetweenLinesPx: lineSpacing,
-        spaceAboveStaffLn: 0.45,
-        spaceBelowStaffLn: 0.45,
+        spaceAboveStaffLn: 1.35,
+        spaceBelowStaffLn: 1.05,
       });
       stave.setStyle({ fillStyle: fill, strokeStyle: stroke });
       stave.addClef("treble");
@@ -100,6 +134,8 @@ export function KeySignatureMini({
       if (svg) {
         svg.setAttribute("width", "100%");
         svg.setAttribute("height", "100%");
+        svg.style.width = "100%";
+        svg.style.height = "100%";
         svg.style.display = "block";
         svg.style.overflow = "visible";
         svg.querySelectorAll("[fill], [stroke]").forEach((el) => {
@@ -113,14 +149,25 @@ export function KeySignatureMini({
           }
         });
         try {
-          const box = svg.getBBox();
-          if (box.width > 0 && box.height > 0) {
-            const pad = 3;
+          if (viewW != null) {
+            const top = stave.getYForLine(0) - lineSpacing * 1.7;
+            const bottom = stave.getYForLine(4) + lineSpacing * 1.55;
             svg.setAttribute(
               "viewBox",
-              `${box.x - pad} ${box.y - pad} ${box.width + pad * 2} ${box.height + pad * 2}`,
+              `0.5 ${top} ${viewW} ${bottom - top}`,
             );
-            svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+            svg.setAttribute("preserveAspectRatio", "xMinYMid meet");
+          } else {
+            const box = svg.getBBox();
+            if (box.width > 0 && box.height > 0) {
+              const padX = 3;
+              const y = staveY - lineSpacing * 1.55;
+              const h = lineSpacing * 7.35;
+              const x = Math.min(box.x, 1) - padX;
+              const w = Math.max(box.width + padX * 2, width * 0.7);
+              svg.setAttribute("viewBox", `${x} ${y} ${w} ${h}`);
+              svg.setAttribute("preserveAspectRatio", "xMinYMid meet");
+            }
           }
         } catch {
           /* ignore */
@@ -137,22 +184,17 @@ export function KeySignatureMini({
     lineSpacing,
     option.pitchClass,
     scaleKind,
+    size,
     staveY,
     themeKey,
+    viewW,
     width,
   ]);
-
-  const boxClass =
-    size === "lg"
-      ? "h-[3.35rem] w-[7.75rem]"
-      : size === "md"
-        ? "h-[2.65rem] w-[6.1rem]"
-        : "h-[1.7rem] w-[3.6rem]";
 
   return (
     <div
       ref={hostRef}
-      className={`musai-key-btn__sig-host block shrink-0 overflow-hidden ${boxClass} ${className}`.trim()}
+      className={`musai-key-btn__sig-host musai-key-sig-preview block shrink-0 ${box} ${className}`.trim()}
       aria-hidden
     />
   );

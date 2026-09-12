@@ -6,18 +6,15 @@ import { InfoPopover, InfoPopoverScanLines } from "@/components/InfoPopover";
 import { ScalePitchCueKey } from "@/components/ScalePitchCueKey";
 import { useScalePracticeInfo } from "@/components/scalePracticeInfoContext";
 import { ScaleTrebleStaff } from "@/components/ScaleTrebleStaff";
-import type { ScalePracticeGuideModel } from "@/lib/scalePracticeGuide";
+import {
+  scaleRecordingTips,
+  type ScalePracticeGuideModel,
+} from "@/lib/scalePracticeGuide";
 import type { ScaleKind } from "@/lib/scales";
 import { workspaceTitle } from "@/lib/scaleWorkspace";
 import { MUSAI_DUR, MUSAI_EASE, prefersReducedMotion } from "@/lib/motion";
 
 const INFO_ID = "scale-guide";
-
-const SCALE_QUICK_TIPS = [
-  "Up to the top, then down",
-  "Keep the beat steady",
-  "Don’t skip notes",
-];
 
 export function ScaleGuidePanel({
   guide,
@@ -30,8 +27,6 @@ export function ScaleGuidePanel({
   compact = false,
   density = "default",
   showSectionLabels = true,
-  focusStrong,
-  focusNext,
 }: {
   guide: ScalePracticeGuideModel;
   exerciseMidis: number[];
@@ -47,10 +42,6 @@ export function ScaleGuidePanel({
   density?: "default" | "pad";
   /** Hide Ascending / Descending captions on the staff. */
   showSectionLabels?: boolean;
-  /** Short “what went well” under the staff after a take. */
-  focusStrong?: string | null;
-  /** Short “what to work on” under the staff after a take. */
-  focusNext?: string | null;
 }) {
   const ascendingMidis = exerciseMidis.slice(0, guide.ascendingCount);
   const descendingMidis = exerciseMidis.slice(guide.ascendingCount);
@@ -105,7 +96,7 @@ export function ScaleGuidePanel({
     >
       <div
         className={`relative flex shrink-0 items-start justify-center ${
-          pad ? "px-4" : compact ? "px-6" : "px-8 sm:px-10"
+          pad ? "px-2" : compact ? "px-2 sm:px-3" : "px-4 sm:px-6"
         }`}
       >
         <div className="min-w-0 text-center">
@@ -128,9 +119,9 @@ export function ScaleGuidePanel({
           onMouseDown={(e) => e.stopPropagation()}
         >
           <InfoPopover
-            title="Tips"
+            title="Before you record"
             titleAccent="zinc"
-            ariaLabel="Scale practice details"
+            ariaLabel="How to record this scale"
             open={infoOpen}
             onOpenChange={(next) => {
               if (next === infoOpen) return;
@@ -139,7 +130,9 @@ export function ScaleGuidePanel({
             }}
             stopTriggerPointerDown
           >
-            <InfoPopoverScanLines lines={SCALE_QUICK_TIPS} />
+            <InfoPopoverScanLines
+              lines={scaleRecordingTips(descendingMidis.length > 0)}
+            />
           </InfoPopover>
         </div>
       </div>
@@ -165,30 +158,6 @@ export function ScaleGuidePanel({
 
       {showFeedbackLegend ? (
         <ScalePitchCueKey compact={tight} />
-      ) : null}
-
-      {focusStrong || focusNext ? (
-        <div
-          className="shrink-0 space-y-2 px-1 text-center sm:px-2"
-          aria-label="Take focus"
-        >
-          {focusStrong ? (
-            <p className="text-[14px] leading-snug text-[var(--musai-ink)] sm:text-[15px]">
-              <span className="font-semibold text-[var(--musai-ok)]">Strong</span>
-              <span className="mx-1.5 text-[var(--musai-border)]">·</span>
-              {focusStrong}
-            </p>
-          ) : null}
-          {focusNext ? (
-            <p className="text-[15px] font-medium leading-snug text-[var(--musai-ink)] sm:text-[16px]">
-              <span className="font-semibold text-[var(--musai-key-sharp)]">
-                Work on
-              </span>
-              <span className="mx-1.5 text-[var(--musai-border)]">·</span>
-              {focusNext}
-            </p>
-          ) : null}
-        </div>
       ) : null}
     </div>
   );

@@ -1,13 +1,6 @@
 import type { ScalePracticeSessionV1 } from "@/lib/scalePracticeTypes";
 import { buildScaleCoachingFeedback } from "@/lib/scalePracticeCopy";
-import { violinStepReference } from "@/lib/violinScaleReference";
-
-/** Convert letter note name (C4, E5) to string+finger format (A2, D3) */
-function noteToStringFinger(midi: number): string {
-  const ref = violinStepReference(midi);
-  const finger = ref.halfStepsFromOpen === 0 ? "0" : String(ref.halfStepsFromOpen);
-  return `${ref.stringLetter}${finger}`;
-}
+import { violinStringFingerLabel } from "@/lib/violinScaleReference";
 
 /** Compact measured facts for an LLM — no audio, no secrets. */
 export type ScaleCoachingLlmPayload = {
@@ -55,9 +48,8 @@ export function buildScaleCoachingLlmPayload(
         n.centsLabel === "—"
           ? null
           : Number.parseFloat(n.centsLabel.replace("¢", ""));
-      // Convert note label to string+finger format (A2, D3, etc.)
-      const midi = session.notes[n.index]?.expectedMidi ?? 60;
-      const stringFingerLabel = noteToStringFinger(midi);
+      const midi = session.notes[n.noteIndex]?.expectedMidi ?? 60;
+      const stringFingerLabel = violinStringFingerLabel(midi);
       return {
         label: stringFingerLabel,
         pitchCue: pitchCueForNote({
@@ -75,35 +67,32 @@ export function buildScaleCoachingLlmPayload(
 
 export function scaleCoachingSystemPrompt(): string {
   return [
-    "You are a friendly violin/viola teacher giving post-practice feedback to students (including children).",
-    "The student already sees colour-coded notes on a staff (green/yellow/red).",
-    "Reply with JSON only: {\"trendLine\":\"...\",\"tip\":\"...\"}",
-    "Both trendLine and tip MUST be short bullet lists using the • character, one bullet per line.",
-    "trendLine: 1 or 2 bullets about sharp/flat/centred bias in simple language kids understand.",
-    "tip: 2 or 3 bullets naming the worst notes (using string+finger format like A2, D3) and one technique fix each.",
+    "You are a friendly violin/viola teacher helping kids after a scale take.",
+    "You only know measured pitch from the recording. You cannot see their hands, bow, or posture. Never claim you saw how they played.",
+    "The student already sees coloured notes and arrows on the staff. That is the detailed feedback.",
+    "Arrows on the staff mean what to try next: down means play that note lower, up means play it higher.",
+    "Your job is a short opener only. Do not lecture. Do not list every note.",
+    "Reply with JSON only: {\"trendLine\":\"\",\"tip\":\"...\"}",
+    "trendLine must be empty. tip uses • bullets, one per line.",
+    "HARD LIMIT: tip = 1 bullet normally. 2 bullets only for a major pattern.",
     "",
-    "IMPORTANT NOTE NAMING: Always use string name + finger number (A2 = A string 2nd finger, D3 = D string 3rd finger).",
-    "Never use letter note names like C4, F#4, E5. Always say G1, A2, D0 (open string), etc.",
+    "CLEAN TAKE RULE (very important): If inTunePercent is 90 or higher AND weakNotes is empty, this was excellent.",
+    "Then tip is one celebrate line (Every note was right on).",
+    "The progress bar fills a little more after each clean complete take, slower as it gets close to full. Do not mention that in the opener.",
+    "On a clean take NEVER say mostly right, tape, finger, 3 notes slowly, Work on, percents, or any fix.",
     "",
-    "PITCH LANGUAGE (kid-friendly): Say 'too high', 'too low', 'a bit high', 'a bit low', 'a hair too high'.",
-    "If they overcorrect, say 'meet in the middle between your first try and this one'.",
+    "If there ARE a few weak notes:",
+    "tip = exactly 1 bullet. Name at most 2 notes as string+finger plus a bit high / a bit low / hard to hear.",
+    "Example: D1 was a bit high. Do not add a Try line. The staff already shows the rest.",
     "",
-    "INTONATION FIXES:",
-    "- Sharp notes: 'Check finger is on or below the tape, not above the line.' If all notes sharp: 'Thumb is tense, relax it and move away from scroll toward first finger position.'",
-    "- Flat notes: 'Raise the finger placement.'",
-    "- For semitones (close fingers): Mention which fingers should be next to each other. Example: '1st and 2nd finger close together' or 'Place 2nd finger next to 1st.'",
+    "MAJOR PATTERN only (2 bullets): almost all notes off, huge error, every note on one string off, or hard to hear.",
+    "Stay humble. Never claim you saw thumb, posture, or bow.",
+    "Prefer simple kid words. Avoid intonation, bias, placement, technique, noticeably, centred.",
     "",
-    "BOW & TONE FIXES:",
-    "- Unclear tone: 'Use flat bow with all hair on string. Keep bow between bridge and fingerboard. Relax upper arm, let forearm do the work.'",
-    "- Scratchy sound: 'Bow too close to bridge, move toward fingerboard.'",
-    "- Weak sound: 'Bow too close to fingerboard, move toward bridge.'",
+    "NOTE NAMES: string + finger only. Prefer E0 not A4. Never C4 or F#4.",
     "",
-    "ENCOURAGEMENT: Be supportive and friendly, but don't overdo positivity. Reserve praise for real progress.",
-    "If they're close, let them know. If losing momentum, break problems into smaller tasks and be energizing.",
-    "",
-    "Each bullet max ~14 words. Use simple language. No paragraphs. No markdown.",
-    "Never use hyphens or dashes (no -, –, or —). Use commas or new bullets instead.",
-    "Use only the measured facts provided. Do not invent notes.",
+    "Each bullet max ~12 easy words. No paragraphs. No markdown.",
+    "Never use hyphens or dashes (no -, –, or —).",
+    "Use only the measured facts. Do not invent notes.",
   ].join(" ");
 }
-

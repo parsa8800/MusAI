@@ -6,8 +6,10 @@ import {
   buildScaleCoachChatContext,
   coachSuggestedQuestions,
 } from "@/lib/scaleCoachChat";
-import { ensureBulletFeedback, sanitizeCoachFeedback } from "@/lib/scalePracticeCopy";
+import { ensureBulletFeedback, sanitizeCoachFeedback, takeCoachBullets } from "@/lib/scalePracticeCopy";
 import type { ScalePracticeSessionV1 } from "@/lib/scalePracticeTypes";
+import { useCoachSpeechInput } from "@/hooks/useCoachSpeechInput";
+import { tapFeedback } from "@/lib/motion";
 
 function usePrefersReducedMotion(): boolean {
   const [reduced, setReduced] = useState(() => {
@@ -66,10 +68,10 @@ function StreamingCaret() {
 
 function ThinkingIndicator() {
   return (
-    <div className="inline-flex items-center gap-1.5 py-0.5" aria-label="Thinking">
-      <span className="musai-chat-thinking-shimmer text-[15px] font-medium tracking-tight">
-        Thinking
-      </span>
+    <div className="musai-coach-typing" aria-label="Thinking">
+      <i aria-hidden />
+      <i aria-hidden />
+      <i aria-hidden />
     </div>
   );
 }
@@ -92,11 +94,63 @@ type UserMsg = {
 
 type ThreadMsg = AssistantMsg | UserMsg;
 
-function UserBubble({ text }: { text: string }) {
+export type CoachBubbleSize = "seed" | "open" | "thread";
+
+/** Tiny opener, then the bubble inflates as they keep talking. */
+export function coachBubbleSize(
+  userTurns: number,
+  awaitingReply = false,
+): CoachBubbleSize {
+  if (userTurns <= 0) return awaitingReply ? "open" : "seed";
+  if (userTurns === 1) return "open";
+  return "thread";
+}
+
+function UserBubble({ text, compact }: { text: string; compact?: boolean }) {
   return (
-    <div className="flex justify-end px-1">
-      <div className="max-w-[85%] rounded-[22px] border border-[var(--musai-border)] bg-[var(--musai-accent-soft)] px-[18px] py-[10px] text-[15px] leading-6 text-[var(--musai-ink)] sm:max-w-[70%]">
+    <div className="flex justify-end">
+      <div
+        className={`max-w-[90%] rounded-[1.15rem] bg-[var(--musai-surface-2)] text-[var(--musai-ink)] ${
+          compact
+            ? "px-3 py-2 text-[14.5px] leading-6"
+            : "px-3.5 py-2.5 text-[15px] leading-6 sm:max-w-[70%]"
+        }`}
+      >
         {text}
+      </div>
+    </div>
+  );
+}
+
+function PromptChips({
+  questions,
+  disabled,
+  onPick,
+  pad,
+}: {
+  questions: string[];
+  disabled: boolean;
+  onPick: (q: string) => void;
+  pad: "embed" | "page";
+}) {
+  return (
+    <div
+      className={pad === "embed" ? "shrink-0 px-4 pb-3" : "pt-1"}
+      role="group"
+      aria-label="Suggested questions"
+    >
+      <div className="flex flex-col gap-1.5">
+        {questions.map((q) => (
+          <button
+            key={q}
+            type="button"
+            disabled={disabled}
+            onClick={() => onPick(q)}
+            className="musai-coach-prompt"
+          >
+            {q}
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -164,11 +218,13 @@ function AssistantTurn({
   stream,
   showThinking,
   onStreamDone,
+  compact = false,
 }: {
   text: string;
   stream: boolean;
   showThinking: boolean;
   onStreamDone?: () => void;
+  compact?: boolean;
 }) {
   const reduce = usePrefersReducedMotion();
   const [phase, setPhase] = useState<"thinking" | "typing" | "done">(
@@ -201,28 +257,22 @@ function AssistantTurn({
   const lines = display.split("\n").filter(Boolean);
 
   return (
-    <div className="min-w-0 px-1">
+    <div className={compact ? "" : "min-w-0"}>
       {phase === "thinking" ? (
         <ThinkingIndicator />
       ) : (
-        <ul className="list-none space-y-2.5 text-[16px] leading-7 text-[var(--musai-ink)]">
+        <div className="musai-coach-msg text-[15px] leading-[1.55] text-[var(--musai-ink)]">
           {lines.map((line, i) => {
             const body = line.replace(/^•\s*/, "");
             const isLast = i === lines.length - 1;
             return (
-              <li key={`${i}-${body.slice(0, 12)}`} className="flex gap-2.5">
-                <span
-                  className="mt-[0.55em] h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--musai-accent)]"
-                  aria-hidden
-                />
-                <span className="min-w-0 flex-1 whitespace-pre-wrap">
-                  {body}
-                  {typing && isLast ? <StreamingCaret /> : null}
-                </span>
-              </li>
+              <p key={`${i}-${body.slice(0, 12)}`} className={i > 0 ? "mt-2" : ""}>
+                {body}
+                {typing && isLast ? <StreamingCaret /> : null}
+              </p>
             );
           })}
-        </ul>
+        </div>
       )}
     </div>
   );
@@ -240,6 +290,8 @@ type Props = {
   embed?: boolean;
   /** Sidebar heading when embedded. */
   title?: string;
+  /** Loop takes so the coach knows the progress bar streak. */
+  loopAttempts?: ScalePracticeSessionV1[];
 };
 
 /**
@@ -254,6 +306,7 @@ export function CoachChatPanel({
   initialError = null,
   embed = false,
   title = "Coach · Parsa",
+  loopAttempts,
 }: Props) {
   const reduce = usePrefersReducedMotion();
   const formId = useId();
@@ -266,6 +319,13 @@ export function CoachChatPanel({
   const [coachSource, setCoachSource] = useState<ReplySource>(
     initialSource ?? "template",
   );
+  const [inflate, setInflate] = useState(false);
+  const bubbleSizeRef = useRef<CoachBubbleSize>("seed");
+
+  const speech = useCoachSpeechInput({
+    disabled: !bootDone || busy,
+    onTranscript: setDraft,
+  });
 
   useEffect(() => {
     setCoachSource(initialSource ?? "template");
@@ -273,6 +333,7 @@ export function CoachChatPanel({
 
   useEffect(() => {
     if (!start) {
+      speech.stop();
       setMessages([]);
       setBootDone(false);
       setBusy(false);
@@ -281,8 +342,9 @@ export function CoachChatPanel({
       return;
     }
 
-    const initial = ensureBulletFeedback(
+    const initial = takeCoachBullets(
       [trendLine, tip].filter(Boolean).join("\n"),
+      2,
     );
     setMessages([
       {
@@ -306,6 +368,7 @@ export function CoachChatPanel({
     e.preventDefault();
     const userText = sanitizeCoachFeedback(draft.trim());
     if (!userText || busy || !bootDone) return;
+    speech.stop();
     setDraft("");
     await sendUserMessage(userText);
   }
@@ -325,7 +388,12 @@ export function CoachChatPanel({
     setAwaitingReply(true);
     setMessages((prev) => [...prev, userMsg]);
 
-    const ctx = buildScaleCoachChatContext(session, tip, trendLine);
+    const ctx = buildScaleCoachChatContext(
+      session,
+      tip,
+      trendLine,
+      loopAttempts,
+    );
     let answer = localCoachChatReply(userText, ctx);
     let replySource: ReplySource = "template";
 
@@ -337,6 +405,7 @@ export function CoachChatPanel({
           session,
           tip,
           trendLine,
+          loopAttempts,
           messages: historyForApi,
         }),
       });
@@ -370,45 +439,77 @@ export function CoachChatPanel({
     ]);
   }
 
+  const userTurns = messages.filter((m) => m.role === "user").length;
+  const bubbleSize = coachBubbleSize(userTurns, awaitingReply);
+
+  useEffect(() => {
+    const rank: Record<CoachBubbleSize, number> = {
+      seed: 0,
+      open: 1,
+      thread: 2,
+    };
+    const grew = rank[bubbleSize] > rank[bubbleSizeRef.current];
+    bubbleSizeRef.current = bubbleSize;
+    if (!grew || reduce) {
+      setInflate(false);
+      return;
+    }
+    setInflate(true);
+    const t = window.setTimeout(() => setInflate(false), 720);
+    return () => window.clearTimeout(t);
+  }, [bubbleSize, reduce]);
+
   if (!start) return null;
 
   const canSend = bootDone && !busy && Boolean(draft.trim());
   const showPreviewDot = coachSource !== "llm";
   const suggestions = coachSuggestedQuestions(
-    buildScaleCoachChatContext(session, tip, trendLine),
+    buildScaleCoachChatContext(session, tip, trendLine, loopAttempts),
   );
-  const showSuggestions = bootDone && !busy && messages.length <= 1;
+  const showSuggestions =
+    bootDone && !busy && messages.length <= 1 && suggestions.length > 0;
 
   return (
     <div
       className={
         embed
-          ? "flex h-full min-h-0 w-full flex-col text-left"
+          ? `musai-coach-bubble musai-coach-bubble--${bubbleSize}${
+              inflate ? " musai-coach-bubble--inflate" : ""
+            } h-full min-h-0 text-left`
           : "musai-rv-actions mx-auto mt-10 w-full max-w-[48rem] text-left"
       }
       data-testid="coach-chat"
+      data-coach-size={embed ? bubbleSize : undefined}
       role="log"
       aria-live="polite"
       aria-relevant="additions"
     >
-      <div
-        className={
-          embed
-            ? "flex min-h-0 flex-1 flex-col space-y-5 overflow-y-auto px-1"
-            : "space-y-7 border-t border-[var(--musai-border)] pt-8"
-        }
-      >
-        {embed ? (
-          <p className="font-display text-lg font-semibold tracking-tight text-[var(--musai-ink)]">
+      {embed ? (
+        <header className="flex shrink-0 items-center gap-2.5 px-4 pb-1 pt-3.5">
+          <span
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--musai-surface-2)] text-[11px] font-medium text-[var(--musai-muted)]"
+            aria-hidden
+          >
+            P
+          </span>
+          <p className="text-[14px] font-medium tracking-[-0.01em] text-[var(--musai-ink)]">
             <span className="inline-flex items-center">
               {title}
               {showPreviewDot ? <PreviewCoachDot /> : null}
             </span>
           </p>
-        ) : null}
+        </header>
+      ) : null}
+      <div
+        className={
+          embed
+            ? "musai-scroll min-h-0 flex-1 overflow-y-auto px-4 py-3 space-y-4"
+            : "space-y-6 border-t border-[var(--musai-border)] pt-8"
+        }
+      >
         {messages.map((msg, idx) => {
           if (msg.role === "user") {
-            return <UserBubble key={msg.id} text={msg.text} />;
+            return <UserBubble key={msg.id} text={msg.text} compact={embed} />;
           }
           const isLatestAssistant =
             !awaitingReply &&
@@ -419,6 +520,7 @@ export function CoachChatPanel({
               text={msg.text}
               stream={msg.stream}
               showThinking={idx === 0}
+              compact={embed}
               onStreamDone={
                 isLatestAssistant
                   ? () => {
@@ -431,41 +533,85 @@ export function CoachChatPanel({
           );
         })}
 
-        {awaitingReply ? (
-          <div className="px-1">
-            <ThinkingIndicator />
-          </div>
-        ) : null}
+        {awaitingReply ? <ThinkingIndicator /> : null}
 
-        {showSuggestions ? (
-          <div
-            className="flex flex-wrap gap-1.5 px-1 pt-1"
-            role="group"
-            aria-label="Suggested questions"
-          >
-            {suggestions.map((q) => (
-              <button
-                key={q}
-                type="button"
-                disabled={!bootDone || busy}
-                onClick={() => void sendUserMessage(q)}
-                className="rounded-full border border-[var(--musai-border)] bg-[var(--musai-surface-2)] px-2.5 py-1 text-left text-[11px] font-medium leading-snug text-[var(--musai-ink)] transition hover:border-[var(--musai-accent)] hover:bg-[var(--musai-accent-soft)] disabled:opacity-40"
-              >
-                {q}
-              </button>
-            ))}
-          </div>
+        {!embed && showSuggestions ? (
+          <PromptChips
+            questions={suggestions}
+            disabled={!bootDone || busy}
+            onPick={(q) => void sendUserMessage(q)}
+            pad="page"
+          />
         ) : null}
 
         <div ref={bottomRef} />
       </div>
 
+      {embed && showSuggestions ? (
+        <PromptChips
+          questions={suggestions}
+          disabled={!bootDone || busy}
+          onPick={(q) => void sendUserMessage(q)}
+          pad="embed"
+        />
+      ) : null}
+
       <form
         id={formId}
         onSubmit={onSubmit}
-        className={embed ? "mt-3 shrink-0 pt-2" : "sticky bottom-0 pt-3"}
+        className={
+          embed
+            ? "shrink-0 px-3 pb-3 pt-1"
+            : "sticky bottom-0 pt-3"
+        }
       >
-        <div className="flex items-center gap-2 rounded-[28px] border border-[var(--musai-border)] bg-[var(--musai-surface-2)] px-3 py-2 shadow-[var(--musai-shadow)]">
+        <div
+          className={`flex items-end rounded-[var(--musai-radius-lg)] border border-[var(--musai-glass-stroke)] bg-[var(--musai-glass-fill)] ${
+            embed
+              ? "gap-1 px-1.5 py-1"
+              : "gap-1.5 px-2 py-1.5 sm:px-2.5"
+          }`}
+        >
+          {speech.supported ? (
+            <button
+              type="button"
+              disabled={!bootDone || busy}
+              aria-pressed={speech.listening}
+              aria-label={
+                speech.listening ? "Stop voice input" : "Speak your question"
+              }
+              title={speech.listening ? "Stop" : "Speak"}
+              onClick={() => {
+                tapFeedback(speech.listening ? "medium" : "light");
+                speech.toggle(draft);
+              }}
+            className={`musai-pressable musai-coach-mic inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition disabled:opacity-55 ${
+                speech.listening
+                  ? "musai-coach-mic--live bg-[var(--musai-accent-soft)] text-[var(--musai-accent)]"
+                  : "text-[var(--musai-muted)] hover:bg-[var(--musai-surface-2)] hover:text-[var(--musai-ink)]"
+              }`}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="h-[1.05rem] w-[1.05rem]"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.85"
+                aria-hidden
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 3.75a2.75 2.75 0 0 0-2.75 2.75v5a2.75 2.75 0 1 0 5.5 0v-5A2.75 2.75 0 0 0 12 3.75Z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M7.5 11.25a4.5 4.5 0 0 0 9 0M12 15.75v3.5m-2.75 0h5.5"
+                />
+              </svg>
+            </button>
+          ) : null}
           <label className="sr-only" htmlFor={`${formId}-input`}>
             Message
           </label>
@@ -474,7 +620,7 @@ export function CoachChatPanel({
             rows={1}
             value={draft}
             disabled={!bootDone || busy}
-            placeholder="Ask anything"
+            placeholder={speech.listening ? "Listening…" : "Ask your coach..."}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
@@ -482,13 +628,21 @@ export function CoachChatPanel({
                 e.currentTarget.form?.requestSubmit();
               }
             }}
-            className="max-h-32 min-h-[36px] flex-1 resize-none bg-transparent py-2 text-[15px] leading-6 text-[var(--musai-ink)] outline-none placeholder:text-[var(--musai-muted)] disabled:opacity-50"
+            className={`flex-1 resize-none bg-transparent text-[var(--musai-ink)] outline-none placeholder:text-[var(--musai-muted)] disabled:opacity-50 ${
+              embed
+                ? "max-h-28 min-h-[34px] py-1.5 text-[14.5px] leading-6"
+                : "max-h-32 min-h-[36px] py-2 text-[15px] leading-6"
+            }`}
           />
           <button
             type="submit"
             disabled={!canSend}
             aria-label="Send"
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--musai-accent)] text-[#fffcf8] transition enabled:hover:brightness-105 disabled:opacity-40"
+            className={`musai-pressable inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition ${
+              canSend
+                ? "bg-[var(--musai-ink)] text-[var(--musai-surface)]"
+                : "bg-transparent text-[var(--musai-muted)] opacity-55"
+            }`}
           >
             <svg
               viewBox="0 0 24 24"

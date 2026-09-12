@@ -5,7 +5,6 @@ import {
   VIOLIN_STRINGS,
   type ViolinStringId,
 } from "@/lib/violinTuner";
-import type { NoteVisualTone } from "@/lib/scaleNoteVisual";
 
 type StringVisualState = "idle" | "active" | "holding" | "tuned";
 
@@ -43,21 +42,21 @@ function stringState(
 
 function stringStroke(
   state: StringVisualState,
-  liveTone: NoteVisualTone | null,
+  liveDirection: "low" | "high" | "in_tune" | "unclear" | null,
   isLive: boolean,
 ): { color: string; width: number; opacity: number } {
   if (state === "tuned") {
     return { color: "var(--musai-ok)", width: 2.2, opacity: 1 };
   }
   if (isLive) {
-    if (liveTone === "good") {
+    if (liveDirection === "in_tune") {
       return { color: "var(--musai-ok)", width: 2.4, opacity: 1 };
     }
-    if (liveTone === "slight") {
-      return { color: "var(--musai-warn)", width: 2.35, opacity: 1 };
+    if (liveDirection === "low") {
+      return { color: "var(--musai-pitch-low)", width: 2.45, opacity: 1 };
     }
-    if (liveTone === "bad") {
-      return { color: "var(--musai-accent-2)", width: 2.4, opacity: 1 };
+    if (liveDirection === "high") {
+      return { color: "var(--musai-pitch-high)", width: 2.45, opacity: 1 };
     }
     return { color: "var(--musai-ink)", width: 2.3, opacity: 1 };
   }
@@ -83,14 +82,14 @@ function stringPath(x: number, wobble: number): string {
 export function ViolinTunerFigure({
   activeId,
   tuned,
-  liveTone,
+  liveDirection,
   holdingId,
   holdProgress,
   wavePhase,
 }: {
   activeId: ViolinStringId | null;
   tuned: ReadonlySet<ViolinStringId>;
-  liveTone: NoteVisualTone | null;
+  liveDirection: "low" | "high" | "in_tune" | "unclear" | null;
   holdingId: ViolinStringId | null;
   holdProgress: number;
   wavePhase: number;
@@ -127,10 +126,10 @@ export function ViolinTunerFigure({
           const x = XS[i]!;
           const state = stringState(s.id, activeId, tuned, holdingId);
           const isLive = activeId === s.id;
-          const stroke = stringStroke(state, isLive ? liveTone : null, isLive);
+          const stroke = stringStroke(state, isLive ? liveDirection : null, isLive);
           const vibrating = isLive && !reducedMotion;
           const amp =
-            liveTone === "bad" ? 5.5 : liveTone === "slight" ? 4 : 2.8;
+            liveDirection === "low" || liveDirection === "high" ? 5.2 : 2.8;
           const wobble = vibrating
             ? Math.sin(wavePhase * Math.PI * 2) * amp
             : 0;
@@ -139,9 +138,15 @@ export function ViolinTunerFigure({
           const labelFill =
             state === "tuned"
               ? "var(--musai-ok)"
-              : isLive
-                ? "var(--musai-ink)"
-                : "var(--musai-muted)";
+              : isLive && liveDirection === "in_tune"
+                ? "var(--musai-ok)"
+                : isLive && liveDirection === "low"
+                  ? "var(--musai-pitch-low)"
+                  : isLive && liveDirection === "high"
+                    ? "var(--musai-pitch-high)"
+                    : isLive
+                      ? "var(--musai-ink)"
+                      : "var(--musai-muted)";
           const r = 11;
           const circ = 2 * Math.PI * r;
           const showHold =
@@ -190,9 +195,13 @@ export function ViolinTunerFigure({
                   stroke={
                     state === "tuned"
                       ? "var(--musai-ok)"
-                      : isLive
-                        ? "color-mix(in srgb, var(--musai-ink) 45%, var(--musai-border))"
-                        : "var(--musai-border)"
+                      : isLive && liveDirection === "low"
+                        ? "var(--musai-pitch-low)"
+                        : isLive && liveDirection === "high"
+                          ? "var(--musai-pitch-high)"
+                          : isLive
+                            ? "color-mix(in srgb, var(--musai-ok) 55%, var(--musai-border))"
+                            : "var(--musai-border)"
                   }
                   strokeWidth={state === "tuned" || isLive ? 1.5 : 1}
                 />

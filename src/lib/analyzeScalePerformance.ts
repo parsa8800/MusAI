@@ -97,10 +97,27 @@ export type ScaleAnalysisInput = {
 
 export type ScaleAnalysisResult = {
   frames: PitchFrame[];
+  /**
+   * One row per expectedScaleNote. Feedback (`missingData: false`) exists only
+   * when a detectedNote was matched to that slot. Unplayed notes stay missing.
+   */
   notes: ScalePracticeNoteRow[];
   summary: ScalePracticeSummary;
 };
 
+/** Labels of notes that actually had sufficient audio evidence, in scale order. */
+export function listDetectedNoteLabels(
+  notes: readonly ScalePracticeNoteRow[],
+): string[] {
+  return notes
+    .filter((n) => !n.missingData)
+    .map((n) => n.detectedNoteLabel);
+}
+
+/**
+ * Build feedback rows: one per expectedScaleNote.
+ * Intonation is computed only for slots that received a matched detectedNote.
+ */
 export function notesFromExpectedMidis(
   frames: PitchFrame[],
   expectedMidis: readonly number[],
@@ -117,7 +134,8 @@ export function notesFromExpectedMidis(
         noteIndex: i,
         expectedMidi,
         expectedNoteLabel: formatNoteLabel(expectedMidi),
-        detectedMidi: expectedMidi,
+        // Do not copy the expected MIDI onto unplayed notes.
+        detectedMidi: 0,
         detectedNoteLabel: "—",
         detectedHz: 0,
         centsDifference: 0,

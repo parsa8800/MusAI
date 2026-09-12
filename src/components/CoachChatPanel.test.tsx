@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CoachChatPanel } from "@/components/CoachChatPanel";
+import { CoachChatPanel, coachBubbleSize } from "@/components/CoachChatPanel";
 import type { ScalePracticeSessionV1 } from "@/lib/scalePracticeTypes";
 
 const session: ScalePracticeSessionV1 = {
@@ -61,6 +61,7 @@ describe("CoachChatPanel", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it("shows coach messages when started", async () => {
@@ -75,8 +76,9 @@ describe("CoachChatPanel", () => {
       />,
     );
 
-    expect(screen.getByPlaceholderText(/Ask anything/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Ask your coach/i)).toBeInTheDocument();
     expect(screen.getByText(/Coach · Parsa/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Colours on the staff show the take/i)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Preview coaching/i })).toBeInTheDocument();
     expect(screen.queryByText(/^Template$/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Live AI is off/i)).not.toBeInTheDocument();
@@ -89,8 +91,78 @@ describe("CoachChatPanel", () => {
     expect(screen.getByText(/Trending sharp/i)).toBeInTheDocument();
     expect(screen.getByText(/Work A4 next/i)).toBeInTheDocument();
     expect(
+      screen.queryByRole("button", { name: /Play it 3 times in a row/i }),
+    ).not.toBeInTheDocument();
+    expect(
       screen.getByRole("group", { name: /Suggested questions/i }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /What should I try next/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /How do I fill the bar/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/Trending sharp/i).closest(".musai-coach-msg"),
+    ).toBeTruthy();
+    expect(screen.getByTestId("coach-chat")).toHaveAttribute(
+      "data-coach-size",
+      "seed",
+    );
+  });
+
+  it("inflates the bubble after they send a question", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          reply: "• Keep playing it that well",
+          source: "template",
+        }),
+      }),
+    );
+
+    render(
+      <CoachChatPanel
+        start
+        embed
+        trendLine=""
+        tip="Every note was right on"
+        source="template"
+        session={session}
+      />,
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50);
+    });
+
+    fireEvent.change(screen.getByPlaceholderText(/Ask your coach/i), {
+      target: { value: "how do I fill the bar" },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Send/i }));
+    });
+
+    expect(screen.getByTestId("coach-chat")).toHaveAttribute(
+      "data-coach-size",
+      "open",
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50);
+    });
+
+    expect(screen.getByText(/that well/i)).toBeInTheDocument();
+  });
+
+  it("picks a bigger bubble as the thread grows", () => {
+    expect(coachBubbleSize(0)).toBe("seed");
+    expect(coachBubbleSize(0, true)).toBe("open");
+    expect(coachBubbleSize(1)).toBe("open");
+    expect(coachBubbleSize(1, true)).toBe("open");
+    expect(coachBubbleSize(2)).toBe("thread");
   });
 
   it("shows Preview coaching tooltip on the status dot", async () => {

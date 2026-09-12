@@ -80,3 +80,31 @@ export function violinStepReference(midi: number): ViolinScaleStepRef {
     hint: `${pick.stringLetter} string, ${fingerWord(pick.halfStepsFromOpen)}`,
   };
 }
+
+/**
+ * First-position finger number from chromatic half-steps above an open string.
+ * 0 open, 1 = 1st (low or high), 2 = 2nd, 3 = 3rd, 4 = 4th.
+ * Semitone pairs share a finger (tape model): 1–2 → 1st, 3–4 → 2nd, 5 → 3rd.
+ */
+const FINGER_FROM_HALF_STEPS = [0, 1, 1, 2, 2, 3, 4, 4] as const;
+
+/**
+ * Coach label like A2, D0, G3. Prefer next open string over 4th finger
+ * (E0 not A4, A0 not D4, D0 not G4).
+ */
+export function violinStringFingerLabel(midi: number): string {
+  for (const s of STRINGS) {
+    if (midi === s.openMidi) return `${s.letter}0`;
+  }
+
+  const ref = violinStepReference(midi);
+  const hs = Math.max(0, Math.min(7, ref.halfStepsFromOpen));
+  const finger = FINGER_FROM_HALF_STEPS[hs] ?? 3;
+
+  if (finger === 4) {
+    const nextOpen = STRINGS.find((s) => s.openMidi === midi);
+    if (nextOpen) return `${nextOpen.letter}0`;
+  }
+
+  return `${ref.stringLetter}${finger}`;
+}

@@ -20,5 +20,28 @@ export function parseScalePracticeSession(
     return null;
   }
   if (v.notes.length !== v.expectedNotesMidi.length) return null;
-  return v;
+  let session: ScalePracticeSessionV1 = v;
+  if (
+    typeof v.masteryPercentAfterTake === "number" &&
+    Number.isFinite(v.masteryPercentAfterTake)
+  ) {
+    session = {
+      ...session,
+      masteryPercentAfterTake: Math.max(
+        0,
+        Math.min(100, Math.round(v.masteryPercentAfterTake)),
+      ),
+    };
+  } else {
+    const { masteryPercentAfterTake: _drop, ...rest } = session;
+    session = rest;
+  }
+  if (!Array.isArray(v.waveformAmplitudes)) return session;
+  const waveformAmplitudes = v.waveformAmplitudes
+    .filter((n): n is number => typeof n === "number" && Number.isFinite(n))
+    .map((n) => Math.min(1, Math.max(0, n)))
+    .slice(0, 300);
+  return waveformAmplitudes.length > 0
+    ? { ...session, waveformAmplitudes }
+    : { ...session, waveformAmplitudes: undefined };
 }

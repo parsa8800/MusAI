@@ -1,11 +1,8 @@
 import {
-  centsFromTarget,
   formatNoteLabel,
   matchHzToPitchClass,
-  midiToHz,
   pitchClassLabel,
 } from "@/lib/intonation";
-import { nearestMidiOfPitchClass, unwrapOctaveCents } from "@/lib/intonationScore";
 import type { NoteVisualTone } from "@/lib/scaleNoteVisual";
 
 /** Open-string references at A=440: G3, D4, A4, E5. */
@@ -33,7 +30,12 @@ export type TunerReading = {
   direction: "low" | "high" | "in_tune" | "unclear";
 };
 
-const STRING_SNAP_CENTS = 50;
+/**
+ * Stay on the current open string unless another is clearly closer.
+ * Stops a slightly flat A from flipping to a G♯ letter.
+ */
+const STRING_HOLD_CENTS = 180;
+const SWITCH_MARGIN_CENTS = 35;
 
 /** A string must stay inside this window to count as in tune. */
 export const TUNER_IN_TUNE_CENTS = 12;
@@ -45,6 +47,8 @@ export const IN_TUNE_HOLD_MS = 1800;
 export const HOLD_DROPOUT_MS = 180;
 /** Clear the live reading after this much silence. */
 export const PITCH_SILENCE_MS = 280;
+/** After every string is green, wait then unlock so the next player can start. */
+export const ALL_TUNED_RESET_MS = 2800;
 
 export type TunerHoldState = {
   stringId: ViolinStringId;
@@ -116,29 +120,38 @@ export function advanceTunerHold(
   return { hold: null, lock: null, progress: 0 };
 }
 
-export function identifyTunerPitch(heardHz: number): TunerReading | null {
+function rankOpenStrings(heardHz: number) {
+  return VIOLIN_STRINGS.map((s) => {
+    const match = matchHzToPitchClass(heardHz, s.pitchClass);
+    return { string: s, match, abs: Math.abs(match.cents) };
+  }).sort(
+    (a, b) => a.abs - b.abs || a.string.refMidi - b.string.refMidi,
+  );
+}
+
+export function identifyTunerPitch(
+  heardHz: number,
+  previousStringId: ViolinStringId | null = null,
+): TunerReading | null {
   if (!Number.isFinite(heardHz) || heardHz <= 0) return null;
 
-  let bestString: (typeof VIOLIN_STRINGS)[number] | null = null;
-  let bestAbs = Infinity;
-  for (const s of VIOLIN_STRINGS) {
-    const targetMidi = nearestMidiOfPitchClass(heardHz, s.pitchClass);
-    const cents = Math.abs(
-      unwrapOctaveCents(centsFromTarget(heardHz, midiToHz(targetMidi))),
-    );
-    if (cents < bestAbs) {
-      bestAbs = cents;
-      bestString = s;
+  const ranked = rankOpenStrings(heardHz);
+  const nearest = ranked[0];
+  if (!nearest) return null;
+
+  let chosen = nearest;
+  if (previousStringId) {
+    const prev = ranked.find((row) => row.string.id === previousStringId);
+    if (
+      prev &&
+      prev.abs <= STRING_HOLD_CENTS &&
+      !(nearest.abs + SWITCH_MARGIN_CENTS < prev.abs)
+    ) {
+      chosen = prev;
     }
   }
 
-  const useString = bestString != null && bestAbs <= STRING_SNAP_CENTS;
-  const snapped = useString ? bestString : null;
-  const pitchClass = snapped
-    ? snapped.pitchClass
-    : ((Math.round(69 + 12 * Math.log2(heardHz / 440)) % 12) + 12) % 12;
-
-  const match = matchHzToPitchClass(heardHz, pitchClass);
+  const match = chosen.match;
   const abs = Math.abs(match.cents);
   const tone = tunerTone(abs);
   const direction: TunerReading["direction"] =
@@ -154,12 +167,31 @@ export function identifyTunerPitch(heardHz: number): TunerReading | null {
     targetMidi: match.targetMidi,
     targetHz: match.targetHz,
     targetLabel: formatNoteLabel(match.targetMidi),
-    pitchClass,
-    pitchClassName: pitchClassLabel(pitchClass),
-    stringId: snapped ? snapped.id : null,
+    pitchClass: chosen.string.pitchClass,
+    pitchClassName: pitchClassLabel(chosen.string.pitchClass),
+    stringId: chosen.string.id,
     cents: Math.round(match.cents * 10) / 10,
     score: match.score,
     tone,
     direction,
   };
+}
+
+export function tunerCueCopy(reading: TunerReading | null): {
+  headline: string;
+  hint: string;
+} {
+  if (!reading) {
+    return { headline: "Play a string", hint: "G, D, A, or E" };
+  }
+  if (reading.direction === "in_tune") {
+    return { headline: "In tune", hint: "Hold it there" };
+  }
+  if (reading.direction === "low") {
+    return { headline: "Too low", hint: "Go higher" };
+  }
+  if (reading.direction === "high") {
+    return { headline: "Too high", hint: "Go lower" };
+  }
+  return { headline: "Play a string", hint: "G, D, A, or E" };
 }

@@ -46,8 +46,10 @@ describe("POST /api/scale-coaching", () => {
     vi.unstubAllEnvs();
   });
 
-  it("returns template coaching when no API key is set", async () => {
-    vi.stubEnv("OPENAI_API_KEY", "");
+  it("returns the short template opener and never calls OpenAI", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "sk-test");
+    vi.stubEnv("OPENAI_ENABLED", "true");
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
     const { POST } = await import("@/app/api/scale-coaching/route");
     const res = await POST(
       new Request("http://localhost/api/scale-coaching", {
@@ -63,13 +65,14 @@ describe("POST /api/scale-coaching", () => {
     };
     expect(json.source).toBe("template");
     expect(json.tip.length).toBeGreaterThan(0);
-    expect(json.trendLine.length).toBeGreaterThan(0);
+    expect(json.tip.split("\n")).toHaveLength(1);
+    expect(json.trendLine).toBe("");
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
   });
 
-  it("returns template when OPENAI_ENABLED is false even with a key", async () => {
-    vi.stubEnv("OPENAI_API_KEY", "sk-test");
-    vi.stubEnv("OPENAI_ENABLED", "false");
-    const fetchSpy = vi.spyOn(globalThis, "fetch");
+  it("still returns template when no API key is set", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "");
     const { POST } = await import("@/app/api/scale-coaching/route");
     const res = await POST(
       new Request("http://localhost/api/scale-coaching", {
@@ -78,11 +81,9 @@ describe("POST /api/scale-coaching", () => {
       }),
     );
     expect(res.status).toBe(200);
-    const json = (await res.json()) as { source: string; error?: string };
+    const json = (await res.json()) as { source: string; tip: string };
     expect(json.source).toBe("template");
-    expect(json.error).toMatch(/OPENAI_ENABLED/i);
-    expect(fetchSpy).not.toHaveBeenCalled();
-    fetchSpy.mockRestore();
+    expect(json.tip.length).toBeGreaterThan(0);
   });
 
   it("rejects invalid bodies", async () => {

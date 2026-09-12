@@ -27,6 +27,13 @@ describe("vexKeySignatureSpec", () => {
     expect(vexKeySignatureSpec(3, "natural_minor")).toBe("Gb");
     expect(vexKeySignatureSpec(8, "natural_minor")).toBe("B");
   });
+
+  it("prefers F# not Gb, Bb not A#, and Eb not D# for major keys", () => {
+    expect(vexKeySignatureSpec(6, "major")).toBe("F#");
+    expect(vexKeySignatureSpec(10, "major")).toBe("Bb");
+    expect(vexKeySignatureSpec(3, "major")).toBe("Eb");
+    expect(vexKeySignatureSpec(1, "major")).toBe("Db");
+  });
 });
 
 describe("spellAscendingMidisToVexKeys", () => {
@@ -59,6 +66,24 @@ describe("spellAscendingMidisToVexKeys", () => {
       "f#/4",
       "g/4",
     ]);
+  });
+
+  it("spells F♯ major with sharps, not G♭", () => {
+    const midis = buildAscendingScaleMidis(66, "major", 1);
+    const keys = spellAscendingMidisToVexKeys(midis, 6, "major");
+    expect(keys[0]).toBe("f#/4");
+    expect(keys.some((k) => k.startsWith("gb/"))).toBe(false);
+    expect(keys.some((k) => k.startsWith("e#/"))).toBe(true);
+  });
+
+  it("spells B♭ major with flats, not A# / D#", () => {
+    const midis = buildAscendingScaleMidis(70, "major", 1);
+    const keys = spellAscendingMidisToVexKeys(midis, 10, "major");
+    expect(keys[0]).toBe("bb/4");
+    expect(keys.some((k) => k.startsWith("eb/"))).toBe(true);
+    expect(keys.some((k) => k.startsWith("a#/") || k.startsWith("d#/"))).toBe(
+      false,
+    );
   });
 
   it("spells Bb natural minor with Db on degree three", () => {

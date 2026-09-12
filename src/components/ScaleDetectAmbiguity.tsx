@@ -17,12 +17,12 @@ export function ScaleDetectAmbiguity({
 }) {
   return (
     <div
-      className="absolute inset-0 z-20 flex items-center justify-center bg-[color-mix(in_srgb,var(--musai-bg)_72%,transparent)] px-4 backdrop-blur-[2px]"
+      className="absolute inset-0 z-20 flex items-center justify-center bg-[color-mix(in_srgb,var(--musai-bg)_55%,transparent)] px-4 backdrop-blur-[8px]"
       role="dialog"
       aria-modal="true"
       aria-labelledby="scale-detect-title"
     >
-      <div className="w-full max-w-sm rounded-[var(--musai-radius-lg)] border border-[var(--musai-border)] bg-[var(--musai-surface)] px-5 py-5 shadow-[var(--musai-shadow)]">
+      <div className="musai-glass musai-glass--strong w-full max-w-sm rounded-[var(--musai-radius-lg)] px-5 py-5">
         <p
           id="scale-detect-title"
           className="text-center text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--musai-muted)]"

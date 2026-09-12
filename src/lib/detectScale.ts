@@ -149,7 +149,7 @@ function rankScore(
   if (summary.notesAnalyzed === 0) return Number.NEGATIVE_INFINITY;
   const expectedLen = expectedMidis.length;
   const cover = summary.notesAnalyzed / Math.max(1, expectedLen);
-  const missingPenalty = summary.notesMissing * 14;
+  const missingPenalty = summary.notesMissing * 3;
   const lengthHint =
     runCount > 0 ? Math.abs(expectedLen - runCount) * 1.8 : 0;
   return (
@@ -299,7 +299,7 @@ export function detectScaleFromFrames(
       rawBest &&
       rawBest.pattern === "round_trip" &&
       rawBest.analysis.summary.notesAnalyzed >= 6 &&
-      rawBest.rankScore > -20;
+      rawBest.rankScore > -80;
     if (!soft || !rawBest) {
       return { ok: false, reason: "no_match" };
     }
