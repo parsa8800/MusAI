@@ -253,10 +253,10 @@ export function ScalePickControls({
 
     const scroll = scrollRef.current;
     const ro =
-      typeof ResizeObserver === "undefined" || !scroll
-        ? null
-        : new ResizeObserver(place);
-    ro?.observe(scroll);
+      typeof ResizeObserver !== "undefined" && scroll
+        ? new ResizeObserver(place)
+        : null;
+    if (ro && scroll) ro.observe(scroll);
     window.addEventListener("resize", place);
     window.addEventListener("scroll", place, true);
     window.visualViewport?.addEventListener("resize", place);
