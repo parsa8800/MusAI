@@ -17,9 +17,32 @@ export function scaleOctaveOffsets(kind: ScaleKind): readonly number[] {
   return kind === "major" ? MAJOR_OCTAVE_OFFSETS : NATURAL_MINOR_OCTAVE_OFFSETS;
 }
 
+/** Supported exercise directions. Peak tonic is not doubled on up+down. */
+export type ScaleExerciseMotion = "ascending" | "descending" | "up_down";
+
+/** Scale degrees in one octave, excluding the repeated tonic (major/minor = 7). */
+export function scaleStepsPerOctave(kind: ScaleKind): number {
+  return scaleOctaveOffsets(kind).length - 1;
+}
+
 /**
- * Ascending scale MIDI notes: one octave = 8 notes (tonic to tonic);
- * two octaves = 15 notes (tonic through upper tonic).
+ * Expected note count for a constructed exercise.
+ * Derived from the scale pattern, octave span, and motion — never a hardcoded 8 or 15.
+ */
+export function expectedScaleNoteCount(
+  octaveSpan: 1 | 2,
+  motion: ScaleExerciseMotion,
+  kind: ScaleKind = "major",
+): number {
+  const oneWay = scaleStepsPerOctave(kind) * octaveSpan + 1;
+  if (motion === "up_down") return oneWay * 2 - 1;
+  return oneWay;
+}
+
+/**
+ * Ascending scale MIDI notes from tonic to the top tonic.
+ * Length is `scaleStepsPerOctave(kind) * octaveSpan + 1` (the extra note is the upper tonic).
+ * The mid tonic on a 2-octave span is not duplicated.
  */
 export function buildAscendingScaleMidis(
   rootMidi: number,
@@ -38,6 +61,15 @@ export function buildAscendingScaleMidis(
   return out;
 }
 
+/** Descending scale: reverse of the ascending run (top tonic first, starting tonic last). */
+export function buildDescendingScaleMidis(
+  rootMidi: number,
+  kind: ScaleKind,
+  octaveSpan: 1 | 2,
+): number[] {
+  return buildAscendingScaleMidis(rootMidi, kind, octaveSpan).slice().reverse();
+}
+
 /**
  * Full guided exercise: ascend to the top tonic, then descend back to the starting note
  * (peak note is not repeated at the turnaround).
@@ -51,6 +83,22 @@ export function buildExerciseScaleMidis(
   if (up.length <= 1) return up;
   const down = up.slice(0, -1).reverse();
   return [...up, ...down];
+}
+
+/** Expected MIDI sequence for any supported scale construction. */
+export function buildScaleExerciseMidis(
+  rootMidi: number,
+  kind: ScaleKind,
+  octaveSpan: 1 | 2,
+  motion: ScaleExerciseMotion,
+): number[] {
+  if (motion === "ascending") {
+    return buildAscendingScaleMidis(rootMidi, kind, octaveSpan);
+  }
+  if (motion === "descending") {
+    return buildDescendingScaleMidis(rootMidi, kind, octaveSpan);
+  }
+  return buildExerciseScaleMidis(rootMidi, kind, octaveSpan);
 }
 
 /** Stable id for storage / future AI routing, e.g. `G_major`, `Bb_natural_minor`. */
@@ -158,6 +206,39 @@ export type TonicAccidentalOption = {
   accidentalKind: TonicAccidentalKind;
 };
 
+/** Circle-of-fifths order — same placement order as a printed treble key signature. */
+export const SHARP_SIGNATURE_ORDER = [
+  "F♯",
+  "C♯",
+  "G♯",
+  "D♯",
+  "A♯",
+  "E♯",
+] as const;
+export const FLAT_SIGNATURE_ORDER = [
+  "B♭",
+  "E♭",
+  "A♭",
+  "D♭",
+  "G♭",
+  "C♭",
+] as const;
+
+export type KeySignatureSummary = {
+  pitchClass: number;
+  label: string;
+  displayName: string;
+  accidentalKind: TonicAccidentalKind;
+  accidentalCount: number;
+  accidentalNames: string[];
+  /** “No sharps or flats”, “2 sharps”, “1 flat”. */
+  countLabel: string;
+  /** “F♯ C♯”, empty when there are none. */
+  namesLabel: string;
+  /** Subtle match hint: “No accidentals”, “Music with 2 sharps”. */
+  matchHint: string;
+};
+
 export type TonicAccidentalRow = {
   accidentalCount: number;
   keys: TonicAccidentalOption[];
@@ -227,16 +308,57 @@ export function tonicAccidentalRows(kind: ScaleKind): TonicAccidentalRow[] {
   return kind === "major" ? MAJOR_ACCIDENTAL_ROWS : MINOR_ACCIDENTAL_ROWS;
 }
 
+export function accidentalNames(option: TonicAccidentalOption): string[] {
+  if (option.accidentalKind === "natural" || option.accidentalCount <= 0) {
+    return [];
+  }
+  const n = Math.min(option.accidentalCount, 6);
+  const order =
+    option.accidentalKind === "sharp"
+      ? SHARP_SIGNATURE_ORDER
+      : FLAT_SIGNATURE_ORDER;
+  return [...order.slice(0, n)];
+}
+
+export function accidentalNamesLabel(option: TonicAccidentalOption): string {
+  return accidentalNames(option).join(" ");
+}
+
 /** Short key-signature hint under each tonic letter in the sidebar. */
 export function accidentalBadge(option: TonicAccidentalOption): string {
   if (option.accidentalKind === "natural" || option.accidentalCount === 0) {
-    return "natural";
+    return "No sharps or flats";
   }
   const n = option.accidentalCount;
   if (option.accidentalKind === "sharp") {
     return n === 1 ? "1 sharp" : `${n} sharps`;
   }
   return n === 1 ? "1 flat" : `${n} flats`;
+}
+
+export function keySignatureMatchHint(option: TonicAccidentalOption): string {
+  if (option.accidentalKind === "natural" || option.accidentalCount === 0) {
+    return "No accidentals";
+  }
+  return `Music with ${accidentalBadge(option)}`;
+}
+
+export function keySignatureSummary(
+  option: TonicAccidentalOption,
+  kind: ScaleKind,
+): KeySignatureSummary {
+  const quality = kind === "major" ? "major" : "minor";
+  return {
+    pitchClass: option.pitchClass,
+    label: option.label,
+    displayName: `${option.label} ${quality}`,
+    accidentalKind: option.accidentalKind,
+    accidentalCount: option.accidentalCount,
+    accidentalNames: accidentalNames(option),
+    countLabel: accidentalBadge(option),
+    namesLabel: accidentalNamesLabel(option),
+    matchHint: keySignatureMatchHint(option),
+  };
 }
 
 /** Compact ♯/♭ marks for the sidebar chip (visual scan). */
@@ -247,6 +369,15 @@ export function accidentalMarks(option: TonicAccidentalOption): string {
   const mark = option.accidentalKind === "sharp" ? "♯" : "♭";
   const n = Math.min(option.accidentalCount, 6);
   return mark.repeat(n);
+}
+
+/** Count + mark for pickers: ♮, 1♭, 2♯ — not a stack of accidentals. */
+export function accidentalCountLabel(option: TonicAccidentalOption): string {
+  if (option.accidentalKind === "natural" || option.accidentalCount === 0) {
+    return "♮";
+  }
+  const mark = option.accidentalKind === "sharp" ? "♯" : "♭";
+  return `${Math.min(option.accidentalCount, 6)}${mark}`;
 }
 
 /** Sidebar spelling for this tonic (G♯ minor, not A♭ minor). */

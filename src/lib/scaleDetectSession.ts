@@ -10,6 +10,7 @@ export function sessionFromDetectedCandidate(
   candidate: ScaleCandidate,
   sampleRateHz: number,
   audioSourceType: "recorded" | "uploaded",
+  waveformAmplitudes?: readonly number[],
 ): ScalePracticeSessionV1 {
   return buildScalePracticeSession({
     tonicPitchClass: candidate.tonicPitchClass,
@@ -21,6 +22,7 @@ export function sessionFromDetectedCandidate(
     analysis: candidate.analysis,
     expectedNotesMidi: candidate.expectedMidis,
     scaleSource: "detected",
+    waveformAmplitudes,
   });
 }
 

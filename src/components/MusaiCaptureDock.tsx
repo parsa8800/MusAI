@@ -1,11 +1,12 @@
 "use client";
 
-import type { ChangeEvent, RefObject } from "react";
+import type { ChangeEvent, ReactNode, RefObject } from "react";
 import { AudioActivityVisualizer } from "@/components/AudioActivityVisualizer";
 import { MusaiMicCapturePanel } from "@/components/MusaiMicCapturePanel";
 import { MusaiSegmentedControl } from "@/components/MusaiSegmentedControl";
 import { AnimatedReveal } from "@/components/motion/AnimatedReveal";
 import { tapFeedback } from "@/lib/motion";
+import type { WaveformLiveClock } from "@/lib/recordingWaveform";
 
 export type MusaiCaptureMode = "record" | "upload";
 
@@ -27,12 +28,15 @@ type Props = {
   onDiscardClip: () => void;
   onStartRecording: () => void;
   onStopRecording: () => void;
-  /** Discard mid-take and restart without analysing. */
-  onRetakeRecording?: () => void;
+  /** Discard the in-progress take without analysing. */
+  onDiscardRecording?: () => void;
   streamRef: RefObject<MediaStream | null>;
   elapsedLabel: string;
   levelBars: number[];
   lastTakeLabel: string | null;
+  waveformSamples?: number[];
+  /** Live Voice Memos clock (canvas). Persistence still uses waveformSamples. */
+  waveformLiveRef?: RefObject<WaveformLiveClock>;
   message: string | null;
   status: "idle" | "loading" | "error";
   canAnalyze: boolean;
@@ -40,37 +44,47 @@ type Props = {
   analyzeLabel?: string;
   /** When true, hide Analyse — parent runs analysis automatically after capture. */
   hideAnalyze?: boolean;
+  /** Next attempt in the scale loop (Take 2, Play it again). */
+  nextTake?: {
+    label: string;
+    hint: string;
+    ariaLabel: string;
+    again?: boolean;
+  } | null;
+  /** Idle recorder hint when `nextTake` is not used (Tuning trainer). */
+  idleHint?: string;
+  /**
+   * `studio` = Scale Studio compact module under the staff.
+   * Omit for Tuning trainer / other full capture docks.
+   */
+  module?: "studio";
 };
 
-function CaptureStatus({
-  isRecording,
-  ready,
+function CaptureStagePanel({
+  mode,
+  active,
+  children,
 }: {
-  isRecording: boolean;
-  ready: boolean;
+  mode: MusaiCaptureMode;
+  active: boolean;
+  children: ReactNode;
 }) {
-  if (isRecording) {
-    return (
-      <span className="musai-studio-status musai-studio-status--live">
-        <span className="musai-studio-status__dot" aria-hidden />
-        Recording
-      </span>
-    );
-  }
-  if (ready) {
-    return (
-      <span className="musai-studio-status musai-studio-status--ready">
-        <span className="musai-studio-status__dot" aria-hidden />
-        Ready
-      </span>
-    );
-  }
-  return null;
+  return (
+    <div
+      className="musai-capture-strip__panel"
+      data-mode={mode}
+      data-active={active ? "true" : "false"}
+      aria-hidden={active ? undefined : true}
+      inert={active ? undefined : true}
+    >
+      {children}
+    </div>
+  );
 }
 
 /**
  * Shared capture dock for Scale Studio and Tuning trainer.
- * One record button, secondary Import/mic, clear live/ready state.
+ * Mode switch stays pinned; Record and Import share one stacked stage.
  */
 export function MusaiCaptureDock({
   selectId,
@@ -90,63 +104,111 @@ export function MusaiCaptureDock({
   onDiscardClip,
   onStartRecording,
   onStopRecording,
-  onRetakeRecording,
+  onDiscardRecording,
   streamRef,
   elapsedLabel,
   levelBars,
   lastTakeLabel,
+  waveformSamples = [],
+  waveformLiveRef,
   message,
   status,
   canAnalyze,
   onAnalyze,
   analyzeLabel = "Analyse",
   hideAnalyze = false,
+  nextTake = null,
+  idleHint,
+  module,
 }: Props) {
+  const analysing = status === "loading" || uploadProcessing;
   const ready =
-    (captureMode === "record" && !!recordedBlob) ||
-    (captureMode === "upload" && !!file);
+    !analysing &&
+    ((captureMode === "record" && !!recordedBlob) ||
+      (captureMode === "upload" && !!file));
+  const showRecord = captureMode === "record";
 
   return (
     <div
       className={`musai-capture-strip ${
+        module === "studio" ? "musai-capture-strip--studio" : ""
+      } ${
         isRecording
           ? "musai-capture-strip--live"
-          : ready
-            ? "musai-capture-strip--ready"
-            : ""
-      }`}
+          : analysing
+            ? "musai-capture-strip--analysing"
+            : ready
+              ? "musai-capture-strip--ready"
+              : ""
+      }`.trim()}
+      data-capture-module={module ?? "default"}
     >
-      {!isRecording ? (
-        <div className="mb-2 flex flex-wrap items-center justify-center gap-2.5">
-          <CaptureStatus isRecording={false} ready={ready} />
-          <MusaiSegmentedControl<MusaiCaptureMode>
-            ariaLabel="Capture source"
-            value={captureMode}
-            onChange={onCaptureMode}
-            options={[
-              { value: "record", label: "Record" },
-              { value: "upload", label: "Import" },
-            ]}
-            className="max-w-[11.5rem] opacity-90"
-            size="compact"
-          />
-        </div>
-      ) : null}
+      <div className="musai-capture-strip__mode">
+        <MusaiSegmentedControl<MusaiCaptureMode>
+          ariaLabel="Capture source"
+          value={captureMode}
+          onChange={(mode) => {
+            if (isRecording || status === "loading") return;
+            onCaptureMode(mode);
+          }}
+          options={[
+            { value: "record", label: "Record" },
+            { value: "upload", label: "Import" },
+          ]}
+          className={
+            module === "studio"
+              ? "musai-capture-strip__mode-switch"
+              : "max-w-[12.5rem]"
+          }
+          size={module === "studio" ? "default" : "compact"}
+          disabled={isRecording || status === "loading"}
+        />
+      </div>
 
-      {/* Fixed stage so Record ↔ Import never jumps the dock */}
-      <div className="relative mx-auto flex min-h-[8.75rem] w-full max-w-sm items-center justify-center">
-        {captureMode === "upload" ? (
+      <div className="musai-capture-strip__stage">
+        <CaptureStagePanel mode="record" active={showRecord}>
+          <div ref={mainRecorderRef} className="h-full w-full">
+            <MusaiMicCapturePanel
+              selectId={selectId}
+              micDevices={micDevices}
+              selectedMicId={selectedMicId}
+              onMicChange={onMicChange}
+              onMicRefresh={onMicRefresh}
+              isRecording={isRecording}
+              hasSavedClip={!!recordedBlob}
+              density="compact"
+              experience="studio"
+              clipChrome="minimal"
+              onDiscardClip={onDiscardClip}
+              onStartRecording={onStartRecording}
+              onStopRecording={onStopRecording}
+              onDiscardRecording={onDiscardRecording}
+              streamRef={streamRef}
+              elapsedLabelOverride={elapsedLabel}
+              levelBarsOverride={levelBars}
+              waveformSamplesOverride={waveformSamples}
+              waveformLiveRef={waveformLiveRef}
+              lastTakeLabelOverride={lastTakeLabel}
+              idleTitle={nextTake?.label}
+              idleHint={nextTake?.hint ?? idleHint}
+              startAriaLabel={nextTake?.ariaLabel}
+              busy={status === "loading"}
+            />
+          </div>
+        </CaptureStagePanel>
+
+        <CaptureStagePanel mode="upload" active={!showRecord}>
           <div
-            className={`flex h-full min-h-[8.75rem] w-full max-w-[15rem] items-stretch overflow-hidden rounded-[1.25rem] transition-[background-color,box-shadow] duration-300 ${
+            className={`musai-capture-import ${
               uploadProcessing
-                ? "bg-[var(--musai-accent-soft)] shadow-[0_8px_24px_rgba(28,25,23,0.06)]"
+                ? "musai-capture-import--busy"
                 : file
-                  ? "bg-[var(--musai-surface)] shadow-[0_8px_24px_rgba(28,25,23,0.06)]"
-                  : "bg-[var(--musai-surface)] shadow-[0_8px_24px_rgba(28,25,23,0.05)]"
+                  ? "musai-capture-import--ready"
+                  : ""
             }`}
           >
             {file ? (
-              <div className="relative min-h-[8.75rem] w-full">
+              <div className="relative min-h-0 w-full flex-1">
                 <div
                   className={`absolute inset-0 flex flex-col items-center justify-center px-4 py-3 transition-opacity duration-300 ${
                     uploadProcessing
@@ -166,10 +228,10 @@ export function MusaiCaptureDock({
                   </span>
                 </div>
                 <label
-                  className={`flex cursor-pointer flex-col items-center justify-center px-4 py-3 transition-opacity duration-300 ${
+                  className={`musai-capture-import__body transition-opacity duration-300 ${
                     uploadProcessing
-                      ? "pointer-events-none relative z-0 min-h-[8.75rem] opacity-0"
-                      : "relative z-10 min-h-[8.75rem] opacity-100"
+                      ? "pointer-events-none relative z-0 opacity-0"
+                      : "relative z-10 opacity-100"
                   }`}
                 >
                   <span className="text-sm font-semibold text-[var(--musai-ok)]">
@@ -188,12 +250,16 @@ export function MusaiCaptureDock({
                 </label>
               </div>
             ) : (
-              <label className="flex min-h-[8.75rem] w-full cursor-pointer flex-col items-center justify-center px-4 py-4 transition-colors duration-200 hover:bg-[var(--musai-surface-2)]">
+              <label className="musai-capture-import__body">
                 <span className="text-sm font-semibold text-[var(--musai-ink)]">
-                  Import audio
+                  {nextTake?.again
+                    ? `Import ${nextTake.label.toLowerCase()}`
+                    : "Import audio"}
                 </span>
                 <span className="mt-1 text-center text-[12px] text-[var(--musai-muted)]">
-                  Tap to choose a file
+                  {nextTake?.again
+                    ? "Another recording of this scale"
+                    : "Tap to choose a file"}
                 </span>
                 <input
                   ref={fileInputRef}
@@ -205,35 +271,12 @@ export function MusaiCaptureDock({
               </label>
             )}
           </div>
-        ) : (
-          <div ref={mainRecorderRef} className="w-full">
-            <MusaiMicCapturePanel
-              selectId={selectId}
-              micDevices={micDevices}
-              selectedMicId={selectedMicId}
-              onMicChange={onMicChange}
-              onMicRefresh={onMicRefresh}
-              isRecording={isRecording}
-              hasSavedClip={!!recordedBlob}
-              density="compact"
-              experience="studio"
-              clipChrome="minimal"
-              onDiscardClip={onDiscardClip}
-              onStartRecording={onStartRecording}
-              onStopRecording={onStopRecording}
-              onRetakeRecording={onRetakeRecording}
-              streamRef={streamRef}
-              elapsedLabelOverride={elapsedLabel}
-              levelBarsOverride={levelBars}
-              lastTakeLabelOverride={lastTakeLabel}
-            />
-          </div>
-        )}
+        </CaptureStagePanel>
       </div>
 
       {message && status === "error" ? (
         <AnimatedReveal
-          className="musai-glass-inset mt-4 border-[color-mix(in_srgb,var(--musai-accent-2)_30%,var(--musai-border))] bg-[color-mix(in_srgb,var(--musai-accent-2)_8%,var(--musai-wash))] px-4 py-3 text-center text-sm text-[var(--musai-accent-2)]"
+          className="musai-capture-strip__alert musai-glass-inset mt-3 border-[color-mix(in_srgb,var(--musai-accent-2)_30%,var(--musai-border))] bg-[color-mix(in_srgb,var(--musai-accent-2)_8%,var(--musai-wash))] px-4 py-3 text-center text-sm text-[var(--musai-accent-2)]"
           role="alert"
           aria-live="assertive"
           delay={20}
@@ -243,7 +286,7 @@ export function MusaiCaptureDock({
       ) : null}
 
       {hideAnalyze ? null : (
-        <div className="mt-4 flex justify-center">
+        <div className="musai-capture-strip__actions">
           <button
             type="button"
             disabled={!canAnalyze}
@@ -257,11 +300,6 @@ export function MusaiCaptureDock({
           </button>
         </div>
       )}
-      {hideAnalyze && status === "loading" ? (
-        <p className="mt-3 text-center text-[12px] font-medium text-[var(--musai-muted)]">
-          Listening through your take…
-        </p>
-      ) : null}
     </div>
   );
 }

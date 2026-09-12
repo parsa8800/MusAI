@@ -68,6 +68,7 @@ describe("scalePracticeCopy (short template coaching)", () => {
     expect(bullets).toMatch(/^• /);
     expect(bullets.split("\n").every((l) => l.startsWith("• "))).toBe(true);
     expect(bullets).not.toMatch(/[-—–―]/);
+    expect(bullets.split("\n").every((l) => !/\.\s*$/.test(l))).toBe(true);
   });
 
   it("trend and tip copy never contain dashes", () => {
@@ -80,9 +81,9 @@ describe("scalePracticeCopy (short template coaching)", () => {
   });
 
   it("trendSentence covers all trends", () => {
-    expect(trendSentence("sharp")).toMatch(/sharp/i);
-    expect(trendSentence("flat")).toMatch(/flat/i);
-    expect(trendSentence("balanced")).toMatch(/centr/i);
+    expect(trendSentence("sharp")).toMatch(/high/i);
+    expect(trendSentence("flat")).toMatch(/low/i);
+    expect(trendSentence("balanced")).toMatch(/about right/i);
   });
 
   it("noteRowHint stays short", () => {
@@ -124,7 +125,11 @@ describe("scalePracticeCopy (short template coaching)", () => {
       }),
     );
     expect(feedback.headline).toMatch(/excellent/i);
+    expect(feedback.tip.split("\n")).toHaveLength(1);
     expect(feedback.tip.split("\n").every((l) => l.startsWith("• "))).toBe(true);
+    expect(feedback.tip).toMatch(/right on/i);
+    expect(feedback.tip).not.toMatch(/tape|3 notes|mostly right|Work on|great practice/i);
+    expect(feedback.trendLine).toBe("");
     expect(feedback.tip).not.toMatch(/[-—–―]/);
     expect(feedback.focusNotes).toHaveLength(0);
   });
@@ -133,20 +138,23 @@ describe("scalePracticeCopy (short template coaching)", () => {
     const notes = [
       row({
         noteIndex: 0,
+        expectedMidi: 60,
         expectedNoteLabel: "C4",
         intonationBucket: "in_tune",
         missingData: false,
       }),
       row({
         noteIndex: 1,
-        expectedNoteLabel: "A4",
+        expectedMidi: 62,
+        expectedNoteLabel: "D4",
         intonationBucket: "sharp",
         missingData: false,
         centsDifference: 42,
       }),
       row({
         noteIndex: 2,
-        expectedNoteLabel: "B4",
+        expectedMidi: 69,
+        expectedNoteLabel: "A4",
         intonationBucket: "sharp",
         missingData: false,
         centsDifference: 38,
@@ -161,12 +169,95 @@ describe("scalePracticeCopy (short template coaching)", () => {
         meanSignedCents: 20,
       }),
     );
-    expect(feedback.tip).toMatch(/A4/);
+    // D4 → D0, A4 → A0 (different strings, so not a whole-string miss)
+    expect(feedback.tip.split("\n")).toHaveLength(1);
+    expect(feedback.tip).toMatch(/D0 and A0 were a bit high/i);
+    expect(feedback.tip).not.toMatch(/tape|Try |Went well|Work on/i);
     expect(feedback.tip).not.toMatch(/[-—–―]/);
-    expect(feedback.trendLine).not.toMatch(/[-—–―]/);
+    expect(feedback.trendLine).toBe("");
     expect(feedback.focusNotes.map((n) => n.label)).toEqual(
-      expect.arrayContaining(["A4", "B4"]),
+      expect.arrayContaining(["D0", "A0"]),
     );
-    expect(feedback.trendLine).toMatch(/sharp/i);
+  });
+
+  it("uses two bullets only for a major whole-take miss", () => {
+    const notes = [
+      row({
+        noteIndex: 0,
+        expectedMidi: 60,
+        intonationBucket: "sharp",
+        missingData: false,
+        centsDifference: 180,
+      }),
+      row({
+        noteIndex: 1,
+        expectedMidi: 62,
+        intonationBucket: "sharp",
+        missingData: false,
+        centsDifference: 170,
+      }),
+      row({
+        noteIndex: 2,
+        expectedMidi: 64,
+        intonationBucket: "sharp",
+        missingData: false,
+        centsDifference: 160,
+      }),
+    ];
+    const feedback = buildScaleCoachingFeedback(
+      session(notes, {
+        overallScore0to100: 12,
+        inTunePercent: 0,
+        averageAbsCents: 170,
+        trend: "sharp",
+        weakestNoteIndices: [0, 1, 2],
+      }),
+    );
+    expect(feedback.tip.split("\n")).toHaveLength(2);
+    expect(feedback.tip).toMatch(/off/i);
+    expect(feedback.tip).toMatch(/right note/i);
+    expect(feedback.tip).not.toMatch(/tape|Work on/i);
+  });
+
+  it("names a whole string when every note on it is off", () => {
+    const notes = [
+      row({
+        noteIndex: 0,
+        expectedMidi: 62,
+        expectedNoteLabel: "D4",
+        intonationBucket: "in_tune",
+        missingData: false,
+        centsDifference: 4,
+      }),
+      row({
+        noteIndex: 1,
+        expectedMidi: 69,
+        expectedNoteLabel: "A4",
+        intonationBucket: "sharp",
+        missingData: false,
+        centsDifference: 48,
+      }),
+      row({
+        noteIndex: 2,
+        expectedMidi: 71,
+        expectedNoteLabel: "B4",
+        intonationBucket: "sharp",
+        missingData: false,
+        centsDifference: 40,
+      }),
+    ];
+    const feedback = buildScaleCoachingFeedback(
+      session(notes, {
+        overallScore0to100: 55,
+        inTunePercent: 33,
+        averageAbsCents: 30,
+        trend: "sharp",
+        weakestNoteIndices: [1, 2],
+      }),
+    );
+    expect(feedback.tip.split("\n")).toHaveLength(2);
+    expect(feedback.tip).toMatch(/Every note on A was off/i);
+    expect(feedback.tip).toMatch(/Check that string/i);
+    expect(feedback.tip).not.toMatch(/tape|Work on/i);
   });
 });

@@ -5,6 +5,7 @@ import type {
   ScalePracticeTrend,
 } from "@/lib/scalePracticeTypes";
 import { SCALE_IN_TUNE_CENTS } from "@/lib/analyzeScalePerformance";
+import { violinStringFingerLabel } from "@/lib/violinScaleReference";
 
 /** Human-facing strings only; keep separate from numeric session payload for AI layer. */
 
@@ -24,7 +25,7 @@ export function sanitizeCoachFeedback(text: string): string {
     .join("\n");
 }
 
-/** Always format coach copy as short • bullet lines (no dashes). */
+/** Always format coach copy as short • bullet lines (no dashes, no end full stops). */
 export function toBulletFeedback(...items: string[]): string {
   const lines: string[] = [];
   for (const item of items) {
@@ -37,7 +38,8 @@ export function toBulletFeedback(...items: string[]): string {
         ? line.split(/(?<=\.)\s+/).map((s) => s.trim()).filter(Boolean)
         : [line];
       for (const s of sentences) {
-        if (!lines.includes(s)) lines.push(s);
+        const cleaned = s.replace(/\.+$/u, "").trim();
+        if (cleaned && !lines.includes(cleaned)) lines.push(cleaned);
       }
     }
   }
@@ -52,30 +54,91 @@ export function ensureBulletFeedback(text: string): string {
   return toBulletFeedback(text);
 }
 
+/** Keep only the first N bullet lines (opening coach message should stay short). */
+export function takeCoachBullets(text: string, max: number): string {
+  return ensureBulletFeedback(text)
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .slice(0, Math.max(1, max))
+    .join("\n");
+}
+
 export function trendSentence(trend: ScalePracticeTrend): string {
   switch (trend) {
     case "sharp":
-      return toBulletFeedback("Trending a bit sharp", "Relax into the pitch");
+      return toBulletFeedback("A bit high overall");
     case "flat":
-      return toBulletFeedback("Trending a bit flat", "Aim slightly higher");
+      return toBulletFeedback("A bit low overall");
     default:
-      return toBulletFeedback("Pitch bias looks centred");
+      return toBulletFeedback("Most notes were about right");
   }
+}
+
+/** True when the take needs praise, not finger/tape drills. */
+export function isCleanTake(
+  summary: Pick<ScalePracticeSummary, "inTunePercent" | "notesAnalyzed">,
+  focusNoteCount: number,
+): boolean {
+  return (
+    summary.notesAnalyzed > 0 &&
+    summary.inTunePercent >= 90 &&
+    focusNoteCount === 0
+  );
+}
+
+function celebrateOpener(): string {
+  return toBulletFeedback("Every note was right on");
+}
+
+function stringLetterForMidi(midi: number): string {
+  return violinStringFingerLabel(midi).charAt(0);
+}
+
+/** One string where every note was off, while some other notes were OK. */
+function fullyOffStringLetter(notes: ScalePracticeNoteRow[]): string | null {
+  const groups = new Map<string, { total: number; off: number }>();
+  for (const note of notes) {
+    const letter = stringLetterForMidi(note.expectedMidi);
+    const group = groups.get(letter) ?? { total: 0, off: 0 };
+    group.total += 1;
+    if (note.missingData || note.intonationBucket !== "in_tune") {
+      group.off += 1;
+    }
+    groups.set(letter, group);
+  }
+  const fullyOff = [...groups.entries()].filter(
+    ([, group]) => group.total >= 2 && group.off === group.total,
+  );
+  const hasInTune = notes.some(
+    (note) => !note.missingData && note.intonationBucket === "in_tune",
+  );
+  if (fullyOff.length === 1 && hasInTune) return fullyOff[0]![0];
+  return null;
+}
+
+function isOverallOffTake(
+  summary: Pick<
+    ScalePracticeSummary,
+    "notesAnalyzed" | "averageAbsCents" | "inTunePercent"
+  >,
+): boolean {
+  if (summary.notesAnalyzed === 0) return false;
+  if (summary.averageAbsCents >= 150) return true;
+  return summary.inTunePercent < 25 && summary.notesAnalyzed >= 3;
 }
 
 export function noteRowHint(row: ScalePracticeNoteRow): string {
   if (row.missingData) {
-    return sanitizeCoachFeedback(
-      "Unclear tone. More bow hair, one slow bow.",
-    );
+    return sanitizeCoachFeedback("Hard to hear. Try a slow bow.");
   }
   switch (row.intonationBucket) {
     case "in_tune":
-      return "On pitch.";
+      return "About right.";
     case "sharp":
-      return "A bit high. Soften the thumb.";
+      return "A bit high. Try the tape.";
     case "flat":
-      return "A bit low. Place a touch higher.";
+      return "A bit low. Try a little higher.";
     default:
       return "";
   }
@@ -121,51 +184,55 @@ function headlineFor(summary: ScalePracticeSummary): string {
   return "Getting started — slow bows help.";
 }
 
+function workOnLine(focusNotes: ScaleCoachingFocusNote[]): string {
+  const unique = [...new Set(focusNotes.slice(0, 3).map((n) => n.label))].slice(
+    0,
+    2,
+  );
+  const labels = unique.join(" and ");
+  const verb = unique.length > 1 ? "were" : "was";
+  const picked = unique.map(
+    (label) => focusNotes.find((n) => n.label === label)!,
+  );
+  const allMissing = picked.every(
+    (n) => n.centsLabel === "—" || n.bucket === "unknown",
+  );
+  const allSharp = picked.every((n) => n.bucket === "sharp");
+  const allFlat = picked.every((n) => n.bucket === "flat");
+  if (allMissing) return `${labels} ${verb} hard to hear`;
+  if (allSharp) return `${labels} ${verb} a bit high`;
+  if (allFlat) return `${labels} ${verb} a bit low`;
+  return `${labels} ${verb} a bit off`;
+}
+
 function tipFor(
+  notes: ScalePracticeNoteRow[],
   focusNotes: ScaleCoachingFocusNote[],
   summary: ScalePracticeSummary,
 ): string {
   if (summary.notesAnalyzed === 0) {
     return toBulletFeedback(
-      "Re-record slowly",
-      "Full bow hair on each note",
+      "Hard to hear a full scale. Play every note slowly, then try again",
     );
   }
-  if (summary.averageAbsCents >= 150) {
+  if (isOverallOffTake(summary)) {
     return toBulletFeedback(
-      "Check tonic and octave match the recording",
-      "Then try again",
+      "This take was off. Start on the right note, then try again",
     );
+  }
+  const offString = fullyOffStringLetter(notes);
+  if (offString) {
+    return toBulletFeedback(
+      `Every note on ${offString} was off. Check that string`,
+    );
+  }
+  if (isCleanTake(summary, focusNotes.length)) {
+    return celebrateOpener();
   }
   if (focusNotes.length === 0) {
-    return toBulletFeedback(
-      "Nice take",
-      "Keep the same slow, even pulse",
-    );
+    return toBulletFeedback("Most notes were about right");
   }
-  const labels = focusNotes
-    .slice(0, 2)
-    .map((n) => n.label)
-    .join(" & ");
-  if (summary.trend === "sharp") {
-    return toBulletFeedback(
-      `Work ${labels}`,
-      "Lighten the finger",
-      "Settle before moving",
-    );
-  }
-  if (summary.trend === "flat") {
-    return toBulletFeedback(
-      `Work ${labels}`,
-      "Place a touch higher",
-      "Keep bow speed steady",
-    );
-  }
-  return toBulletFeedback(
-    `Isolate ${labels}`,
-    "A few slow bows each",
-    "Then replay the scale",
-  );
+  return toBulletFeedback(workOnLine(focusNotes));
 }
 
 function collectFocusNotes(
@@ -191,7 +258,7 @@ function collectFocusNotes(
 
   return source.map((row) => ({
     noteIndex: row.noteIndex,
-    label: row.expectedNoteLabel,
+    label: violinStringFingerLabel(row.expectedMidi),
     bucket: row.intonationBucket,
     centsLabel: row.missingData ? "—" : formatSignedCents(row.centsDifference),
     hint: noteRowHint(row),
@@ -205,24 +272,36 @@ function collectStrengths(
   const out: string[] = [];
   const inTune = notes.filter((n) => !n.missingData && n.intonationBucket === "in_tune");
   if (inTune.length >= Math.max(3, Math.floor(notes.length * 0.45))) {
-    out.push("Several notes landed close to pitch");
+    out.push("Lots of notes were in the right place");
   }
-  if (summary.trend === "balanced" && summary.notesAnalyzed > 0) {
-    out.push("Pitch stayed fairly even through the scale");
+  if (summary.inTunePercent >= 90) {
+    out.unshift("You played really well");
+  } else if (summary.trend === "balanced" && summary.notesAnalyzed > 0) {
+    out.push("The scale stayed pretty even");
   }
-  if (summary.inTunePercent >= 75) {
-    out.push("Solid overall control on this take");
-  } else if (summary.notesAnalyzed > 0 && summary.averageAbsCents < 40) {
-    out.push("Tone was clear enough to measure well");
+  if (summary.inTunePercent >= 75 && summary.inTunePercent < 90) {
+    out.push("This take sounded steady");
+  } else if (
+    summary.inTunePercent < 75 &&
+    summary.notesAnalyzed > 0 &&
+    summary.averageAbsCents < 40
+  ) {
+    out.push("We could hear the notes clearly");
   }
-  if (out.length === 0 && summary.notesAnalyzed > 0) {
-    out.push("You completed a full take — good place to build from");
+  if (
+    out.length === 0 &&
+    summary.notesAnalyzed > 0 &&
+    summary.notesMissing === 0
+  ) {
+    out.push("You finished the whole take");
   }
   return out.slice(0, 3).map((s) => sanitizeCoachFeedback(s));
 }
 
 /**
  * Short template coaching — staff colours carry the per-note detail.
+ * Auto opener lives in `tip` (1 bullet, or 2 for a major pattern).
+ * `trendLine` stays empty so the coach does not lecture twice.
  */
 export function buildScaleCoachingFeedback(
   session: Pick<
@@ -232,21 +311,17 @@ export function buildScaleCoachingFeedback(
 ): ScaleCoachingFeedback {
   const { notes, summary } = session;
   const focusNotes = collectFocusNotes(notes, summary);
-  const tip = tipFor(focusNotes, summary);
-  const trendLine = trendSentence(summary.trend);
   const strengths = collectStrengths(notes, summary);
-
-  const cleanTip = ensureBulletFeedback(tip);
-  const cleanTrend = ensureBulletFeedback(trendLine);
+  const tip = takeCoachBullets(tipFor(notes, focusNotes, summary), 2);
 
   return {
     headline: sanitizeCoachFeedback(headlineFor(summary)),
-    tip: cleanTip,
-    trendLine: cleanTrend,
+    tip,
+    trendLine: "",
     focusNotes,
     strengths,
-    practicePlan: cleanTip.split("\n"),
-    overview: cleanTip,
+    practicePlan: tip.split("\n"),
+    overview: tip,
   };
 }
 

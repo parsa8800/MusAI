@@ -4,6 +4,7 @@ import {
   clearScaleProgressHistory,
   flattenScaleProgressAttempts,
   listScaleProgressJourneys,
+  progressKeyForSession,
   pushScaleProgressAttempt,
   readScaleProgressAttempt,
   removeScaleProgressJourney,
@@ -25,10 +26,14 @@ export const MUSAI_SCALE_HISTORY_KEY = "musai-scale-practice-history-v1";
 /** Soft cap for flattened list consumers. */
 export const SCALE_HISTORY_MAX = 48;
 
-export function persistScalePracticeSession(data: ScalePracticeSessionV1): void {
-  if (typeof sessionStorage === "undefined") return;
-  sessionStorage.setItem(MUSAI_SCALE_PRACTICE_KEY, JSON.stringify(data));
-  pushScalePracticeHistory(data);
+export function persistScalePracticeSession(
+  data: ScalePracticeSessionV1,
+): ScalePracticeSessionV1 {
+  const stamped = pushScaleProgressAttempt(data);
+  if (typeof sessionStorage !== "undefined") {
+    sessionStorage.setItem(MUSAI_SCALE_PRACTICE_KEY, JSON.stringify(stamped));
+  }
+  return stamped;
 }
 
 export function readScalePracticeSession(): ScalePracticeSessionV1 | null {
@@ -47,6 +52,15 @@ export function clearScalePracticeSession(): void {
   sessionStorage.removeItem(MUSAI_SCALE_PRACTICE_KEY);
 }
 
+/** Clears one scale’s saved takes and progress from My scales. */
+export function resetScaleProgressJourney(progressKey: string): void {
+  removeScaleProgressJourney(progressKey);
+  const current = readScalePracticeSession();
+  if (current && progressKeyForSession(current) === progressKey) {
+    clearScalePracticeSession();
+  }
+}
+
 /** Newest-first flat list for comparison helpers and legacy callers. */
 export function listScalePracticeHistory(): ScalePracticeSessionV1[] {
   return flattenScaleProgressAttempts().slice(0, SCALE_HISTORY_MAX);
@@ -59,8 +73,10 @@ export function readScalePracticeHistoryEntry(
 }
 
 /** Appends into the scale's journey (grouped by scaleId). */
-export function pushScalePracticeHistory(session: ScalePracticeSessionV1): void {
-  pushScaleProgressAttempt(session);
+export function pushScalePracticeHistory(
+  session: ScalePracticeSessionV1,
+): ScalePracticeSessionV1 {
+  return pushScaleProgressAttempt(session);
 }
 
 /** Removes one attempt; drops the journey if no attempts remain. */

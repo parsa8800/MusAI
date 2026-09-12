@@ -17,6 +17,10 @@ const MAX_RATIO = 0.72;
 
 /** Shared notes | tips split across Scale Studio home, workspace, and results. */
 export const MUSAI_SCALE_SPLIT_STORAGE_KEY = "musai-scale-notes-tips-split";
+/** Staff keeps most of the row; coach is a readable side panel. */
+export const MUSAI_SCALE_STAFF_MIN_RATIO = 0.68;
+export const MUSAI_SCALE_STAFF_MAX_RATIO = 0.82;
+export const MUSAI_SCALE_COACH_PANE_CLASS = "md:min-w-[16rem]";
 
 const LEGACY_SPLIT_KEYS = [
   "musai-scale-studio-home-split",
@@ -94,6 +98,8 @@ export function MusaiSplitPane({
   right,
   storageKey,
   className = "",
+  leftClassName = "",
+  rightClassName = "",
   divider = "soft",
   resizable,
   /** When not resizable, lock the left/right split to this (0–1). */
@@ -106,6 +112,9 @@ export function MusaiSplitPane({
   /** Persist split ratio in localStorage across visits. */
   storageKey?: string;
   className?: string;
+  /** Extra classes on the left pane shell (e.g. higher min-width for notation). */
+  leftClassName?: string;
+  rightClassName?: string;
   /** `draft` = dotted template rule. */
   divider?: "soft" | "draft";
   /** When false, show the rule but do not drag (home template). */
@@ -258,10 +267,10 @@ export function MusaiSplitPane({
   return (
     <div
       ref={rootRef}
-      className={`relative flex h-full min-h-0 w-full flex-1 flex-col overflow-y-auto md:flex-row md:overflow-hidden ${className}`.trim()}
+      className={`relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden md:flex-row ${className}`.trim()}
     >
       <div
-        className="flex min-h-0 min-w-0 flex-col max-md:h-auto max-md:flex-none max-md:overflow-visible md:h-full md:min-w-[12rem] md:flex-1 md:overflow-hidden"
+        className={`flex min-h-0 min-w-0 flex-col max-md:h-auto max-md:flex-none max-md:overflow-visible md:h-full md:min-w-[12rem] md:flex-1 md:overflow-hidden ${leftClassName}`.trim()}
         style={leftStyle}
       >
         {left}
@@ -305,7 +314,7 @@ export function MusaiSplitPane({
 
       <div
         id={paneId}
-        className="flex min-h-0 min-w-0 flex-col max-md:h-auto max-md:flex-none max-md:overflow-visible md:h-full md:min-w-[12rem] md:flex-1 md:overflow-hidden"
+        className={`flex min-h-0 min-w-0 flex-col max-md:h-auto max-md:flex-none max-md:overflow-visible md:h-full md:min-w-[16rem] md:flex-1 md:overflow-hidden ${rightClassName}`.trim()}
         style={rightStyle}
       >
         {right}

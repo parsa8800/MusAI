@@ -3,16 +3,17 @@
 import {
   NOTE_TONE_STYLES,
   noteVisualTone,
+  pitchCorrectionArrow,
+  pitchCorrectionDir,
   shortNoteName,
 } from "@/lib/scaleNoteVisual";
 import type { ScalePracticeNoteRow } from "@/lib/scalePracticeTypes";
-import { SCALE_IN_TUNE_CENTS } from "@/lib/analyzeScalePerformance";
 
 function NoteChip({ row }: { row: ScalePracticeNoteRow }) {
   const tone = noteVisualTone(row);
   const styles = NOTE_TONE_STYLES[tone];
-  const showDir = !row.missingData && Math.abs(row.centsDifference) > SCALE_IN_TUNE_CENTS;
-  const dir = row.centsDifference > 0 ? "↑" : "↓";
+  const fix = row.missingData ? null : pitchCorrectionDir(row.centsDifference);
+  const dir = fix ? pitchCorrectionArrow(fix) : null;
 
   return (
     <div
@@ -26,7 +27,7 @@ function NoteChip({ row }: { row: ScalePracticeNoteRow }) {
       <span className="text-lg font-semibold tracking-tight">
         {shortNoteName(row.expectedNoteLabel)}
       </span>
-      {showDir ? (
+      {dir ? (
         <span className="mt-0.5 text-[10px] font-bold leading-none opacity-80">
           {dir}
         </span>

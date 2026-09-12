@@ -11,6 +11,10 @@ import type {
   ScalePracticeSessionV1,
 } from "@/lib/scalePracticeTypes";
 import { SCALE_PRACTICE_SESSION_VERSION } from "@/lib/scalePracticeTypes";
+import {
+  downsampleAmplitudes,
+  WAVEFORM_STORE_MAX,
+} from "@/lib/recordingWaveform";
 
 export type BuildScaleSessionParams = {
   tonicPitchClass: number;
@@ -22,6 +26,7 @@ export type BuildScaleSessionParams = {
   analysis: ScaleAnalysisResult;
   expectedNotesMidi?: readonly number[];
   scaleSource?: "selected" | "detected";
+  waveformAmplitudes?: readonly number[];
 };
 
 export function buildScalePracticeSession(
@@ -56,5 +61,13 @@ export function buildScalePracticeSession(
     notes: p.analysis.notes,
     summary: p.analysis.summary,
     scaleSource: p.scaleSource,
+    ...(p.waveformAmplitudes && p.waveformAmplitudes.length > 0
+      ? {
+          waveformAmplitudes: downsampleAmplitudes(
+            p.waveformAmplitudes,
+            WAVEFORM_STORE_MAX,
+          ),
+        }
+      : {}),
   };
 }

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { useRecordingLevelBars } from "@/hooks/useRecordingLevelBars";
+import { useRecordingWaveformHistory } from "@/hooks/useRecordingWaveformHistory";
 
 function formatElapsedLabel(ms: number): string {
   const capped = Math.max(0, ms);
@@ -22,36 +23,71 @@ export function useSyncedRecorderUi(
   const [elapsedLabel, setElapsedLabel] = useState("00:00.00");
   const [lastTakeLabel, setLastTakeLabel] = useState<string | null>(null);
   const startPerfRef = useRef<number | null>(null);
+  const elapsedRef = useRef("00:00.00");
   const prevRecordingRef = useRef(false);
+  const skipLastTakeRef = useRef(false);
   const levelBars = useRecordingLevelBars(isRecording, streamRef);
+  const {
+    samples: waveformSamples,
+    samplesRef: waveformRef,
+    liveClockRef: waveformLiveRef,
+    clearSamples,
+  } = useRecordingWaveformHistory(isRecording, streamRef);
+
+  const resetTakeUi = useCallback(() => {
+    skipLastTakeRef.current = true;
+    elapsedRef.current = "00:00.00";
+    setLastTakeLabel(null);
+    setElapsedLabel("00:00.00");
+    clearSamples();
+  }, [clearSamples]);
 
   useEffect(() => {
     if (!isRecording) {
-      // Capture final duration before we reset (for the post-recording “ready” state).
-      if (prevRecordingRef.current && elapsedLabel !== "00:00.00") {
-        queueMicrotask(() => setLastTakeLabel(elapsedLabel));
+      if (prevRecordingRef.current && !skipLastTakeRef.current) {
+        const frozen = elapsedRef.current;
+        if (frozen !== "00:00.00") setLastTakeLabel(frozen);
+      } else if (skipLastTakeRef.current) {
+        setLastTakeLabel(null);
+        elapsedRef.current = "00:00.00";
+        setElapsedLabel("00:00.00");
       }
+      skipLastTakeRef.current = false;
       prevRecordingRef.current = false;
       startPerfRef.current = null;
-      queueMicrotask(() => setElapsedLabel("00:00.00"));
       return;
     }
 
     prevRecordingRef.current = true;
+    skipLastTakeRef.current = false;
+    setLastTakeLabel(null);
     if (startPerfRef.current == null) {
       startPerfRef.current = performance.now();
     }
 
     let raf = 0;
+    let live = true;
     const tick = () => {
-      if (startPerfRef.current == null) return;
-      setElapsedLabel(formatElapsedLabel(performance.now() - startPerfRef.current));
+      if (!live || startPerfRef.current == null) return;
+      const next = formatElapsedLabel(performance.now() - startPerfRef.current);
+      elapsedRef.current = next;
+      setElapsedLabel(next);
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [elapsedLabel, isRecording]);
+    return () => {
+      live = false;
+      cancelAnimationFrame(raf);
+    };
+  }, [isRecording]);
 
-  return { elapsedLabel, lastTakeLabel, levelBars };
+  return {
+    elapsedLabel,
+    lastTakeLabel,
+    levelBars,
+    waveformSamples,
+    waveformRef,
+    waveformLiveRef,
+    resetTakeUi,
+  };
 }
-

@@ -57,21 +57,30 @@ const session: ScalePracticeSessionV1 = {
 };
 
 describe("scaleCoachingLlm", () => {
-  it("builds a compact measured payload with template fallbacks", () => {
+  it("builds a compact measured payload with string+finger labels", () => {
     const payload = buildScaleCoachingLlmPayload(session);
     expect(payload.scaleLabel).toBe("C major");
     expect(payload.score).toBe(90);
-    expect(payload.weakNotes[0]?.label).toBe("D4");
-    expect(payload.templateTip.length).toBeGreaterThan(0);
-    expect(payload.templateTrend).toMatch(/sharp/i);
+    // D4 (midi 62) → open D string
+    expect(payload.weakNotes[0]?.label).toBe("D0");
+    expect(payload.templateTip).toMatch(/D0/i);
+    expect(payload.templateTip).toMatch(/a bit high/i);
+    expect(payload.templateTip.split("\n")).toHaveLength(1);
+    expect(payload.templateTrend).toBe("");
   });
 
-  it("system prompt asks for technique tips and forbids cents", () => {
-    expect(scaleCoachingSystemPrompt()).toMatch(/JSON only/i);
-    expect(scaleCoachingSystemPrompt()).toMatch(/tip/i);
-    expect(scaleCoachingSystemPrompt()).toMatch(/Never use hyphens/i);
-    expect(scaleCoachingSystemPrompt()).toMatch(/bullet/i);
-    expect(scaleCoachingSystemPrompt()).toMatch(/Never quote cents/i);
-    expect(scaleCoachingSystemPrompt()).toMatch(/bow hair|thumb/i);
+  it("system prompt uses reserved opener rules and string+finger naming", () => {
+    const prompt = scaleCoachingSystemPrompt();
+    expect(prompt).toMatch(/JSON only/i);
+    expect(prompt).toMatch(/1 bullet normally/i);
+    expect(prompt).toMatch(/2 bullets only for a major pattern/i);
+    expect(prompt).not.toMatch(/Strong \/ Work on cards/i);
+    expect(prompt).toMatch(/Never use hyphens/i);
+    expect(prompt).toMatch(/string \+ finger/i);
+    expect(prompt).toMatch(/a bit high/i);
+    expect(prompt).toMatch(/Do not add a Try line/i);
+    expect(prompt).toMatch(/CLEAN TAKE/i);
+    expect(prompt).toMatch(/cannot see/i);
+    expect(prompt).toMatch(/coloured notes/i);
   });
 });

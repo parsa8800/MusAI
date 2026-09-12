@@ -7,15 +7,16 @@ import { describeMicOpenError, getMicStream } from "@/lib/micStream";
 import { ViolinTunerFigure } from "@/components/ViolinTunerFigure";
 import {
   advanceTunerHold,
+  ALL_TUNED_RESET_MS,
   identifyTunerPitch,
   PITCH_SILENCE_MS,
   TUNER_IN_TUNE_CENTS,
+  tunerCueCopy,
   VIOLIN_STRINGS,
   type TunerHoldState,
   type TunerReading,
   type ViolinStringId,
 } from "@/lib/violinTuner";
-import { tapFeedback } from "@/lib/motion";
 
 const FRAME = 4096;
 const MIN_HZ = 80;
@@ -41,54 +42,66 @@ function PitchBalanceMeter({
   const flat = direction === "low";
   const sharp = direction === "high";
   const inTune = direction === "in_tune";
+  const fillLeft = Math.min(t, 0.5) * 100;
+  const fillWidth = reading ? Math.abs(t - 0.5) * 100 : 0;
   const pocketPct = (TUNER_IN_TUNE_CENTS / METER_SPAN_CENTS) * 50;
 
   return (
-    <div className="mx-auto w-full max-w-[19rem]">
-      <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-center gap-1">
+    <div className="mx-auto w-full max-w-[21rem]">
+      <div className="grid grid-cols-[3rem_minmax(0,1fr)_3rem] items-center gap-1.5">
         <div className="flex flex-col items-center">
           <span
-            className={`font-display text-[1.5rem] leading-none transition-all duration-200 ${
+            className={`font-display text-[1.65rem] leading-none ${
               flat
-                ? "text-[var(--musai-accent-2)] musai-tuner-lean-flat"
-                : "text-[color-mix(in_srgb,var(--musai-muted)_28%,transparent)]"
+                ? "text-[var(--musai-pitch-low)] musai-tuner-lean-flat"
+                : "text-[color-mix(in_srgb,var(--musai-pitch-low)_38%,transparent)]"
             }`}
             aria-hidden
           >
             ♭
           </span>
           <span
-            className={`mt-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] ${
-              flat ? "text-[var(--musai-accent-2)]" : "text-transparent"
+            className={`mt-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] ${
+              flat
+                ? "text-[var(--musai-pitch-low)]"
+                : "text-[color-mix(in_srgb,var(--musai-muted)_55%,transparent)]"
             }`}
           >
-            flat
+            low
           </span>
         </div>
 
-        <div className="relative h-4">
-          <div className="absolute inset-x-0 top-[6px] h-[6px] overflow-hidden rounded-full bg-[var(--musai-surface-2)] ring-1 ring-[var(--musai-border)]">
-            {flat ? (
-              <div className="absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r from-[color-mix(in_srgb,var(--musai-accent-2)_38%,transparent)] to-transparent" />
-            ) : null}
-            {sharp ? (
-              <div className="absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-[color-mix(in_srgb,var(--musai-accent-2)_38%,transparent)] to-transparent" />
+        <div className="relative h-8">
+          <div className="absolute inset-x-0 top-1/2 h-[10px] -translate-y-1/2 overflow-hidden rounded-full bg-[var(--musai-surface-2)] ring-1 ring-[var(--musai-border)]">
+            <div
+              className="absolute top-0 h-full -translate-x-1/2 rounded-full bg-[color-mix(in_srgb,var(--musai-ok)_22%,var(--musai-surface-2))]"
+              style={{ left: "50%", width: `${pocketPct}%` }}
+            />
+            {reading && fillWidth > 0.8 ? (
+              <div
+                className={`absolute top-0 h-full ${
+                  flat
+                    ? "bg-[color-mix(in_srgb,var(--musai-pitch-low)_55%,transparent)]"
+                    : sharp
+                      ? "bg-[color-mix(in_srgb,var(--musai-pitch-high)_55%,transparent)]"
+                      : "bg-transparent"
+                }`}
+                style={{ left: `${fillLeft}%`, width: `${fillWidth}%` }}
+              />
             ) : null}
             <div
-              className={`absolute top-0 h-full -translate-x-1/2 rounded-full transition-colors duration-200 ${
-                inTune
-                  ? "bg-[color-mix(in_srgb,var(--musai-ok)_55%,white)]"
-                  : "bg-[color-mix(in_srgb,var(--musai-ok)_18%,var(--musai-surface-2))]"
-              }`}
-              style={{ left: "50%", width: `${pocketPct}%` }}
+              className="absolute top-0 h-full w-[2px] -translate-x-1/2 bg-[color-mix(in_srgb,var(--musai-ink)_28%,transparent)]"
+              style={{ left: "50%" }}
             />
           </div>
           {reading ? (
             <div
-              className={`absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-[1.5px] shadow-[0_1px_4px_rgba(28,25,23,0.18)] transition-[left,background-color,border-color] duration-75 ease-out motion-reduce:transition-none ${
+              className={`absolute top-1/2 h-7 w-[7px] -translate-x-1/2 -translate-y-1/2 rounded-full shadow-[0_1px_6px_rgba(0,0,0,0.28)] transition-[left,background-color] duration-75 ease-out motion-reduce:transition-none ${
                 inTune
-                  ? "border-[var(--musai-ok)] bg-[var(--musai-ok)]"
-                  : "border-[var(--musai-accent-2)] bg-[var(--musai-surface)]"
+                  ? "bg-[var(--musai-ok)]"
+                  : flat
+                    ? "bg-[var(--musai-pitch-low)]"
+                    : "bg-[var(--musai-pitch-high)]"
               }`}
               style={{ left: `${t * 100}%` }}
               aria-hidden
@@ -98,21 +111,23 @@ function PitchBalanceMeter({
 
         <div className="flex flex-col items-center">
           <span
-            className={`font-display text-[1.5rem] leading-none transition-all duration-200 ${
+            className={`font-display text-[1.65rem] leading-none ${
               sharp
-                ? "text-[var(--musai-accent-2)] musai-tuner-lean-sharp"
-                : "text-[color-mix(in_srgb,var(--musai-muted)_28%,transparent)]"
+                ? "text-[var(--musai-pitch-high)] musai-tuner-lean-sharp"
+                : "text-[color-mix(in_srgb,var(--musai-pitch-high)_38%,transparent)]"
             }`}
             aria-hidden
           >
             ♯
           </span>
           <span
-            className={`mt-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] ${
-              sharp ? "text-[var(--musai-accent-2)]" : "text-transparent"
+            className={`mt-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] ${
+              sharp
+                ? "text-[var(--musai-pitch-high)]"
+                : "text-[color-mix(in_srgb,var(--musai-muted)_55%,transparent)]"
             }`}
           >
-            sharp
+            high
           </span>
         </div>
       </div>
@@ -138,17 +153,20 @@ function spokenStatus(
   tuned: ReadonlySet<ViolinStringId>,
 ): string {
   if (tuned.size === VIOLIN_STRINGS.length) return "All four strings are in tune.";
-  if (!reading) return "Play an open string.";
-  const name = reading.pitchClassName;
-  if (reading.direction === "in_tune" && reading.stringId) {
-    if (tuned.has(reading.stringId)) return `${name} is in tune.`;
+  const cue = tunerCueCopy(reading);
+  if (!reading) return `${cue.headline}. ${cue.hint}.`;
+  const name = reading.stringId ?? reading.pitchClassName;
+  if (reading.direction === "in_tune") {
+    if (reading.stringId && tuned.has(reading.stringId)) {
+      return `${name} is in tune.`;
+    }
     if (holding) {
       return `Hold ${name}. ${Math.round(holdProgress * 100)} percent.`;
     }
-    return `${name} is centered. Keep holding.`;
+    return `${name} is in tune. Keep holding.`;
   }
-  if (reading.direction === "low") return `${name} is flat.`;
-  if (reading.direction === "high") return `${name} is sharp.`;
+  if (reading.direction === "low") return `${name} is too low. Go higher.`;
+  if (reading.direction === "high") return `${name} is too high. Go lower.`;
   return `Hearing ${name}.`;
 }
 
@@ -167,6 +185,7 @@ export function ViolinTuner() {
   const smoothedHz = useRef<number | null>(null);
   const holdRef = useRef<TunerHoldState | null>(null);
   const tunedRef = useRef(tuned);
+  const lastStringRef = useRef<ViolinStringId | null>(null);
   const lastHeardRef = useRef(0);
   const startedRef = useRef(false);
 
@@ -185,6 +204,7 @@ export function ViolinTuner() {
     holdRef.current = null;
     startedRef.current = false;
     lastHeardRef.current = 0;
+    lastStringRef.current = null;
     setListening(false);
     setReading(null);
     setHoldProgress(0);
@@ -258,10 +278,11 @@ export function ViolinTuner() {
           Number.isFinite(pitch)
         ) {
           const prev = smoothedHz.current;
-          const hz = prev == null ? pitch : prev * 0.72 + pitch * 0.28;
+          const hz = prev == null ? pitch : prev * 0.8 + pitch * 0.2;
           smoothedHz.current = hz;
           lastHeardRef.current = now;
-          const nextReading = identifyTunerPitch(hz);
+          const nextReading = identifyTunerPitch(hz, lastStringRef.current);
+          lastStringRef.current = nextReading?.stringId ?? lastStringRef.current;
           setWavePhase((now / 85) % 1);
           setReading(nextReading);
           applyHold(nextReading, now);
@@ -270,6 +291,7 @@ export function ViolinTuner() {
           now - lastHeardRef.current >= PITCH_SILENCE_MS
         ) {
           smoothedHz.current = null;
+          lastStringRef.current = null;
           setReading(null);
           applyHold(null, now);
         }
@@ -288,57 +310,70 @@ export function ViolinTuner() {
     return () => stop();
   }, [start, stop]);
 
+  useEffect(() => {
+    if (tuned.size !== VIOLIN_STRINGS.length) return;
+    const timer = window.setTimeout(() => {
+      setTuned(new Set());
+      holdRef.current = null;
+      setHoldProgress(0);
+      setHoldingId(null);
+    }, ALL_TUNED_RESET_MS);
+    return () => window.clearTimeout(timer);
+  }, [tuned]);
+
   const activeId = reading?.stringId ?? null;
-  const tone = reading?.tone ?? "unclear";
   const holding = holdingId != null && holdProgress > 0 && holdProgress < 1;
   const allTuned = tuned.size === VIOLIN_STRINGS.length;
-  const noteLabel = reading?.pitchClassName ?? "—";
+  const cue = tunerCueCopy(reading);
+  const cueColor =
+    reading?.direction === "in_tune"
+      ? "text-[var(--musai-ok)]"
+      : reading?.direction === "low"
+        ? "text-[var(--musai-pitch-low)]"
+        : reading?.direction === "high"
+          ? "text-[var(--musai-pitch-high)]"
+          : "text-[var(--musai-muted)]";
 
   return (
     <section className="w-full max-w-[min(440px,100%)]">
       <div
-        className={`musai-glass-surface px-5 py-5 sm:px-7 sm:py-6 ${
-          listening
-            ? "musai-capture-strip--live border-[color-mix(in_srgb,var(--musai-ok)_28%,var(--musai-border))]"
-            : ""
+        className={`musai-glass-surface musai-tuner-shell px-5 py-5 sm:px-7 sm:py-6 ${
+          listening ? "musai-tuner-shell--live" : ""
         }`}
       >
-        <div className="mb-3 flex justify-center">
-          {listening ? (
-            <span className="musai-studio-status musai-studio-status--listen">
-              <span className="musai-studio-status__dot" aria-hidden />
-              {holding ? "Hold" : "Listening"}
-            </span>
-          ) : (
-            <span className="musai-studio-status musai-studio-status--ready opacity-70">
-              <span className="musai-studio-status__dot" aria-hidden />
-              Mic off
-            </span>
-          )}
+        <div
+          className="musai-tuner-live"
+          aria-hidden
+          data-active={listening ? "true" : "false"}
+          data-holding={holding ? "true" : "false"}
+        >
+          {listening ? <span className="musai-tuner-live__pulse" /> : null}
         </div>
 
         <ViolinTunerFigure
           activeId={activeId}
           tuned={tuned}
-          liveTone={activeId ? tone : null}
+          liveDirection={reading?.direction ?? null}
           holdingId={holdingId}
           holdProgress={holdProgress}
           wavePhase={wavePhase}
         />
 
         <div className="mt-1 text-center" aria-live="polite">
+          <p className="text-[12px] font-semibold uppercase tracking-[0.16em] text-[var(--musai-muted)]">
+            {reading?.stringId ? `${reading.stringId} string` : "Open string"}
+          </p>
           <p
-            className={`font-display text-[2rem] font-semibold tracking-tight sm:text-[2.25rem] ${
-              tone === "good"
-                ? "text-[var(--musai-ok)]"
-                : tone === "slight"
-                  ? "text-[var(--musai-warn)]"
-                  : tone === "bad"
-                    ? "text-[var(--musai-accent-2)]"
-                    : "text-[var(--musai-muted)]"
-            }`}
+            className={`mt-1 font-display text-[2rem] font-semibold tracking-tight sm:text-[2.25rem] ${cueColor}`}
           >
-            {noteLabel}
+            {reading?.direction === "low"
+              ? "↑ Too low"
+              : reading?.direction === "high"
+                ? "↓ Too high"
+                : cue.headline}
+          </p>
+          <p className={`mt-0.5 text-[13px] font-medium ${cueColor} opacity-80`}>
+            {cue.hint}
           </p>
         </div>
 
@@ -360,42 +395,22 @@ export function ViolinTuner() {
           </p>
         ) : null}
 
-        <div className="mt-4 flex items-center justify-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              tapFeedback("light");
-              if (listening) stop();
-              else void start();
-            }}
-            className="musai-btn-secondary px-4 py-2 text-[13px]"
-          >
-            {listening ? "Pause mic" : "Resume"}
-          </button>
-          {tuned.size > 0 ? (
+        {message ? (
+          <div className="mt-5 flex flex-col items-center gap-3">
+            <p
+              className="musai-glass-inset w-full border-[color-mix(in_srgb,var(--musai-accent-2)_30%,var(--musai-border))] bg-[color-mix(in_srgb,var(--musai-accent-2)_8%,white)] px-4 py-3 text-center text-sm text-[var(--musai-accent-2)]"
+              role="alert"
+            >
+              {message}
+            </p>
             <button
               type="button"
-              onClick={() => {
-                tapFeedback("light");
-                setTuned(new Set());
-                holdRef.current = null;
-                setHoldProgress(0);
-                setHoldingId(null);
-              }}
+              onClick={() => void start()}
               className="musai-btn-secondary px-4 py-2 text-[13px]"
             >
-              Clear
+              Try mic again
             </button>
-          ) : null}
-        </div>
-
-        {message ? (
-          <p
-            className="musai-glass-inset mt-5 border-[color-mix(in_srgb,var(--musai-accent-2)_30%,var(--musai-border))] bg-[color-mix(in_srgb,var(--musai-accent-2)_8%,white)] px-4 py-3 text-center text-sm text-[var(--musai-accent-2)]"
-            role="alert"
-          >
-            {message}
-          </p>
+          </div>
         ) : null}
       </div>
     </section>

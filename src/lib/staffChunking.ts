@@ -1,18 +1,20 @@
 /**
- * Split a sequence of notes into staff systems so each row keeps minimum
- * horizontal spacing between note heads (musical spacing, not even squash).
+ * Staff systems for scale notation.
+ *
+ * Prefer one ascending system and one descending system. When width is tight,
+ * break only at octave boundaries (never mid-run “sheet music” shards).
  */
+
 /** Slightly roomier than a raw 30px heuristic so noteheads can breathe. */
 export const STAFF_NOTE_MIN_GAP_PX = 34;
 export const STAFF_CLEF_ZONE_PX = 54;
 export const STAFF_RIGHT_MARGIN_PX = 28;
 
 /**
- * Two-octave ascending scales are 15 notes (tonic → upper tonic); descending is 14.
- * Cap must allow 15 on one system when width permits, or ascending wraps while
- * descending does not. See `chunkMidisForStaffPaired`.
+ * Two-octave ascending scales are 15 notes (tonic → upper tonic).
+ * Cap must allow a full ascending (or descending) run on one system when width permits.
  */
-export const MAX_NOTES_PER_STAFF_ROW_CAP = 15;
+export const MAX_NOTES_PER_STAFF_ROW_CAP = 16;
 
 export function maxNotesPerStaffRow(
   usableWidthPx: number,
@@ -25,7 +27,76 @@ export function maxNotesPerStaffRow(
   return Math.min(fromWidth, MAX_NOTES_PER_STAFF_ROW_CAP);
 }
 
-/** Split `midis` into `rowCount` contiguous, length-balanced rows (sheet-music style). */
+function pitchClass(midi: number): number {
+  return ((midi % 12) + 12) % 12;
+}
+
+/**
+ * Split a scale run into octave-sized segments (tonic → next tonic).
+ * Direction is inferred from first/last pitch.
+ */
+export function chunkMidisAtOctaves(midis: number[]): number[][] {
+  if (midis.length === 0) return [];
+  if (midis.length === 1) return [midis];
+
+  const first = midis[0]!;
+  const last = midis[midis.length - 1]!;
+  const ascending = last >= first;
+  const tonicPc = pitchClass(ascending ? first : last);
+
+  const exclusiveEnds: number[] = [];
+  for (let i = 1; i < midis.length; i++) {
+    if (pitchClass(midis[i]!) !== tonicPc) continue;
+    exclusiveEnds.push(i + 1);
+  }
+
+  if (exclusiveEnds.length === 0) {
+    return [midis];
+  }
+
+  if (exclusiveEnds[exclusiveEnds.length - 1]! !== midis.length) {
+    exclusiveEnds.push(midis.length);
+  }
+
+  const chunks: number[][] = [];
+  let start = 0;
+  for (const end of exclusiveEnds) {
+    if (end <= start) continue;
+    chunks.push(midis.slice(start, end));
+    start = end;
+  }
+  return chunks.length > 0 ? chunks : [midis];
+}
+
+/** Pack consecutive octave segments onto one staff while they fit `maxPerRow`. */
+export function packOctaveChunks(
+  octaves: number[][],
+  maxPerRow: number,
+): number[][] {
+  if (octaves.length === 0) return [];
+  const cap = Math.max(1, maxPerRow);
+  const rows: number[][] = [];
+  let current: number[] = [];
+
+  for (const oct of octaves) {
+    if (oct.length === 0) continue;
+    if (current.length === 0) {
+      current = [...oct];
+      continue;
+    }
+    // Never split an octave segment — if it alone exceeds cap, it still gets its own row.
+    if (current.length + oct.length <= cap) {
+      current.push(...oct);
+    } else {
+      rows.push(current);
+      current = [...oct];
+    }
+  }
+  if (current.length > 0) rows.push(current);
+  return rows;
+}
+
+/** @deprecated Prefer octave packing; kept for callers that still pass a row count. */
 export function chunkMidisIntoBalancedRows(
   midis: number[],
   rowCount: number,
@@ -35,74 +106,44 @@ export function chunkMidisIntoBalancedRows(
   const rows = Math.min(rowCount, n);
   if (rows === 1) return [midis];
 
-  const base = Math.floor(n / rows);
-  const remainder = n % rows;
-  const chunks: number[][] = [];
-  let idx = 0;
-  for (let r = 0; r < rows; r++) {
-    const size = base + (r < remainder ? 1 : 0);
-    chunks.push(midis.slice(idx, idx + size));
-    idx += size;
+  // Prefer octave boundaries over equal-length shards.
+  const packed = packOctaveChunks(chunkMidisAtOctaves(midis), Math.ceil(n / rows));
+  if (packed.length === rows) return packed;
+  if (packed.length < rows) return packed;
+
+  // Too many octave rows for the requested count — merge from the start.
+  while (packed.length > rows) {
+    const a = packed.shift()!;
+    packed[0] = [...a, ...packed[0]!];
   }
-  return chunks;
+  return packed;
 }
 
+/**
+ * Chunk a single direction (asc or desc): whole run if it fits, else octave rows only.
+ */
 export function chunkMidisForStaff(
   midis: number[],
   maxPerRow: number,
 ): number[][] {
   if (midis.length === 0) return [];
-
-  const n = midis.length;
-  const minPerRow = 3;
-
-  let rows = Math.max(1, Math.ceil(n / Math.max(1, maxPerRow)));
-  // If we can reduce the number of rows (without exceeding maxPerRow),
-  // do so to avoid staff lines with only 1–2 notes.
-  while (
-    rows > 1 &&
-    Math.floor(n / rows) < minPerRow &&
-    Math.ceil(n / (rows - 1)) <= maxPerRow
-  ) {
-    rows -= 1;
-  }
-
-  const chunks = chunkMidisIntoBalancedRows(midis, rows);
-
-  // Final safety: if the last row is still very short, borrow from the previous row.
-  // This can happen in edge cases when maxPerRow is tight.
-  if (chunks.length >= 2) {
-    const last = chunks[chunks.length - 1]!;
-    const prev = chunks[chunks.length - 2]!;
-    while (last.length < minPerRow && prev.length > minPerRow) {
-      last.unshift(prev.pop()!);
-    }
-  }
-
-  return chunks;
+  const cap = Math.max(1, maxPerRow);
+  if (midis.length <= cap) return [midis];
+  return packOctaveChunks(chunkMidisAtOctaves(midis), cap);
 }
 
 /**
- * Ascending vs descending often differ by one note (peak only once). Use the same
- * number of staff lines for both so layout stays visually matched.
+ * Ascending and descending chunked independently with the same octave rules.
+ * Each direction stays musically intact (full run, or whole-octave systems).
  */
 export function chunkMidisForStaffPaired(
   ascendingMidis: number[],
   descendingMidis: number[],
   maxPerRow: number,
 ): { ascending: number[][]; descending: number[][] } {
-  const na = ascendingMidis.length;
-  const nd = descendingMidis.length;
-  if (na === 0 && nd === 0) return { ascending: [], descending: [] };
-
-  const rowsAsc = na === 0 ? 0 : Math.ceil(na / Math.max(1, maxPerRow));
-  const rowsDesc = nd === 0 ? 0 : Math.ceil(nd / Math.max(1, maxPerRow));
-  const rows = Math.max(rowsAsc, rowsDesc, 1);
-
   return {
-    ascending: na === 0 ? [] : chunkMidisIntoBalancedRows(ascendingMidis, rows),
-    descending:
-      nd === 0 ? [] : chunkMidisIntoBalancedRows(descendingMidis, rows),
+    ascending: chunkMidisForStaff(ascendingMidis, maxPerRow),
+    descending: chunkMidisForStaff(descendingMidis, maxPerRow),
   };
 }
 

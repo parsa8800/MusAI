@@ -23,11 +23,11 @@ export function PracticeHubBackLink({
     <div className={`mb-5 w-fit max-w-full sm:mb-6 ${className}`.trim()}>
       <Link
         href={href}
-        className="group musai-pressable inline-flex min-h-10 items-center gap-2.5 rounded-[var(--musai-radius)] border border-[var(--musai-border)] bg-[var(--musai-surface)] py-1.5 pl-1.5 pr-3.5 text-[13px] font-medium text-[var(--musai-muted)] shadow-[var(--musai-shadow)] hover:border-[color-mix(in_srgb,var(--musai-accent)_28%,var(--musai-border))] hover:text-[var(--musai-ink)]"
+        className="group musai-pressable musai-glass inline-flex min-h-10 items-center gap-2.5 rounded-[var(--musai-radius)] py-1.5 pl-1.5 pr-3.5 text-[13px] font-medium text-[var(--musai-muted)] hover:border-[color-mix(in_srgb,var(--musai-accent)_28%,var(--musai-glass-stroke))] hover:text-[var(--musai-ink)]"
         aria-label={ariaLabel ?? `Back to ${label}`}
       >
         <span
-          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[calc(var(--musai-radius)-2px)] border border-[var(--musai-border)] bg-[var(--musai-surface-2)] text-[var(--musai-muted)] transition-colors duration-200 group-hover:text-[var(--musai-ink)]"
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[max(0.375rem,calc(var(--musai-radius)-0.35rem))] border border-[var(--musai-glass-stroke)] bg-[color-mix(in_srgb,var(--musai-surface-2)_70%,transparent)] text-[var(--musai-muted)] transition-colors duration-200 group-hover:text-[var(--musai-ink)]"
           aria-hidden
         >
           <svg

@@ -10,6 +10,8 @@ export function MusaiFloatingMiniRecorder({
   onStopRecording,
   elapsedLabel,
   levelBars,
+  idleTitle,
+  startAriaLabel,
 }: {
   mounted: boolean;
   visible: boolean;
@@ -18,6 +20,8 @@ export function MusaiFloatingMiniRecorder({
   onStopRecording: () => void;
   elapsedLabel: string;
   levelBars: number[];
+  idleTitle?: string;
+  startAriaLabel?: string;
 }) {
   if (!mounted) return null;
 
@@ -34,7 +38,7 @@ export function MusaiFloatingMiniRecorder({
       }}
       aria-hidden={!visible}
     >
-      <div className="rounded-xl border border-[var(--musai-border)] bg-[var(--musai-surface)] p-2 shadow-[var(--musai-shadow)]">
+      <div className="musai-glass musai-glass--strong rounded-[var(--musai-radius-lg)] p-2">
         <MusaiRecorderControls
           size="mini"
           variant="dock"
@@ -43,6 +47,8 @@ export function MusaiFloatingMiniRecorder({
           onStopRecording={onStopRecording}
           elapsedLabel={elapsedLabel}
           levelBars={levelBars}
+          idleTitle={idleTitle}
+          startAriaLabel={startAriaLabel}
           className="w-[92px]"
         />
       </div>

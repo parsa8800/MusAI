@@ -1,11 +1,20 @@
 import { describe, expect, it } from "vitest";
 import {
+  chunkMidisAtOctaves,
   chunkMidisForStaff,
   chunkMidisForStaffPaired,
   maxNotesPerStaffRow,
+  packOctaveChunks,
   staffRowWidthPx,
   STAFF_NOTE_MIN_GAP_PX,
 } from "@/lib/staffChunking";
+
+const C_MAJOR_2OCT_ASC = [
+  60, 62, 64, 65, 67, 69, 71, 72, 74, 76, 77, 79, 81, 83, 84,
+];
+const C_MAJOR_2OCT_DESC = [
+  84, 83, 81, 79, 77, 76, 74, 72, 71, 69, 67, 65, 64, 62, 60,
+];
 
 describe("maxNotesPerStaffRow", () => {
   it("returns at least 2", () => {
@@ -18,50 +27,81 @@ describe("maxNotesPerStaffRow", () => {
   });
 });
 
-describe("chunkMidisForStaff", () => {
-  it("chunks by max per row", () => {
-    const midis = [60, 62, 64, 66, 68, 70, 72, 74, 76];
-    expect(chunkMidisForStaff(midis, 4)).toEqual([
-      [60, 62, 64],
-      [66, 68, 70],
-      [72, 74, 76],
+describe("chunkMidisAtOctaves", () => {
+  it("splits a two-octave ascent at the middle tonic", () => {
+    expect(chunkMidisAtOctaves(C_MAJOR_2OCT_ASC)).toEqual([
+      C_MAJOR_2OCT_ASC.slice(0, 8),
+      C_MAJOR_2OCT_ASC.slice(8),
     ]);
   });
 
-  it("avoids a single trailing note when possible", () => {
-    const midis = [60, 62, 64, 66, 68, 70, 72, 74, 76];
-    const chunks = chunkMidisForStaff(midis, 4);
-    expect(Math.min(...chunks.map((c) => c.length))).toBeGreaterThanOrEqual(3);
+  it("splits a two-octave descent at the middle tonic", () => {
+    expect(chunkMidisAtOctaves(C_MAJOR_2OCT_DESC)).toEqual([
+      C_MAJOR_2OCT_DESC.slice(0, 8),
+      C_MAJOR_2OCT_DESC.slice(8),
+    ]);
+  });
+
+  it("keeps a one-octave run intact", () => {
+    const one = C_MAJOR_2OCT_ASC.slice(0, 8);
+    expect(chunkMidisAtOctaves(one)).toEqual([one]);
+  });
+});
+
+describe("chunkMidisForStaff", () => {
+  it("keeps the full ascending run on one staff when width allows", () => {
+    expect(chunkMidisForStaff(C_MAJOR_2OCT_ASC, 15)).toEqual([
+      C_MAJOR_2OCT_ASC,
+    ]);
+  });
+
+  it("falls back to whole-octave rows — never mid-run shards", () => {
+    expect(chunkMidisForStaff(C_MAJOR_2OCT_ASC, 10)).toEqual([
+      C_MAJOR_2OCT_ASC.slice(0, 8),
+      C_MAJOR_2OCT_ASC.slice(8),
+    ]);
+  });
+
+  it("does not carve an octave into tiny balanced fragments", () => {
+    const oneOct = C_MAJOR_2OCT_ASC.slice(0, 8);
+    // Even with a tiny max, keep the octave together.
+    expect(chunkMidisForStaff(oneOct, 4)).toEqual([oneOct]);
+  });
+});
+
+describe("packOctaveChunks", () => {
+  it("merges octaves onto one row when they fit", () => {
+    const octaves = chunkMidisAtOctaves(C_MAJOR_2OCT_ASC);
+    expect(packOctaveChunks(octaves, 15)).toEqual([C_MAJOR_2OCT_ASC]);
   });
 });
 
 describe("chunkMidisForStaffPaired", () => {
-  it("uses one row each when both sequences fit (15 vs 14 notes)", () => {
-    const asc = Array.from({ length: 15 }, (_, i) => 60 + i);
-    const desc = Array.from({ length: 14 }, (_, i) => 74 - i);
+  it("uses one row each when both sequences fit", () => {
     const { ascending: a, descending: d } = chunkMidisForStaffPaired(
-      asc,
-      desc,
+      C_MAJOR_2OCT_ASC,
+      C_MAJOR_2OCT_DESC.slice(1), // 14 notes, peak once
       15,
     );
-    expect(a.length).toBe(1);
+    expect(a).toEqual([C_MAJOR_2OCT_ASC]);
     expect(d.length).toBe(1);
-    expect(a[0]!.length).toBe(15);
     expect(d[0]!.length).toBe(14);
   });
 
-  it("matches row count when ascending needs one more row than descending (15 vs 14, cap 14)", () => {
-    const asc = Array.from({ length: 15 }, (_, i) => 60 + i);
-    const desc = Array.from({ length: 14 }, (_, i) => 74 - i);
+  it("breaks each direction at octaves when the full run does not fit", () => {
     const { ascending: a, descending: d } = chunkMidisForStaffPaired(
-      asc,
-      desc,
-      14,
+      C_MAJOR_2OCT_ASC,
+      C_MAJOR_2OCT_DESC,
+      10,
     );
-    expect(a.length).toBe(2);
-    expect(d.length).toBe(2);
-    expect(a.map((row) => row.length)).toEqual([8, 7]);
-    expect(d.map((row) => row.length)).toEqual([7, 7]);
+    expect(a).toEqual([
+      C_MAJOR_2OCT_ASC.slice(0, 8),
+      C_MAJOR_2OCT_ASC.slice(8),
+    ]);
+    expect(d).toEqual([
+      C_MAJOR_2OCT_DESC.slice(0, 8),
+      C_MAJOR_2OCT_DESC.slice(8),
+    ]);
   });
 });
 

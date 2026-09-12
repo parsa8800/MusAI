@@ -352,6 +352,7 @@ describe("analyzeScalePerformance", () => {
     expect(r.notes[3]!.intonationBucket).toBe("sharp");
     expect(r.notes[5]!.intonationBucket).toBe("sharp");
     expect(r.notes[3]!.centsDifference).toBeGreaterThan(20);
+    expect(r.notes[5]!.centsDifference).toBeGreaterThan(20);
     expect(r.summary.weakestNoteIndices).toEqual(
       expect.arrayContaining([3, 5]),
     );
@@ -370,27 +371,43 @@ describe("analyzeScalePerformance", () => {
     expect(r.summary.trend).toBe("flat");
   });
 
-  it("edge: incomplete clip leaves later windows missing or badly aligned", () => {
+  it("edge: incomplete clip only keeps the notes that were actually played", () => {
     const expected = buildExerciseScaleMidis(60, "major", 1);
     const partial = expected.slice(0, 6);
     const { mono, sampleRateHz } = synthScaleMono(partial, { secondsPerNote: 0.4 });
     const r = analyzeScalePerformance({ mono, sampleRateHz, expectedMidis: expected });
 
     expect(r.notes).toHaveLength(expected.length);
-    // Equal-window model cannot recover a half take — overall must not look "excellent".
-    expect(r.summary.inTunePercent).toBeLessThan(70);
+    expect(r.summary.notesAnalyzed).toBe(6);
+    expect(r.summary.notesMissing).toBe(expected.length - 6);
+    expect(r.notes.slice(0, 6).every((n) => !n.missingData)).toBe(true);
+    expect(r.notes.slice(6).every((n) => n.missingData)).toBe(true);
+    expect(r.notes.filter((n) => n.missingData).every((n) => n.detectedMidi === 0)).toBe(
+      true,
+    );
   });
 
-  it("edge: skipped note (wrong pitch in one window) surfaces as a weak step", () => {
+  it("edge: single sustained note does not fake a full-scale take", () => {
     const expected = buildExerciseScaleMidis(60, "major", 1);
-    // Replace one degree with a pitch ~2 semitones high (≈200¢).
-    const centsOffsets = expected.map((_, i) => (i === 4 ? 200 : 0));
-    const { mono, sampleRateHz } = synthScaleMono(expected, { centsOffsets });
+    const { mono, sampleRateHz } = synthScaleMono([69], { secondsPerNote: 1.2 });
     const r = analyzeScalePerformance({ mono, sampleRateHz, expectedMidis: expected });
 
-    expect(Math.abs(r.notes[4]!.centsDifference)).toBeGreaterThan(150);
-    expect(r.summary.weakestNoteIndices[0]).toBe(4);
-    expect(r.notes[4]!.intonationBucket).not.toBe("in_tune");
+    expect(r.summary.notesAnalyzed).toBeLessThanOrEqual(1);
+    expect(r.summary.notesMissing).toBeGreaterThanOrEqual(expected.length - 1);
+    expect(r.notes.filter((n) => !n.missingData).length).toBeLessThanOrEqual(1);
+  });
+
+  it("edge: skipped degree stays missing instead of inheriting a neighbour pitch", () => {
+    const expected = buildExerciseScaleMidis(60, "major", 1);
+    const played = expected.filter((_, i) => i !== 4);
+    const { mono, sampleRateHz } = synthScaleMono(played);
+    const r = analyzeScalePerformance({ mono, sampleRateHz, expectedMidis: expected });
+
+    expect(r.notes[4]!.missingData).toBe(true);
+    expect(r.notes[4]!.detectedNoteLabel).toBe("—");
+    expect(r.notes[3]!.missingData).toBe(false);
+    expect(r.notes[5]!.missingData).toBe(false);
+    expect(r.summary.notesAnalyzed).toBe(expected.length - 1);
   });
 
   it("detected Hz is within ~25¢ of synthesised target on a clean take", () => {
@@ -398,9 +415,9 @@ describe("analyzeScalePerformance", () => {
     const { mono, sampleRateHz } = synthScaleMono(expected, { secondsPerNote: 0.5 });
     const r = analyzeScalePerformance({ mono, sampleRateHz, expectedMidis: expected });
     for (let i = 0; i < expected.length; i++) {
-      const target = midiToHz(expected[i]!);
-      const cents = centsFromTarget(r.notes[i]!.detectedHz, target);
-      expect(Math.abs(cents)).toBeLessThan(25);
+      expect(r.notes[i]!.missingData).toBe(false);
+      // Product uses octave-unwrapped cents (raw Hz can sit one octave up).
+      expect(Math.abs(r.notes[i]!.centsDifference)).toBeLessThan(25);
     }
   });
 });

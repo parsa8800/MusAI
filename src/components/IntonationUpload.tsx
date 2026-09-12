@@ -44,7 +44,6 @@ export function IntonationUpload() {
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const discardRecordingRef = useRef(false);
-  const retakeAfterStopRef = useRef(false);
   const mainRecorderRef = useRef<HTMLDivElement | null>(null);
   const [micDevices, setMicDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedMicId, setSelectedMicId] = useState("");
@@ -89,7 +88,14 @@ export function IntonationUpload() {
     setMessage(null);
   }, []);
 
-  const { elapsedLabel, lastTakeLabel, levelBars } = useSyncedRecorderUi(
+  const {
+    elapsedLabel,
+    lastTakeLabel,
+    levelBars,
+    waveformSamples,
+    waveformLiveRef,
+    resetTakeUi,
+  } = useSyncedRecorderUi(
     isRecording,
     streamRef,
   );
@@ -197,13 +203,10 @@ export function IntonationUpload() {
 
         if (discardRecordingRef.current) {
           discardRecordingRef.current = false;
+          resetTakeUi();
           chunksRef.current = [];
-          if (retakeAfterStopRef.current) {
-            retakeAfterStopRef.current = false;
-            queueMicrotask(() => {
-              void startRecordingRef.current();
-            });
-          }
+          setRecordedBlob(null);
+          resetSession();
           return;
         }
 
@@ -228,10 +231,7 @@ export function IntonationUpload() {
       setMessage(describeMicOpenError(err));
       setStatus("error");
     }
-  }, [refreshMicDevices, selectedMicId, stopStream]);
-
-  const startRecordingRef = useRef(startRecording);
-  startRecordingRef.current = startRecording;
+  }, [refreshMicDevices, resetSession, resetTakeUi, selectedMicId, stopStream]);
 
   const stopRecording = useCallback(() => {
     const rec = mediaRecorderRef.current;
@@ -249,12 +249,12 @@ export function IntonationUpload() {
     }
   }, []);
 
-  const retakeRecording = useCallback(() => {
+  const discardRecording = useCallback(() => {
     if (!isRecording) return;
-    retakeAfterStopRef.current = true;
     discardRecordingRef.current = true;
+    resetTakeUi();
     stopRecording();
-  }, [isRecording, stopRecording]);
+  }, [isRecording, resetTakeUi, stopRecording]);
 
   const analyze = useCallback(async () => {
     const hasUpload = inputMode === "upload" && file;
@@ -369,7 +369,7 @@ export function IntonationUpload() {
           aria-hidden={status === "loading"}
         >
             {/* Target pitch */}
-            <div className="flex flex-col overflow-hidden border-b border-[var(--musai-border)] p-4 pt-6 sm:p-8 sm:pt-9 lg:border-b-0 lg:border-r lg:border-[var(--musai-border)]">
+            <div className="flex flex-col border-b border-[var(--musai-border)] p-4 pt-6 sm:p-8 sm:pt-9 lg:border-b-0 lg:border-r lg:border-[var(--musai-border)]">
               <div className="flex items-start justify-between gap-3 pr-1 pt-0.5">
                 <div className="min-w-0">
                   <h2 className="text-base font-semibold tracking-tight text-[var(--musai-ink)]">
@@ -381,23 +381,23 @@ export function IntonationUpload() {
                 </div>
               </div>
 
-              <div className="relative mt-5 flex min-h-0 flex-1 items-center justify-center overflow-hidden py-3 sm:mt-7 sm:py-6">
+              <div className="relative mt-5 flex min-h-0 flex-1 items-center justify-center py-3 sm:mt-7 sm:py-6">
                 <div
-                  className="pointer-events-none absolute left-1/2 top-1/2 aspect-square w-[min(100%,18rem)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,color-mix(in_srgb,var(--musai-accent)_14%,transparent)_0%,color-mix(in_srgb,var(--musai-accent-2)_8%,transparent)_45%,transparent_70%)] blur-[48px] sm:w-[min(100%,22rem)]"
+                  className="pointer-events-none absolute left-1/2 top-1/2 aspect-square w-[min(100%,18rem)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,color-mix(in_srgb,var(--musai-accent)_8%,transparent)_0%,transparent_68%)] blur-[28px] sm:w-[min(100%,22rem)]"
                   aria-hidden
                 />
-                <div className="relative z-[1] flex w-full justify-center">
+                <div className="relative z-[1] flex w-full min-w-0 justify-center">
                   <NoteRing
                     value={midi}
                     onChange={setMidi}
-                    className="mx-auto w-full max-w-[min(100%,300px)] sm:max-w-[min(100%,420px)]"
+                    className="mx-auto w-full max-w-[min(100%,22rem)] sm:max-w-[min(100%,26rem)]"
                   />
                 </div>
               </div>
             </div>
 
             {/* Capture + analyze — same dock as Scale Studio */}
-            <div className="flex flex-col justify-center p-4 sm:p-8">
+            <div className="flex flex-col justify-start p-4 sm:p-8">
               <div className="mb-4">
                 <h2 className="text-base font-semibold tracking-tight text-[var(--musai-ink)]">
                   Your take
@@ -427,11 +427,14 @@ export function IntonationUpload() {
                 }}
                 onStartRecording={() => void startRecording()}
                 onStopRecording={stopRecording}
-                onRetakeRecording={retakeRecording}
+                onDiscardRecording={discardRecording}
                 streamRef={streamRef}
                 elapsedLabel={elapsedLabel}
                 levelBars={levelBars}
+                waveformSamples={waveformSamples}
+                waveformLiveRef={waveformLiveRef}
                 lastTakeLabel={lastTakeLabel}
+                idleHint="Hold a sustained note"
                 message={message}
                 status={status}
                 canAnalyze={canAnalyze}

@@ -158,7 +158,10 @@ export function collectPitchFrames(
 
 /**
  * Split the voiced span into `noteCount` equal time windows; median Hz per window.
- * Aligns one window per expected scale degree (ascending performance model).
+ *
+ * Legacy helper — scale analysis no longer paints expected degrees from equal
+ * windows (that invented notes the player never played). Kept for tests and
+ * diagnostics.
  */
 export function medianHzPerEqualWindow(
   frames: PitchFrame[],
@@ -195,46 +198,129 @@ export function medianHzPerEqualWindow(
 }
 
 const STABLE_RUN_SEMI_TOL = 0.55;
-const STABLE_RUN_MIN_FRAMES = 2;
+/** Drop 1–3-frame blips and G→A boundary smears; ~4 hops is a real note. */
+const STABLE_RUN_MIN_FRAMES = 4;
+/** Neighbour-pitch flicker must last this many frames before splitting a run. */
+const SPLIT_HYSTERESIS_FRAMES = 4;
+/** Merge same-pitch fragments only across tiny gaps (not a later re-articulation). */
+const MERGE_MAX_GAP_SEC = 0.08;
+const MERGE_SEMI_TOL = 0.7;
 
-type HzRun = { hz: number[]; midiCenter: number };
+/** Max abs cents to assign a pitch run to an expected scale degree. */
+export const DETECTED_NOTE_MATCH_MAX_CENTS = 85;
+/** Sequential matching may skip this many unmatched expected degrees (missed notes). */
+export const DETECTED_NOTE_MAX_SKIP = 2;
+
+export type StablePitchRun = {
+  hz: number[];
+  midiCenter: number;
+  medianHz: number;
+  frameCount: number;
+  timeStartSec: number;
+  timeEndSec: number;
+};
+
+function midiToHzFromMidi(midi: number): number {
+  return 440 * Math.pow(2, (midi - 69) / 12);
+}
+
+function rawAbsCents(hz: number, targetHz: number): number {
+  return Math.abs(1200 * Math.log2(hz / targetHz));
+}
+
+function runFromFrames(buf: PitchFrame[]): StablePitchRun | null {
+  if (buf.length < STABLE_RUN_MIN_FRAMES) return null;
+  const hz = buf.map((f) => f.hz);
+  const midiCenter =
+    hz.reduce((sum, h) => sum + hzToMidi(h), 0) / hz.length;
+  return {
+    hz,
+    midiCenter,
+    medianHz: medianHzFromSorted(hz),
+    frameCount: buf.length,
+    timeStartSec: buf[0]!.timeSec,
+    timeEndSec: buf[buf.length - 1]!.timeSec,
+  };
+}
+
+function meanMidi(frames: PitchFrame[]): number {
+  return frames.reduce((sum, f) => sum + hzToMidi(f.hz), 0) / frames.length;
+}
+
+function mergeAdjacentSamePitchRuns(runs: StablePitchRun[]): StablePitchRun[] {
+  if (runs.length === 0) return [];
+  const out: StablePitchRun[] = [runs[0]!];
+  for (let i = 1; i < runs.length; i++) {
+    const prev = out[out.length - 1]!;
+    const next = runs[i]!;
+    const gap = next.timeStartSec - prev.timeEndSec;
+    if (
+      Math.abs(prev.midiCenter - next.midiCenter) <= MERGE_SEMI_TOL &&
+      gap <= MERGE_MAX_GAP_SEC
+    ) {
+      const hz = prev.hz.concat(next.hz);
+      const frameCount = prev.frameCount + next.frameCount;
+      out[out.length - 1] = {
+        hz,
+        midiCenter:
+          (prev.midiCenter * prev.frameCount +
+            next.midiCenter * next.frameCount) /
+          frameCount,
+        medianHz: medianHzFromSorted(hz),
+        frameCount,
+        timeStartSec: prev.timeStartSec,
+        timeEndSec: next.timeEndSec,
+      };
+    } else {
+      out.push(next);
+    }
+  }
+  return out;
+}
 
 /**
  * Group consecutive pitch frames into stable pitch runs (note-like plateaus).
- * Returns null when segmentation is too weak to trust (caller should fall back).
+ *
+ * Brief neighbour-pitch flickers are absorbed into the current run. Extremely
+ * short detections are dropped instead of becoming notes.
  */
-export function collectStablePitchRuns(frames: PitchFrame[]): HzRun[] {
+export function collectStablePitchRuns(frames: PitchFrame[]): StablePitchRun[] {
   if (frames.length === 0) return [];
 
-  const runs: HzRun[] = [];
-  let hzBuf: number[] = [frames[0]!.hz];
-  let midiSum = hzToMidi(frames[0]!.hz);
-  let midiCount = 1;
-  let center = midiSum;
+  const raw: StablePitchRun[] = [];
+  let current: PitchFrame[] = [];
+  let pendingOut: PitchFrame[] = [];
 
-  const flush = () => {
-    if (hzBuf.length >= STABLE_RUN_MIN_FRAMES) {
-      runs.push({ hz: hzBuf, midiCenter: midiSum / midiCount });
-    }
+  const flushCurrent = () => {
+    const run = runFromFrames(current);
+    if (run) raw.push(run);
+    current = [];
   };
 
-  for (let i = 1; i < frames.length; i++) {
-    const m = hzToMidi(frames[i]!.hz);
-    if (Math.abs(m - center) <= STABLE_RUN_SEMI_TOL) {
-      hzBuf.push(frames[i]!.hz);
-      midiSum += m;
-      midiCount += 1;
-      center = midiSum / midiCount;
-    } else {
-      flush();
-      hzBuf = [frames[i]!.hz];
-      midiSum = m;
-      midiCount = 1;
-      center = m;
+  for (const frame of frames) {
+    if (current.length === 0) {
+      current = [frame];
+      pendingOut = [];
+      continue;
+    }
+    const center = meanMidi(current);
+    if (Math.abs(hzToMidi(frame.hz) - center) <= STABLE_RUN_SEMI_TOL) {
+      pendingOut = [];
+      current.push(frame);
+      continue;
+    }
+    pendingOut.push(frame);
+    if (pendingOut.length >= SPLIT_HYSTERESIS_FRAMES) {
+      flushCurrent();
+      current = pendingOut;
+      pendingOut = [];
     }
   }
-  flush();
-  return runs;
+  flushCurrent();
+  const trailing = runFromFrames(pendingOut);
+  if (trailing) raw.push(trailing);
+
+  return mergeAdjacentSamePitchRuns(raw);
 }
 
 /**
@@ -271,10 +357,18 @@ export function medianHzPerStableRuns(
     const a = runs[keep]!;
     const b = runs[drop]!;
     const mergedHz = a.hz.concat(b.hz);
+    const frameCount = a.frameCount + b.frameCount;
     const midiCenter =
-      (a.midiCenter * a.hz.length + b.midiCenter * b.hz.length) /
-      mergedHz.length;
-    runs[keep] = { hz: mergedHz, midiCenter };
+      (a.midiCenter * a.frameCount + b.midiCenter * b.frameCount) /
+      frameCount;
+    runs[keep] = {
+      hz: mergedHz,
+      midiCenter,
+      medianHz: medianHzFromSorted(mergedHz),
+      frameCount,
+      timeStartSec: Math.min(a.timeStartSec, b.timeStartSec),
+      timeEndSec: Math.max(a.timeEndSec, b.timeEndSec),
+    };
     runs.splice(drop, 1);
   }
 
@@ -302,23 +396,119 @@ export function preferFundamentalNearTargetHz(
 ): number {
   if (!(detectedHz > 0) || !(targetHz > 0)) return detectedHz;
   let bestHz = detectedHz;
-  let bestErr = octaveWrappedAbsCents(detectedHz, targetHz);
+  let bestRaw = rawAbsCents(detectedHz, targetHz);
   for (const div of [2, 3, 4]) {
     const cand = detectedHz / div;
     if (cand < MIN_HZ) continue;
-    const e = octaveWrappedAbsCents(cand, targetHz);
-    // Prefer a clearly better fit, or the same fit at a lower (fundamental) octave.
-    if (e + 15 < bestErr || (e <= bestErr + 5 && cand < bestHz * 0.75)) {
+    const raw = rawAbsCents(cand, targetHz);
+    // Only fold when the divided pitch is actually nearer the written note.
+    // Wrapped-cents would treat C4/3 (F2) as an “F4 harmonic” and invent matches.
+    if (raw + 15 < bestRaw) {
       bestHz = cand;
-      bestErr = e;
+      bestRaw = raw;
     }
   }
   return bestHz;
 }
 
 /**
- * Choose equal-window vs stable-run segmentation by lowest total intonation error
- * against expected MIDI targets.
+ * Whether a pitch run is close enough to an expected MIDI to count as that note.
+ *
+ * `wrapped` allows the same pitch class in another octave (full scale played
+ * up an octave). `raw` requires the same octave so a repeated C4 cannot fill C5.
+ */
+export function runFitsExpectedMidi(
+  detectedHz: number,
+  expectedMidi: number,
+  maxCents: number = DETECTED_NOTE_MATCH_MAX_CENTS,
+  mode: "wrapped" | "raw" = "wrapped",
+): boolean {
+  const target = midiToHzFromMidi(expectedMidi);
+  const adj = preferFundamentalNearTargetHz(detectedHz, target);
+  if (mode === "wrapped") {
+    return octaveWrappedAbsCents(adj, target) <= maxCents;
+  }
+  return rawAbsCents(adj, target) <= maxCents;
+}
+
+/**
+ * Map evidenced pitch runs onto expected scale slots.
+ *
+ * expectedScaleNotes = `expectedMidis` (what the player is supposed to play)
+ * detectedNotes      = non-null slots (runs with enough audio evidence)
+ *
+ * Unplayed expected notes stay `null`. Runs are never resized to the expected
+ * length, and leftover audio is not painted onto later scale degrees.
+ */
+export function matchDetectedRunsToExpected(
+  runs: StablePitchRun[],
+  expectedMidis: readonly number[],
+): Array<number | null> {
+  const n = expectedMidis.length;
+  const slots: Array<number | null> = Array.from({ length: n }, () => null);
+  if (n === 0 || runs.length === 0) return slots;
+
+  const used = new Array<boolean>(runs.length).fill(false);
+
+  let cursor = 0;
+  for (let ri = 0; ri < runs.length; ri++) {
+    const hz = runs[ri]!.medianHz;
+    let found = -1;
+    const searchEnd = Math.min(n - 1, cursor + DETECTED_NOTE_MAX_SKIP);
+    for (let j = cursor; j <= searchEnd; j++) {
+      if (slots[j] != null) continue;
+      if (
+        runFitsExpectedMidi(
+          hz,
+          expectedMidis[j]!,
+          DETECTED_NOTE_MATCH_MAX_CENTS,
+          "wrapped",
+        )
+      ) {
+        found = j;
+        break;
+      }
+    }
+    if (found >= 0) {
+      const target = midiToHzFromMidi(expectedMidis[found]!);
+      slots[found] = preferFundamentalNearTargetHz(hz, target);
+      used[ri] = true;
+      cursor = found + 1;
+    }
+  }
+
+  // Out-of-order leftovers may only fill earlier unmatched slots (e.g. D then C).
+  // Do not assign a leftover C4 onto a later C in the round-trip.
+  for (let ri = 0; ri < runs.length; ri++) {
+    if (used[ri]) continue;
+    const hz = runs[ri]!.medianHz;
+    let bestJ = -1;
+    let bestCents = Infinity;
+    for (let j = 0; j < cursor; j++) {
+      if (slots[j] != null) continue;
+      const target = midiToHzFromMidi(expectedMidis[j]!);
+      const adj = preferFundamentalNearTargetHz(hz, target);
+      const cents = rawAbsCents(adj, target);
+      if (cents <= DETECTED_NOTE_MATCH_MAX_CENTS && cents < bestCents) {
+        bestCents = cents;
+        bestJ = j;
+      }
+    }
+    if (bestJ >= 0) {
+      const target = midiToHzFromMidi(expectedMidis[bestJ]!);
+      slots[bestJ] = preferFundamentalNearTargetHz(hz, target);
+      used[ri] = true;
+    }
+  }
+
+  return slots;
+}
+
+/**
+ * Per-expected-slot Hz from evidenced pitch runs only.
+ *
+ * Missing expected notes stay null. Do not use equal-time windows: those fill
+ * every scale degree from whatever audio happens to fall in that slice.
  */
 export function medianHzPerScaleSteps(
   frames: PitchFrame[],
@@ -326,30 +516,11 @@ export function medianHzPerScaleSteps(
 ): (number | null)[] {
   const noteCount = expectedMidis.length;
   if (noteCount <= 0) return [];
-  if (frames.length === 0) return Array.from({ length: noteCount }, () => null);
-
-  const equal = medianHzPerEqualWindow(frames, noteCount);
-  const stable = medianHzPerStableRuns(frames, noteCount);
-
-  const score = (buckets: (number | null)[]): number => {
-    let total = 0;
-    let counted = 0;
-    for (let i = 0; i < noteCount; i++) {
-      const hz = buckets[i];
-      if (hz == null || hz <= 0) {
-        total += 800;
-        continue;
-      }
-      const target = 440 * Math.pow(2, (expectedMidis[i]! - 69) / 12);
-      const hzAdj = preferFundamentalNearTargetHz(hz, target);
-      total += octaveWrappedAbsCents(hzAdj, target);
-      counted += 1;
-    }
-    if (counted === 0) return Number.POSITIVE_INFINITY;
-    // Prefer coverings that actually measured most notes.
-    return total / counted + (noteCount - counted) * 120;
-  };
-
-  if (!stable) return equal;
-  return score(stable) < score(equal) * 0.92 ? stable : equal;
+  if (frames.length === 0) {
+    return Array.from({ length: noteCount }, () => null);
+  }
+  return matchDetectedRunsToExpected(
+    collectStablePitchRuns(frames),
+    expectedMidis,
+  );
 }

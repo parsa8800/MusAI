@@ -12,6 +12,7 @@ type MusaiSegmentedControlProps<V extends string | number> = {
   /** Additional classes on the track (e.g. max-width). */
   className?: string;
   size?: "default" | "compact";
+  disabled?: boolean;
 };
 
 /**
@@ -24,6 +25,7 @@ export function MusaiSegmentedControl<V extends string | number>({
   options,
   className = "",
   size = "default",
+  disabled = false,
 }: MusaiSegmentedControlProps<V>) {
   const trackClass = [
     "musai-segmented",
@@ -43,8 +45,10 @@ export function MusaiSegmentedControl<V extends string | number>({
             type="button"
             role="tab"
             aria-selected={selected}
+            aria-disabled={disabled || undefined}
+            disabled={disabled}
             onClick={() => {
-              if (opt.value === value) return;
+              if (disabled || opt.value === value) return;
               tapFeedback("light");
               onChange(opt.value);
             }}

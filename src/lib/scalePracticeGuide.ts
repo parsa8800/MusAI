@@ -7,6 +7,16 @@ import {
   scaleDisplayLabel,
 } from "@/lib/scales";
 
+export function scaleRecordingTips(includesDescent: boolean): string[] {
+  return [
+    includesDescent
+      ? "Play a clear scale up, then back down"
+      : "Play a clear scale going up",
+    "Stay close to the mic in a quiet room",
+    "One note after another, no talking over it",
+  ];
+}
+
 export type ScalePracticeGuideModel = {
   scaleLabel: string;
   rangeLabel: string;
@@ -44,11 +54,7 @@ export function buildScalePracticeGuideModel(
     "Stay in a consistent contact point between bridge and fingerboard unless your teacher suggests otherwise.",
   ];
 
-  const recordingTips = [
-    "Climb to the high tonic, then walk back down in order without skipping notes.",
-    "Use a slow, steady pulse — the analyser divides your clip into one window per step.",
-    "A short pause before you start can help; avoid talking over the recording.",
-  ];
+  const recordingTips = scaleRecordingTips(true);
 
   return {
     scaleLabel,

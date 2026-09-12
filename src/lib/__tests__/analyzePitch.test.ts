@@ -7,6 +7,7 @@ import {
   medianHzPerEqualWindow,
   medianHzPerScaleSteps,
   medianHzPerStableRuns,
+  preferFundamentalNearTargetHz,
   type PitchFrame,
 } from "../analyzePitch";
 import { midiToHz } from "../intonation";
@@ -101,6 +102,25 @@ describe("estimatePitchMedianHz", () => {
   });
 });
 
+describe("preferFundamentalNearTargetHz", () => {
+  it("does not drop an already-correct pitch an octave", () => {
+    const c4 = midiToHz(60);
+    expect(preferFundamentalNearTargetHz(c4, c4)).toBeCloseTo(c4, 5);
+  });
+
+  it("still folds a harmonic octave down to the written note", () => {
+    const c4 = midiToHz(60);
+    const c5 = midiToHz(72);
+    expect(preferFundamentalNearTargetHz(c5, c4)).toBeCloseTo(c4, 0);
+  });
+
+  it("does not treat C4 as an F harmonic", () => {
+    const c4 = midiToHz(60);
+    const f4 = midiToHz(65);
+    expect(preferFundamentalNearTargetHz(c4, f4)).toBeCloseTo(c4, 5);
+  });
+});
+
 describe("stable pitch run segmentation", () => {
   it("collectStablePitchRuns finds one plateau per pitch", () => {
     const frames = framesFromHzTimeline([
@@ -132,19 +152,62 @@ describe("stable pitch run segmentation", () => {
     // Alternate 3 vs 10 frames so equal windows smear neighbours.
     const timeline = expected.map((m, i) => ({
       hz: midiToHz(m),
-      count: i % 2 === 0 ? 3 : 10,
+      count: i % 2 === 0 ? 5 : 10,
     }));
     const frames = framesFromHzTimeline(timeline, 0.04);
     const equal = medianHzPerEqualWindow(frames, expected.length);
     const chosen = medianHzPerScaleSteps(frames, expected);
 
-    const err = (buckets: (number | null)[]) =>
-      buckets.reduce((sum, hz, i) => {
+    const err = (buckets: (number | null)[]): number =>
+      buckets.reduce<number>((sum, hz, i) => {
         if (hz == null) return sum + 500;
         return sum + Math.abs(hzToMidi(hz) - expected[i]!);
       }, 0);
 
-    expect(err(chosen)).toBeLessThanOrEqual(err(equal) + 0.01);
-    expect(err(chosen)).toBeLessThan(expected.length * 0.75);
+    expect(err(chosen)).toBeLessThanOrEqual(err(equal));
+    expect(chosen.every((hz) => hz != null && hz > 0)).toBe(true);
+  });
+
+  it("medianHzPerScaleSteps does not paint a full scale from a single pitch", () => {
+    const expected = buildExerciseScaleMidis(60, "major", 1);
+    const frames = framesFromHzTimeline(
+      [{ hz: midiToHz(69), count: 40 }],
+      0.05,
+    );
+    const buckets = medianHzPerScaleSteps(frames, expected);
+    const filled = buckets.filter((hz) => hz != null);
+    expect(filled.length).toBeLessThanOrEqual(1);
+    expect(buckets.filter((hz) => hz == null).length).toBeGreaterThanOrEqual(
+      expected.length - 1,
+    );
+  });
+
+  it("absorbs a brief neighbour-pitch flicker into one run", () => {
+    const c = midiToHz(60);
+    const cs = midiToHz(61);
+    const frames = framesFromHzTimeline(
+      [
+        { hz: c, count: 10 },
+        { hz: cs, count: 2 },
+        { hz: c, count: 10 },
+      ],
+      0.05,
+    );
+    const runs = collectStablePitchRuns(frames);
+    expect(runs).toHaveLength(1);
+    expect(Math.round(hzToMidi(runs[0]!.medianHz))).toBe(60);
+  });
+
+  it("drops a 1-frame accidental blip", () => {
+    const frames = framesFromHzTimeline(
+      [
+        { hz: midiToHz(60), count: 8 },
+        { hz: midiToHz(64), count: 1 },
+      ],
+      0.05,
+    );
+    const runs = collectStablePitchRuns(frames);
+    expect(runs).toHaveLength(1);
+    expect(Math.round(hzToMidi(runs[0]!.medianHz))).toBe(60);
   });
 });

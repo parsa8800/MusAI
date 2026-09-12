@@ -170,6 +170,36 @@ describe("scale progress journeys", () => {
     );
   });
 
+  it("keeps C major and C natural minor mastery on separate journeys", () => {
+    pushScaleProgressAttempt(
+      makeSession({
+        sessionId: "maj",
+        scaleId: "C_major",
+        scaleKind: "major",
+        scaleLabel: "C major",
+        octaveSpan: 1,
+      }),
+    );
+    pushScaleProgressAttempt(
+      makeSession({
+        sessionId: "min",
+        scaleId: "C_natural_minor",
+        scaleKind: "natural_minor",
+        scaleLabel: "C natural minor",
+        tonicPitchClass: 0,
+        octaveSpan: 1,
+      }),
+    );
+    const journeys = listScaleProgressJourneys();
+    expect(journeys.map((j) => j.progressKey).sort()).toEqual([
+      "C_major__1",
+      "C_natural_minor__1",
+    ]);
+    expect(journeys.find((j) => j.progressKey === "C_major__1")?.attempts).toHaveLength(
+      1,
+    );
+  });
+
   it("stores last range settings for continue", () => {
     pushScaleProgressAttempt(
       makeSession({

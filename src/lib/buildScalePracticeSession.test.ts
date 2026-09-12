@@ -98,5 +98,49 @@ describe("buildScalePracticeSession", () => {
     });
     vi.useRealTimers();
   });
+
+  it("recorded and uploaded takes share the same scoring payload", () => {
+    const analysis = fakeAnalysis(8);
+    const shared = {
+      tonicPitchClass: 0 as const,
+      scaleKind: "major" as const,
+      rootMidi: 60,
+      octaveSpan: 1 as const,
+      sampleRateHz: 48000,
+      analysis,
+    };
+    const recorded = buildScalePracticeSession({
+      ...shared,
+      audioSourceType: "recorded",
+    });
+    const uploaded = buildScalePracticeSession({
+      ...shared,
+      audioSourceType: "uploaded",
+    });
+    expect(recorded.notes).toEqual(uploaded.notes);
+    expect(recorded.summary).toEqual(uploaded.summary);
+    expect(recorded.expectedNotesMidi).toEqual(uploaded.expectedNotesMidi);
+    expect(recorded.audioSourceType).toBe("recorded");
+    expect(uploaded.audioSourceType).toBe("uploaded");
+  });
+
+  it("stores a downsampled waveform with the attempt", () => {
+    const session = buildScalePracticeSession({
+      tonicPitchClass: 0,
+      scaleKind: "major",
+      rootMidi: 60,
+      octaveSpan: 1,
+      audioSourceType: "recorded",
+      sampleRateHz: 48000,
+      analysis: fakeAnalysis(8),
+      waveformAmplitudes: Array.from({ length: 800 }, (_, i) =>
+        i % 10 === 0 ? 0.95 : 0.08,
+      ),
+    });
+    expect(session.waveformAmplitudes).toBeDefined();
+    expect(session.waveformAmplitudes!.length).toBeLessThanOrEqual(240);
+    expect(session.waveformAmplitudes!.length).toBeGreaterThan(0);
+    expect(Math.max(...session.waveformAmplitudes!)).toBeGreaterThan(0.8);
+  });
 });
 

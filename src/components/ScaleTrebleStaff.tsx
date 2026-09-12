@@ -3,13 +3,19 @@
 import { useEffect, useRef, useState } from "react";
 import type { ScaleKind } from "@/lib/scales";
 import {
-  chunkMidisForStaff,
-  maxNotesPerStaffRow,
-} from "@/lib/staffChunking";
+  notationEngravingPlan,
+  notationFitFromBoxes,
+  notationFitLayoutShift,
+  notationFitScale,
+  notationViewBoxFromInk,
+  unionClientBoxes,
+} from "@/lib/notationFit";
+import { chunkMidisForStaff } from "@/lib/staffChunking";
 import {
   SCALE_CLEAR_MISS_CENTS,
   SCALE_IN_TUNE_CENTS,
 } from "@/lib/analyzeScalePerformance";
+import { pitchCorrectionArrow, pitchCorrectionDir } from "@/lib/scaleNoteVisual";
 import {
   buildMidiToVexKeyMap,
   STAVE_HEADROOM_SPACES,
@@ -18,6 +24,9 @@ import {
   vexKeySignatureSpec,
   vexKeysForMidisOrdered,
 } from "@/lib/vexflowScaleSpelling";
+
+/** Host inset so stems, clefs, and arrows never kiss the clip edge. */
+const NOTATION_HOST_INK_INSET_PX = 5;
 
 type Props = {
   ascendingMidis: number[];
@@ -33,15 +42,25 @@ type Props = {
   className?: string;
   /** Tighter vertical spacing for one-viewport pick mode. */
   density?: "default" | "pad";
+  /**
+   * Prefer one system per direction. Width still wins: if the phrase cannot
+   * fit, it reflows at octave boundaries so nothing is clipped.
+   */
+  keepPhrasesWhole?: boolean;
+  /**
+   * `preview` = guide notation before a take (muted ink, no pitch colours).
+   * Same VexFlow/Bravura engraving as live results.
+   */
+  appearance?: "live" | "preview";
   /** @deprecated Asc/desc are drawn as one continuous piece; labels are unused. */
   showSectionLabels?: boolean;
 };
 
 /** Theme-aware engraving colours for VexFlow. */
-function notationThemeColors() {
+function notationThemeColors(appearance: "live" | "preview" = "live") {
   if (typeof window === "undefined") {
     return {
-      fill: "#1c1917",
+      fill: appearance === "preview" ? "#a8a29e" : "#1c1917",
       stroke: "#b7aea3",
       bg: "#fffcf8",
     };
@@ -49,9 +68,15 @@ function notationThemeColors() {
   const s = getComputedStyle(document.documentElement);
   const read = (name: string, fallback: string) =>
     s.getPropertyValue(name).trim() || fallback;
+  const liveFill = read("--musai-notation", read("--musai-ink", "#1c1917"));
+  const muted = read("--musai-muted", "#78716c");
   return {
-    fill: read("--musai-notation", read("--musai-ink", "#1c1917")),
-    stroke: read("--musai-staff-line", "#b7aea3"),
+    // Preview: soft but readable — kids should recognise real notes, not ink blotches.
+    fill: appearance === "preview" ? muted : liveFill,
+    stroke:
+      appearance === "preview"
+        ? read("--musai-staff-line", "#c4bbb0")
+        : read("--musai-staff-line", "#b7aea3"),
     bg: read("--musai-surface", "#fffcf8"),
   };
 }
@@ -74,27 +99,26 @@ function cssVar(name: string, fallback: string): string {
 
 function noteInkForCents(cents: number | null): { fill: string; stroke: string } {
   if (cents === null) {
-    const muted = cssVar("--musai-muted", "#78716c");
-    return { fill: muted, stroke: muted };
+    const miss = cssVar("--musai-pitch-miss", cssVar("--musai-muted", "#78716c"));
+    return { fill: miss, stroke: miss };
   }
   const abs = Math.abs(cents);
   if (abs <= SCALE_IN_TUNE_CENTS) {
-    const ok = cssVar("--musai-ok", "#3d7a5f");
+    const ok = cssVar("--musai-pitch-ok", cssVar("--musai-ok", "#2f8a62"));
     return { fill: ok, stroke: ok };
   }
-  /* Sharp = warm amber; flat = cool slate — matches results legend. */
   if (cents > 0) {
-    if (abs <= SCALE_CLEAR_MISS_CENTS) {
-      const warn = cssVar("--musai-warn", "#b45309");
-      return { fill: warn, stroke: warn };
-    }
-    const danger = cssVar("--musai-accent-2", "#c45c4a");
-    return { fill: danger, stroke: danger };
+    const high =
+      abs <= SCALE_CLEAR_MISS_CENTS
+        ? cssVar("--musai-pitch-high", cssVar("--musai-warn", "#d4891a"))
+        : cssVar("--musai-pitch-high-strong", cssVar("--musai-accent-2", "#c45c4a"));
+    return { fill: high, stroke: high };
   }
-  if (abs <= SCALE_CLEAR_MISS_CENTS) {
-    return { fill: "#6b8cce", stroke: "#6b8cce" };
-  }
-  return { fill: "#5a7ab0", stroke: "#5a7ab0" };
+  const low =
+    abs <= SCALE_CLEAR_MISS_CENTS
+      ? cssVar("--musai-pitch-low", "#3d6ec9")
+      : cssVar("--musai-pitch-low-strong", "#2f5aa8");
+  return { fill: low, stroke: low };
 }
 
 function drawSystem(
@@ -185,36 +209,39 @@ function drawSystem(
       } catch {
         /* ignore */
       }
-      if (Annotation && typeof cents === "number" && Math.abs(cents) > SCALE_IN_TUNE_CENTS) {
-        const arrow = cents > 0 ? "↑" : "↓";
-        const ann = new Annotation(arrow);
-        try {
-          ann.setFont("system-ui", 14, "700");
-        } catch {
-          /* ignore */
-        }
-        try {
-          const VJ = (Annotation as any).VerticalJustify;
-          if (VJ) ann.setVerticalJustification(cents > 0 ? VJ.TOP : VJ.BOTTOM);
-        } catch {
-          /* ignore */
-        }
-        try {
-          const s = severity01FromAbsCents(Math.abs(cents));
-          const shift = 6 + Math.round(10 * s);
-          ann.setYShift(cents > 0 ? -shift : shift);
-        } catch {
-          /* ignore */
-        }
-        try {
-          ann.setStyle({ fillStyle: ink.fill, strokeStyle: ink.stroke });
-        } catch {
-          /* ignore */
-        }
-        try {
-          n.addModifier(ann, 0);
-        } catch {
-          /* ignore */
+      if (Annotation && typeof cents === "number") {
+        const fix = pitchCorrectionDir(cents);
+        if (fix) {
+          const goUp = fix === "up";
+          const ann = new Annotation(pitchCorrectionArrow(fix));
+          try {
+            ann.setFont("system-ui", 22, "800");
+          } catch {
+            /* ignore */
+          }
+          try {
+            const VJ = (Annotation as any).VerticalJustify;
+            if (VJ) ann.setVerticalJustification(goUp ? VJ.TOP : VJ.BOTTOM);
+          } catch {
+            /* ignore */
+          }
+          try {
+            const s = severity01FromAbsCents(Math.abs(cents));
+            const shift = 6 + Math.round(10 * s);
+            ann.setYShift(goUp ? -shift : shift);
+          } catch {
+            /* ignore */
+          }
+          try {
+            ann.setStyle({ fillStyle: ink.fill, strokeStyle: ink.stroke });
+          } catch {
+            /* ignore */
+          }
+          try {
+            n.addModifier(ann, 0);
+          } catch {
+            /* ignore */
+          }
         }
       }
     } else {
@@ -294,33 +321,60 @@ function reshapeLedgerLines(svg: SVGSVGElement, stroke: string) {
   }
 }
 
-/** Crop leftover canvas so painted notation sits in the middle of the card. */
+/**
+ * Expand the viewBox to every painted mark (clef, heads, stems, arrows).
+ * Uses SVG getBBox (user space) so a clipped parent during measure cannot
+ * shrink the viewBox and permanently cut stems.
+ */
 function cropSvgViewBoxToInk(svg: SVGSVGElement, inkPad = 22) {
-  const canvasWidth = Number(svg.getAttribute("data-stave-width") || svg.viewBox.baseVal.width);
-  const ctm = svg.getScreenCTM();
-  if (!ctm || canvasWidth <= 0) return;
-  const inv = ctm.inverse();
+  const canvasWidth = Number(
+    svg.getAttribute("data-stave-width") || svg.viewBox.baseVal.width,
+  );
+  if (!(canvasWidth > 0)) return;
+  let minX = Infinity;
   let minY = Infinity;
+  let maxX = -Infinity;
   let maxY = -Infinity;
   const nodes = svg.querySelectorAll("path, line, ellipse, use, text");
   for (const node of nodes) {
-    const r = node.getBoundingClientRect();
-    if (r.width < 0.5 && r.height < 0.5) continue;
-    const top = new DOMPoint(r.left, r.top).matrixTransform(inv);
-    const bottom = new DOMPoint(r.left, r.bottom).matrixTransform(inv);
-    const y0 = Math.min(top.y, bottom.y);
-    const y1 = Math.max(top.y, bottom.y);
-    // SMuFL <text> glyphs often report the full em-square; skip those.
+    const el = node as SVGGraphicsElement;
+    if (typeof el.getBBox !== "function") continue;
+    let box: DOMRect;
+    try {
+      box = el.getBBox();
+    } catch {
+      continue;
+    }
+    if (!Number.isFinite(box.x) || !Number.isFinite(box.y)) continue;
+    const stroke = Number(el.getAttribute("stroke-width") || "0");
+    const strokePad = Number.isFinite(stroke) ? stroke / 2 : 0;
+    // Vertical stems are zero-width paths; still count them.
+    if (box.width + box.height < 0.25 && strokePad < 0.25) continue;
+    const x0 = box.x - strokePad;
+    const x1 = box.x + box.width + strokePad;
+    const y0 = box.y - strokePad;
+    const y1 = box.y + box.height + strokePad;
     if (node.tagName.toLowerCase() === "text" && y1 - y0 > 90) continue;
+    minX = Math.min(minX, x0);
+    maxX = Math.max(maxX, x1);
     minY = Math.min(minY, y0);
     maxY = Math.max(maxY, y1);
   }
-  if (!Number.isFinite(minY) || maxY <= minY) return;
-  const height = Math.ceil(maxY - minY + 2 * inkPad);
-  const y = minY - inkPad;
-  svg.setAttribute("viewBox", `0 ${y} ${canvasWidth} ${height}`);
-  svg.setAttribute("height", String(height));
+  const view = notationViewBoxFromInk(
+    canvasWidth,
+    { minX, minY, maxX, maxY },
+    inkPad + 8,
+  );
+  if (!view) return;
+  svg.setAttribute(
+    "viewBox",
+    `${view.x} ${view.y} ${view.width} ${view.height}`,
+  );
+  svg.setAttribute("height", String(view.height));
   svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+  // ViewBox now contains every mark, so clip to the SVG box instead of painting
+  // stems/arrows into a parent that later hides overflow.
+  svg.style.overflow = "hidden";
 }
 
 function cropStaffSvgs(root: HTMLElement, inkPad = 22, stroke?: string) {
@@ -331,31 +385,74 @@ function cropStaffSvgs(root: HTMLElement, inkPad = 22, stroke?: string) {
   });
 }
 
+function paintedClientBoxes(root: HTMLElement) {
+  const boxes = [];
+  // Music fonts use <text> with a huge em-box; that is not the painted glyph.
+  const nodes = root.querySelectorAll(
+    "svg, svg path, svg line, svg ellipse, svg use",
+  );
+  for (const node of nodes) {
+    const rect = node.getBoundingClientRect();
+    if (rect.width + rect.height < 0.25) continue;
+    boxes.push({
+      left: rect.left,
+      top: rect.top,
+      right: rect.right,
+      bottom: rect.bottom,
+    });
+  }
+  return boxes;
+}
+
 function fitPieceIntoHost(host: HTMLElement) {
   const piece = host.firstElementChild as HTMLElement | null;
   if (!piece) return;
   piece.style.transform = "";
+  piece.style.marginRight = "";
   piece.style.marginBottom = "";
-  piece.style.transformOrigin = "center center";
-  const avail = host.clientHeight;
-  const need = piece.scrollHeight;
-  // Keep notation readable — never shrink below ~90%. Prefer scroll over tiny notes.
-  if (avail > 8 && need > avail) {
-    const s = Math.max(0.9, Math.min(1, (avail - 4) / need));
-    if (s < 0.995) piece.style.transform = `scale(${s})`;
-  }
+  piece.removeAttribute("data-notation-scale");
+  const availW = host.clientWidth;
+  const availH = host.clientHeight;
+  if (availW < 1 || availH < 1) return;
+  const needW = Math.max(piece.scrollWidth, piece.offsetWidth);
+  const needH = Math.max(piece.scrollHeight, piece.offsetHeight);
+  const hostBox = host.getBoundingClientRect();
+  const painted = unionClientBoxes(paintedClientBoxes(host));
+  const layoutScale = notationFitScale(availW, availH, needW, needH);
+  const inkScale = painted
+    ? notationFitFromBoxes(
+        {
+          left: hostBox.left,
+          top: hostBox.top,
+          right: hostBox.right,
+          bottom: hostBox.bottom,
+        },
+        painted,
+        NOTATION_HOST_INK_INSET_PX,
+      )
+    : 1;
+  const scale = Math.min(layoutScale, inkScale);
+  const shift = notationFitLayoutShift(scale, needW, needH);
+  piece.dataset.notationScale = scale.toFixed(3);
+  if (scale >= 0.995) return;
+  piece.style.transformOrigin = "top left";
+  piece.style.transform = `scale(${scale})`;
+  piece.style.marginRight = `${shift.marginRight}px`;
+  piece.style.marginBottom = `${shift.marginBottom}px`;
 }
 
 /** One paper card; multiple systems stack inside like a continuous piece. */
 function appendPieceStaffCard(
   wrap: HTMLElement,
   parts: Array<{ kind: "system"; draw: (svgHost: HTMLDivElement) => void }>,
-  opts: { pad: boolean; systemGapClass: string },
+  opts: { pad: boolean; systemGapClass: string; preview?: boolean },
 ) {
   const row = document.createElement("div");
   row.className = "musai-staff-row w-full max-w-full";
   const card = document.createElement("div");
-  card.className = "musai-staff-card";
+  card.className = opts.preview
+    ? "musai-staff-card musai-staff-card--preview"
+    : "musai-staff-card";
   const shimmer = document.createElement("div");
   shimmer.className = "musai-staff-card__shimmer";
   shimmer.setAttribute("aria-hidden", "true");
@@ -392,12 +489,16 @@ export function ScaleTrebleStaff({
   scaleKind,
   className = "",
   density = "default",
+  keepPhrasesWhole = false,
+  appearance = "live",
 }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
-  const [usableW, setUsableW] = useState(720);
+  const [usableW, setUsableW] = useState(0);
+  const [usableH, setUsableH] = useState(0);
   const [themeKey, setThemeKey] = useState("light");
   const pad = density === "pad";
+  const preview = appearance === "preview";
   const hasAsc = ascendingMidis.length > 0;
   const hasDesc = descendingMidis.length > 0;
   const bothDirections = hasAsc && hasDesc;
@@ -418,23 +519,25 @@ export function ScaleTrebleStaff({
   }, []);
 
   useEffect(() => {
-    const el = wrapRef.current;
-    if (!el) return;
+    const wrap = wrapRef.current;
+    const host = hostRef.current;
+    if (!wrap) return;
     const measure = () => {
-      const w = el.getBoundingClientRect().width;
-      if (w > 0) setUsableW(w);
-      const host = hostRef.current;
-      if (pad && host?.firstElementChild) fitPieceIntoHost(host);
+      const box = wrap.getBoundingClientRect();
+      if (box.width > 0) setUsableW(box.width);
+      if (box.height > 0) setUsableH(box.height);
+      if (host?.firstElementChild) fitPieceIntoHost(host);
     };
     measure();
     const ro = new ResizeObserver(measure);
-    ro.observe(el);
+    ro.observe(wrap);
+    if (host) ro.observe(host);
     return () => ro.disconnect();
-  }, [pad]);
+  }, []);
 
   const staveWidth = Math.max(
-    pad ? 340 : 300,
-    Math.floor(usableW - (pad ? 4 : 8)),
+    200,
+    Math.floor(usableW - (pad ? 8 : 16)),
   );
 
   // Stable dependency keys so cents updates always redraw.
@@ -451,7 +554,12 @@ export function ScaleTrebleStaff({
 
     void (async () => {
       try {
-        await (document as any).fonts?.ready;
+        await Promise.race([
+          (document as Document).fonts?.ready ?? Promise.resolve(),
+          new Promise<void>((r) => {
+            setTimeout(r, 500);
+          }),
+        ]);
       } catch {
         /* ignore */
       }
@@ -459,7 +567,12 @@ export function ScaleTrebleStaff({
       if (cancelled) return;
 
       try {
-        await (document as any).fonts?.load?.("16px Bravura");
+        await Promise.race([
+          (document as Document).fonts?.load?.("16px Bravura") ?? Promise.resolve(),
+          new Promise<void>((r) => {
+            setTimeout(r, 400);
+          }),
+        ]);
       } catch {
         /* ignore */
       }
@@ -467,17 +580,38 @@ export function ScaleTrebleStaff({
       await new Promise<void>((r) => requestAnimationFrame(() => r()));
       if (cancelled) return;
 
-      const maxPerRow = maxNotesPerStaffRow(
+      const measuredW = Math.max(
         usableW,
-        pad ? (bothDirections ? 30 : 40) : undefined,
+        Math.floor(
+          wrapRef.current?.getBoundingClientRect().width ||
+            host.getBoundingClientRect().width ||
+            0,
+        ),
       );
-      const keySig = vexKeySignatureSpec(tonicPitchClass, scaleKind);
-
+      const measuredH = Math.max(
+        usableH,
+        Math.floor(
+          wrapRef.current?.getBoundingClientRect().height ||
+            host.getBoundingClientRect().height ||
+            0,
+        ),
+      );
       const pieceMidis = [...ascendingMidis, ...descendingMidis];
-      if (pieceMidis.length === 0) {
+      if (pieceMidis.length === 0 || measuredW < 40) {
         host.innerHTML = "";
         return;
       }
+
+      const plan = notationEngravingPlan({
+        availableWidth: measuredW,
+        availableHeight: measuredH,
+        ascendingMidis,
+        descendingMidis,
+        pad,
+      });
+      const maxPerRow = plan.maxPerRow;
+      const keySig = vexKeySignatureSpec(tonicPitchClass, scaleKind);
+      const drawWidth = Math.max(200, Math.floor(measuredW - (pad ? 8 : 16)));
 
       const midiToKey = buildMidiToVexKeyMap(
         pieceMidis,
@@ -522,31 +656,16 @@ export function ScaleTrebleStaff({
         }
       }
 
-      const longAsc = ascendingMidis.length > 10;
-      const drawOpts = pad
-        ? bothDirections
-          ? { lineSpacingPx: longAsc ? 14 : 16, noteHeadFontSize: longAsc ? 34 : 38 }
-          : {
-              lineSpacingPx: longAsc ? 16 : 18,
-              noteHeadFontSize: longAsc ? 36 : 42,
-            }
-        : { lineSpacingPx: STAVE_LINE_SPACING_PX, noteHeadFontSize: 39 };
-
-      // 2-octave up/down needs a wide gap — high ledger notes almost touch otherwise.
-      const systemGapClass = bothDirections
-        ? longAsc
-          ? pad
-            ? "gap-8 sm:gap-10"
-            : "gap-8 sm:gap-12"
-          : pad
-            ? "gap-4 sm:gap-5"
-            : "gap-3 sm:gap-4"
-        : "gap-0";
+      const drawOpts = {
+        lineSpacingPx: plan.lineSpacingPx,
+        noteHeadFontSize: plan.noteHeadFontSize,
+      };
+      const systemGapClass = plan.systemGapClass;
 
       host.innerHTML = "";
       const pieceWrap = document.createElement("div");
-      pieceWrap.className = "w-full";
-      const colors = notationThemeColors();
+      pieceWrap.className = "musai-staff-piece w-full";
+      const colors = notationThemeColors(appearance);
 
       const parts: Array<{
         kind: "system";
@@ -563,27 +682,28 @@ export function ScaleTrebleStaff({
         parts.push({
           kind: "system",
           draw: (svgHost: HTMLDivElement) =>
-            drawSystem(VF, svgHost, keys, keySig, staveWidth, {
+            drawSystem(VF, svgHost, keys, keySig, drawWidth, {
               endBarSingle: idx < lineChunks.length - 1,
-              cents: line.cents ? [...line.cents] : undefined,
+              // Preview never shows pitch-coloured feedback.
+              cents: preview ? undefined : line.cents ? [...line.cents] : undefined,
               colors,
               ...drawOpts,
             }),
         });
       });
 
-      appendPieceStaffCard(pieceWrap, parts, { pad, systemGapClass });
+      appendPieceStaffCard(pieceWrap, parts, { pad, systemGapClass, preview });
       host.appendChild(pieceWrap);
       requestAnimationFrame(() => {
         if (cancelled) return;
-        cropStaffSvgs(
-          host,
-          pad ? (longAsc && bothDirections ? 14 : 10) : 22,
-          colors.stroke,
-        );
+        cropStaffSvgs(host, plan.inkPad, colors.stroke);
         requestAnimationFrame(() => {
-          if (cancelled || !pad) return;
+          if (cancelled) return;
           fitPieceIntoHost(host);
+          requestAnimationFrame(() => {
+            if (cancelled) return;
+            fitPieceIntoHost(host);
+          });
         });
       });
     })();
@@ -603,25 +723,29 @@ export function ScaleTrebleStaff({
     descendingCents,
     pad,
     bothDirections,
+    keepPhrasesWhole,
     scaleKind,
     staveWidth,
     tonicPitchClass,
     usableW,
+    usableH,
     themeKey,
+    appearance,
+    preview,
   ]);
 
   return (
     <div
       ref={wrapRef}
-      className={`min-h-0 w-full ${pad ? "h-auto max-h-full" : "h-full"} ${className}`}
+      className={`musai-notation-wrap min-h-0 min-w-0 w-full max-w-full overflow-hidden ${pad ? "h-full max-h-full" : "h-full"} ${
+        preview ? "musai-staff-preview" : ""
+      } ${className}`}
+      data-appearance={appearance}
     >
       <div
         ref={hostRef}
-        className={`flex min-h-0 w-full justify-center overflow-x-hidden ${
-          pad
-            ? "h-auto max-h-full items-start overflow-y-auto"
-            : "h-full items-center overflow-y-auto"
-        }`}
+        className="musai-notation-host musai-scroll flex h-full max-h-full min-h-0 w-full items-start justify-center overflow-hidden"
+        data-testid="scale-notation-host"
         aria-label={
           bothDirections
             ? "Scale notes, ascending then descending"

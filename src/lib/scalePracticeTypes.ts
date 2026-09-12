@@ -19,19 +19,26 @@ export type ScalePracticeIntonationBucket =
 export type ScalePracticeTrend = "sharp" | "flat" | "balanced";
 
 export type ScalePracticeNoteRow = {
-  /** 0-based position in the ascending scale */
+  /** 0-based position in the expected scale (not “notes that were played”). */
   noteIndex: number;
+  /** expectedScaleNotes[i] — what the player is supposed to play here */
   expectedMidi: number;
   expectedNoteLabel: string;
-  /** Rounded MIDI from detected pitch */
+  /**
+   * Rounded MIDI from detected pitch. 0 when `missingData` — never copy the
+   * expected MIDI onto a note that was not actually heard.
+   */
   detectedMidi: number;
-  /** Same as formatNoteLabel(detectedMidi) — explicit for JSON / AI */
+  /** Same as formatNoteLabel(detectedMidi), or "—" when missing */
   detectedNoteLabel: string;
   detectedHz: number;
-  /** Signed: positive = sharp vs expected */
+  /** Signed: positive = sharp vs expected. 0 when missing. */
   centsDifference: number;
   intonationBucket: ScalePracticeIntonationBucket;
-  /** Window had no confident pitch samples */
+  /**
+   * True when this expectedScaleNote has no matched detectedNote.
+   * Feedback is only valid when this is false.
+   */
   missingData: boolean;
 };
 
@@ -67,4 +74,16 @@ export type ScalePracticeSessionV1 = {
   summary: ScalePracticeSummary;
   /** How the expected scale was chosen. Older sessions omit this. */
   scaleSource?: "selected" | "detected";
+  /**
+   * Downsampled 0–1 amplitude history for this take (Voice Memos–style).
+   * Optional — older sessions omit it.
+   */
+  waveformAmplitudes?: number[];
+  /**
+   * Scale mastery (0–100) after this take was folded into the loop.
+   * Used when scrubbing take history so the progress bar can show
+   * progress-at-that-point without recomputing from scratch.
+   * Optional — older sessions omit it and fall back to recomputation.
+   */
+  masteryPercentAfterTake?: number;
 };
