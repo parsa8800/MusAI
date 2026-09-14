@@ -146,10 +146,18 @@ function filledCount(slots: Array<number | null>): number {
 }
 
 function expectExactDetected(
-  notes: { missingData: boolean; detectedNoteLabel: string; detectedMidi: number }[],
+  notes: {
+    missingData: boolean;
+    detectedNoteLabel: string;
+    detectedMidi: number;
+  }[],
   expectedLabels: string[],
 ) {
-  expect(listDetectedNoteLabels(notes)).toEqual(expectedLabels);
+  expect(
+    listDetectedNoteLabels(
+      notes as unknown as Parameters<typeof listDetectedNoteLabels>[0],
+    ),
+  ).toEqual(expectedLabels);
   expect(notes.filter((n) => !n.missingData)).toHaveLength(expectedLabels.length);
   for (const row of notes) {
     if (row.missingData) {

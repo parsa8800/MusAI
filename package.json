@@ -4,27 +4,37 @@
   "private": true,
   "scripts": {
     "dev": "node scripts/dev.mjs",
+    "omr-worker": "node services/omr-worker/src/server.mjs",
+    "omr-worker:docker": "docker build -t musai-omr-worker ./services/omr-worker && docker run --rm -p 8090:8090 musai-omr-worker",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "test:piece-import": "vitest run src/features/piece-studio/omr/pieceImportPipeline.e2e.test.ts src/features/piece-studio/omr/pieceImportReliability.test.ts src/features/piece-studio/omr/musicXmlImport.test.ts src/features/piece-studio/omr/unifiedImportFlow.test.tsx src/features/piece-studio/omr/importCopy.test.ts src/features/piece-studio/omr/digitalImportIndependence.test.ts src/features/piece-studio/omr/twinkleMusicXmlRegression.test.tsx",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "analyze:fixtures": "npx tsx scripts/analyze-test-recordings.ts",
     "fixtures:synth": "npx tsx scripts/generate-synth-fixtures.ts",
-    "test:phase02": "npx tsx scripts/generate-synth-fixtures.ts && npx tsx scripts/phase02-fixture-check.ts"
+    "test:phase02": "npx tsx scripts/generate-synth-fixtures.ts && npx tsx scripts/phase02-fixture-check.ts",
+    "postinstall": "rm -rf node_modules/opensheetmusicdisplay/node_modules/@types"
   },
   "allowScripts": {
     "sharp": true,
     "unrs-resolver": true
   },
+  "overrides": {
+    "@types/vexflow": "$@types/vexflow"
+  },
   "dependencies": {
     "animejs": "^4.5.0",
+    "fflate": "^0.8.3",
     "next": "16.2.2",
+    "opensheetmusicdisplay": "^2.1.2",
     "pitchy": "^4.1.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "smplr": "^1.0.0",
     "vexflow": "^5.0.0"
   },
   "devDependencies": {
@@ -36,6 +46,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/vexflow": "file:stubs/empty-types-vexflow",
     "@vexflow-fonts/bravura": "^1.0.2",
     "@vitejs/plugin-react": "^6.0.1",
     "eslint": "^9",

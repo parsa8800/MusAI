@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { ScalePracticeResultsView } from "@/components/ScalePracticeResultsView";
+import type { ScalePracticeNoteRow } from "@/lib/scalePracticeTypes";
 
 vi.mock("next/link", () => ({
   default: ({
@@ -81,7 +82,7 @@ function makeSession(
         detectedNoteLabel: "C4",
         detectedHz: 261.6,
         centsDifference: 0,
-        intonationBucket: "in_tune" as const,
+        intonationBucket: "in_tune" as ScalePracticeNoteRow["intonationBucket"],
         missingData: false,
       },
     ],

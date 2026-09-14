@@ -12,18 +12,20 @@ import {
 
 export default function ResultsPage() {
   const router = useRouter();
-  const [result, setResult] = useState<StoredIntonationResult | null>(() =>
-    typeof window === "undefined" ? null : readIntonationResult(),
-  );
-  const [ready, setReady] = useState(() => typeof window !== "undefined");
+  // Always start empty so SSR and the first client paint match.
+  const [result, setResult] = useState<StoredIntonationResult | null>(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const data = readIntonationResult();
-    setResult(data);
-    setReady(true);
-    if (!data) {
-      router.replace("/practice/single-note");
-    }
+    const id = window.setTimeout(() => {
+      const data = readIntonationResult();
+      setResult(data);
+      setReady(true);
+      if (!data) {
+        router.replace("/practice/single-note");
+      }
+    }, 0);
+    return () => window.clearTimeout(id);
   }, [router]);
 
   const goSetup = () => {

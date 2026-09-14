@@ -141,7 +141,18 @@ export function MusaiSplitPane({
       setRatio(lockedRatio);
       return;
     }
-    setRatio(readStoredRatio(storageKey, ratioMin, ratioMax));
+    if (storageKey && typeof window !== "undefined") {
+      try {
+        const raw = window.localStorage.getItem(storageKey);
+        if (raw != null && Number.isFinite(Number(raw))) {
+          setRatio(readStoredRatio(storageKey, ratioMin, ratioMax));
+          return;
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    setRatio(lockedRatio);
   }, [canResize, lockedRatio, ratioMax, ratioMin, storageKey]);
 
   // Keep ratio in sync when another Scale Studio surface updates the shared key.
@@ -263,6 +274,7 @@ export function MusaiSplitPane({
   const rightStyle: CSSProperties | undefined = desktop
     ? { flexGrow: 1 - ratio, flexShrink: 1, flexBasis: 0 }
     : undefined;
+  const showRight = right != null;
 
   return (
     <div
@@ -271,54 +283,58 @@ export function MusaiSplitPane({
     >
       <div
         className={`flex min-h-0 min-w-0 flex-col max-md:h-auto max-md:flex-none max-md:overflow-visible md:h-full md:min-w-[12rem] md:flex-1 md:overflow-hidden ${leftClassName}`.trim()}
-        style={leftStyle}
+        style={showRight ? leftStyle : desktop ? { flexGrow: 1, flexShrink: 1, flexBasis: 0 } : undefined}
       >
         {left}
       </div>
 
-      {canResize ? (
-        <div
-          role="separator"
-          aria-orientation="vertical"
-          aria-controls={paneId}
-          aria-valuenow={Math.round(ratio * 100)}
-          aria-valuemin={Math.round(ratioMin * 100)}
-          aria-valuemax={Math.round(ratioMax * 100)}
-          aria-label="Resize notes and feedback"
-          tabIndex={0}
-          onKeyDown={onHandleKeyDown}
-          onPointerDown={(e) => {
-            if (e.button !== 0) return;
-            e.preventDefault();
-            draggingRef.current = true;
-            setDragging(true);
-            setRatioFromClientX(e.clientX);
-            e.currentTarget.setPointerCapture?.(e.pointerId);
-          }}
-          className={`relative z-10 hidden shrink-0 touch-none self-stretch md:flex md:w-5 md:cursor-col-resize md:items-stretch md:justify-center ${
-            dragging
-              ? "bg-[color-mix(in_srgb,var(--musai-accent)_10%,transparent)]"
-              : ""
-          }`}
-        >
-          <DividerMarks draft={draft} dragging={dragging} />
-        </div>
-      ) : (
-        <div
-          className="relative z-10 hidden h-full min-h-0 shrink-0 self-stretch md:block md:w-5"
-          aria-hidden
-        >
-          <DividerMarks draft={draft} dragging={false} />
-        </div>
-      )}
+      {showRight ? (
+        canResize ? (
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-controls={paneId}
+            aria-valuenow={Math.round(ratio * 100)}
+            aria-valuemin={Math.round(ratioMin * 100)}
+            aria-valuemax={Math.round(ratioMax * 100)}
+            aria-label="Resize notes and feedback"
+            tabIndex={0}
+            onKeyDown={onHandleKeyDown}
+            onPointerDown={(e) => {
+              if (e.button !== 0) return;
+              e.preventDefault();
+              draggingRef.current = true;
+              setDragging(true);
+              setRatioFromClientX(e.clientX);
+              e.currentTarget.setPointerCapture?.(e.pointerId);
+            }}
+            className={`relative z-10 hidden shrink-0 touch-none self-stretch md:flex md:w-5 md:cursor-col-resize md:items-stretch md:justify-center ${
+              dragging
+                ? "bg-[color-mix(in_srgb,var(--musai-accent)_10%,transparent)]"
+                : ""
+            }`}
+          >
+            <DividerMarks draft={draft} dragging={dragging} />
+          </div>
+        ) : (
+          <div
+            className="relative z-10 hidden h-full min-h-0 shrink-0 self-stretch md:block md:w-5"
+            aria-hidden
+          >
+            <DividerMarks draft={draft} dragging={false} />
+          </div>
+        )
+      ) : null}
 
-      <div
-        id={paneId}
-        className={`flex min-h-0 min-w-0 flex-col max-md:h-auto max-md:flex-none max-md:overflow-visible md:h-full md:min-w-[16rem] md:flex-1 md:overflow-hidden ${rightClassName}`.trim()}
-        style={rightStyle}
-      >
-        {right}
-      </div>
+      {showRight ? (
+        <div
+          id={paneId}
+          className={`flex min-h-0 min-w-0 flex-col max-md:h-auto max-md:flex-none max-md:overflow-visible md:h-full md:min-w-[16rem] md:flex-1 md:overflow-hidden ${rightClassName}`.trim()}
+          style={rightStyle}
+        >
+          {right}
+        </div>
+      ) : null}
     </div>
   );
 }

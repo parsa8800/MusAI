@@ -79,7 +79,7 @@ describe("CoachChatPanel", () => {
     expect(screen.getByPlaceholderText(/Ask your coach/i)).toBeInTheDocument();
     expect(screen.getByText(/Coach · Parsa/i)).toBeInTheDocument();
     expect(screen.queryByText(/Colours on the staff show the take/i)).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Preview coaching/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Example coaching/i })).toBeInTheDocument();
     expect(screen.queryByText(/^Template$/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Live AI is off/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/OPENAI_ENABLED/i)).not.toBeInTheDocument();
@@ -165,7 +165,7 @@ describe("CoachChatPanel", () => {
     expect(coachBubbleSize(2)).toBe("thread");
   });
 
-  it("shows Preview coaching tooltip on the status dot", async () => {
+  it("shows Example tooltip on the status dot", async () => {
     render(
       <CoachChatPanel
         start
@@ -177,8 +177,8 @@ describe("CoachChatPanel", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /Preview coaching/i }));
-    expect(screen.getByRole("tooltip")).toHaveTextContent("Preview coaching");
+    fireEvent.click(screen.getByRole("button", { name: /Example coaching/i }));
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Example");
   });
 
   it("hides the preview dot when live coaching is on", () => {

@@ -1,0 +1,7 @@
+{
+  "name": "@types/vexflow",
+  "version": "0.0.0",
+  "description": "Empty stub — VexFlow 5 ships its own types; DefinitelyTyped @types/vexflow is V1 and breaks next build.",
+  "types": "index.d.ts",
+  "license": "UNLICENSED"
+}

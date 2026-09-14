@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useAnimeEntrance } from "@/hooks/useAnimeEntrance";
+import { PIECE_STUDIO_HREF } from "@/features/piece-studio/pieceStudioRoutes";
 import { tapFeedback } from "@/lib/motion";
 
 const exercises = [
@@ -21,6 +22,12 @@ const exercises = [
     href: "/practice/scale",
     label: "Scale studio",
     tone: "scale",
+    span: true,
+  },
+  {
+    href: PIECE_STUDIO_HREF,
+    label: "Piece studio",
+    tone: "piece",
     span: true,
   },
 ] as const;
@@ -61,22 +68,6 @@ export function PracticeHubExercises() {
             </p>
           </Link>
         ))}
-
-        <div
-          data-anime-enter
-          className="musai-exercise-card musai-exercise-card--soon sm:col-span-2"
-          aria-disabled="true"
-        >
-          <div className="flex flex-wrap items-center gap-2.5">
-            <p className="musai-exercise-card__soon-title font-display text-xl font-semibold tracking-tight">
-              Piece studio
-            </p>
-            <span className="musai-exercise-card__soon-badge">Coming soon</span>
-          </div>
-          <p className="musai-exercise-card__soon-copy mt-2 text-[13px] leading-snug">
-            Play a piece and get feedback — not available yet.
-          </p>
-        </div>
       </div>
     </section>
   );
