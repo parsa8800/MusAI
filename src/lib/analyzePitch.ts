@@ -106,13 +106,18 @@ function medianHzFromSorted(hz: number[]): number {
 }
 
 export type CollectPitchFramesOptions = {
-  /** Looser thresholds for scale detection / analysis (default). */
-  mode?: "tuner" | "scale";
+  /**
+   * Detector profile:
+   * - `tuner` — tight live-tuner thresholds
+   * - `scale` / `piece` — same looser practice-analysis profile (not Scale Studio domain)
+   * Default: `scale` (preserves existing Scale Studio callers).
+   */
+  mode?: "tuner" | "scale" | "piece";
 };
 
 /**
  * Pitch track over the clip (same detector settings as aggregate median).
- * Used for per-note / windowed scale analysis — keep separate from UI.
+ * Used for per-note / windowed practice analysis — keep separate from UI.
  */
 export function collectPitchFrames(
   mono: Float32Array,
@@ -120,9 +125,10 @@ export function collectPitchFrames(
   options?: CollectPitchFramesOptions,
 ): PitchFrame[] {
   const mode = options?.mode ?? "scale";
-  const clarityMin = mode === "tuner" ? TUNER_CLARITY : SCALE_CLARITY;
-  const minVol = mode === "tuner" ? TUNER_MIN_VOLUME_DB : SCALE_MIN_VOLUME_DB;
-  const maxHz = mode === "tuner" ? MAX_HZ : SCALE_MAX_HZ;
+  const practice = mode === "scale" || mode === "piece";
+  const clarityMin = practice ? SCALE_CLARITY : TUNER_CLARITY;
+  const minVol = practice ? SCALE_MIN_VOLUME_DB : TUNER_MIN_VOLUME_DB;
+  const maxHz = practice ? SCALE_MAX_HZ : MAX_HZ;
 
   const detector = PitchDetector.forFloat32Array(FRAME);
   detector.clarityThreshold = clarityMin;

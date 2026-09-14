@@ -1,0 +1,1 @@
+export const PIECE_UPLOAD_MAX_BYTES = 20 * 1024 * 1024;

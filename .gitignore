@@ -25,6 +25,8 @@
 # misc
 .DS_Store
 *.pem
+.pip-tools/
+tools/
 
 # debug
 npm-debug.log*
