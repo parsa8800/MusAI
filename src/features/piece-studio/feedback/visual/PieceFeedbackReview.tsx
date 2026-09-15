@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
-import { CoachParsaShell } from "@/components/CoachParsaShell";
+import { CoachParsaChat } from "@/components/CoachParsaChat";
+import { PieceCoachLessonCard } from "@/features/piece-studio/feedback/visual/PieceCoachLessonCard";
 import {
   localPieceCoachReply,
-  pieceCoachOpenerText,
   pieceCoachSuggestedQuestions,
 } from "@/features/piece-studio/feedback/visual/pieceCoachChat";
 import {
@@ -12,9 +12,21 @@ import {
   pieceCoachUsefulWhere,
   type PieceCoachIssueView,
 } from "@/features/piece-studio/feedback/visual/pieceCoachIssueView";
+import { tapFeedback } from "@/lib/motion";
+
+function skillRailLabel(issue: PieceCoachIssueView): string {
+  // Prefer a short student name; never surface analyzer / not_ready jargon.
+  const fromCategory = pieceCoachCategoryTitle(issue.category);
+  if (issue.category === "tempo") {
+    const kind = issue.label?.trim();
+    if (kind && kind.length <= 16) return kind;
+  }
+  return fromCategory;
+}
 
 /**
- * Piece Studio adapter for the shared Coach · Parsa shell.
+ * Piece Practise coach: skills rail + lesson card outside chat.
+ * Chat is only for questions about the current focus.
  */
 export function PieceFeedbackReview({
   issues,
@@ -31,10 +43,6 @@ export function PieceFeedbackReview({
   const active =
     issues.find((issue) => issue.id === activeId) ?? issues[0] ?? null;
 
-  const openerText = useMemo(
-    () => (active ? pieceCoachOpenerText(active) : ""),
-    [active],
-  );
   const suggestions = useMemo(
     () => (active ? pieceCoachSuggestedQuestions(active) : []),
     [active],
@@ -43,45 +51,82 @@ export function PieceFeedbackReview({
   if (!active) return null;
 
   const fromTake = active.source === "analysis";
-  const others = issues.filter((issue) => issue.id !== active.id);
   const where = pieceCoachUsefulWhere(active);
 
   return (
-    <CoachParsaShell
-      key={active.id}
-      start
-      embed
-      title="Coach · Parsa"
+    <div
       className="musai-piece-review"
       data-testid="piece-feedback-preview"
-      dataMock={fromTake ? "false" : "true"}
-      dataSource={active.source}
-      showPreviewDot={!fromTake}
-      openerText={openerText}
-      source="template"
-      suggestions={suggestions}
-      focus={{
-        focus: pieceCoachCategoryTitle(active.category),
-        whatToImprove: active.what,
-        tryThis: active.practise,
-        where,
-        onShowOnScore: onShowOnScore
-          ? () => {
-              onActiveId(active.id);
-              onShowOnScore(active.id);
-            }
-          : undefined,
-        later: others.map((issue) => ({
-          id: issue.id,
-          label: issue.label,
-          tone: issue.visualTone,
-        })),
-        onSelectLater: onActiveId,
-      }}
-      getReply={async (userText) => ({
-        reply: localPieceCoachReply(userText, active),
-        source: "template",
-      })}
-    />
+      data-mock={fromTake ? "false" : "true"}
+      data-source={active.source}
+      aria-label="Piece practise feedback"
+    >
+      <div
+        className="musai-piece-review__skills"
+        role="listbox"
+        aria-label="What to work on"
+        data-testid="piece-focus-skills"
+      >
+        <p className="musai-piece-review__skills-label">What to work on</p>
+        <div className="musai-piece-review__skills-list">
+          {issues.map((issue) => {
+            const selected = issue.id === active.id;
+            return (
+              <button
+                key={issue.id}
+                type="button"
+                role="option"
+                aria-selected={selected}
+                className={
+                  selected
+                    ? "musai-pressable musai-piece-review__skill is-active"
+                    : "musai-pressable musai-piece-review__skill"
+                }
+                data-tone={issue.visualTone ?? undefined}
+                onClick={() => {
+                  if (selected) return;
+                  tapFeedback("light");
+                  onActiveId(issue.id);
+                }}
+              >
+                {skillRailLabel(issue)}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <PieceCoachLessonCard
+        where={where}
+        what={active.what}
+        tryThis={active.practise}
+        sample={!fromTake}
+        onShowOnScore={
+          onShowOnScore
+            ? () => {
+                onActiveId(active.id);
+                onShowOnScore(active.id);
+              }
+            : undefined
+        }
+      />
+
+      <div className="musai-piece-review__chat">
+        <CoachParsaChat
+          key={active.id}
+          start
+          embed
+          title="Ask Parsa"
+          openerText=""
+          source="template"
+          suggestions={suggestions}
+          showPreviewDot={false}
+          getReply={async (userText) => ({
+            reply: localPieceCoachReply(userText, active),
+            source: "template",
+          })}
+        />
+      </div>
+    </div>
   );
 }

@@ -4,6 +4,8 @@
  */
 
 export const MIN_SCORE_VIEWPORT_WIDTH_PX = 48;
+/** Flex stages can report width before height settles — both must be usable. */
+export const MIN_SCORE_VIEWPORT_HEIGHT_PX = 32;
 
 export function readScoreViewportSize(el: HTMLElement | null): {
   width: number;
@@ -17,23 +19,39 @@ export function readScoreViewportSize(el: HTMLElement | null): {
   };
 }
 
-export function canPaintScoreViewport(widthPx: number): boolean {
-  return widthPx >= MIN_SCORE_VIEWPORT_WIDTH_PX;
+export function canPaintScoreViewport(
+  widthPx: number,
+  heightPx: number = Number.POSITIVE_INFINITY,
+): boolean {
+  return (
+    widthPx >= MIN_SCORE_VIEWPORT_WIDTH_PX &&
+    heightPx >= MIN_SCORE_VIEWPORT_HEIGHT_PX
+  );
+}
+
+function viewportReady(
+  size: { width: number; height: number },
+  minWidth: number,
+  minHeight: number,
+): boolean {
+  return size.width >= minWidth && size.height >= minHeight;
 }
 
 /**
- * Resolve when `el` has a usable width, or after a short settle budget.
+ * Resolve when `el` has a usable width and height, or after a short settle budget.
  * Prefer ResizeObserver; also sample animation frames for display switches.
  */
 export function waitForScoreViewport(
   el: HTMLElement,
   options?: {
     minWidthPx?: number;
+    minHeightPx?: number;
     maxFrames?: number;
     isCancelled?: () => boolean;
   },
 ): Promise<{ width: number; height: number }> {
   const minWidth = options?.minWidthPx ?? MIN_SCORE_VIEWPORT_WIDTH_PX;
+  const minHeight = options?.minHeightPx ?? MIN_SCORE_VIEWPORT_HEIGHT_PX;
   const maxFrames = options?.maxFrames ?? 90;
   const isCancelled = options?.isCancelled;
 
@@ -57,7 +75,7 @@ export function waitForScoreViewport(
         return;
       }
       const size = readScoreViewportSize(el);
-      if (size.width >= minWidth) {
+      if (viewportReady(size, minWidth, minHeight)) {
         finish();
         return;
       }
@@ -70,7 +88,7 @@ export function waitForScoreViewport(
     };
 
     const first = readScoreViewportSize(el);
-    if (first.width >= minWidth) {
+    if (viewportReady(first, minWidth, minHeight)) {
       resolve(first);
       return;
     }
@@ -78,7 +96,7 @@ export function waitForScoreViewport(
     if (typeof ResizeObserver !== "undefined") {
       ro = new ResizeObserver(() => {
         const size = readScoreViewportSize(el);
-        if (size.width >= minWidth) finish();
+        if (viewportReady(size, minWidth, minHeight)) finish();
       });
       ro.observe(el);
     }
@@ -104,6 +122,12 @@ export function musicXmlPreviewLog(
   }
   const line = `[${stage}]`;
   if (stage === "PREVIEW_RENDER_FAIL") {
+    // Soft layout retries are expected while the stage settles — don't surface
+    // them as Next.js console-error overlays.
+    if (detail && detail.softFail != null) {
+      console.info(line, detail);
+      return;
+    }
     console.error(line, detail ?? {});
     return;
   }

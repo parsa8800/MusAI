@@ -38,13 +38,19 @@ describe("PieceStudioView", () => {
     expect(
       screen.getByRole("heading", { name: "Piece studio" }),
     ).toBeInTheDocument();
-    await waitFor(() => {
-      expect(screen.queryByRole("status")).not.toBeInTheDocument();
-    });
+    expect(
+      screen.getByText("Open a score, listen, then practise."),
+    ).toBeInTheDocument();
+    expect(await screen.findByTestId("piece-library-empty")).toHaveTextContent(
+      /Your pieces will show up here/i,
+    );
     expect(screen.queryByText(/isn’t connected/i)).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Your pieces" })).not.toBeInTheDocument();
     expect(screen.queryByText(/no pieces yet/i)).not.toBeInTheDocument();
     expect(screen.getByTestId("piece-import-dropzone")).toBeInTheDocument();
+    expect(screen.getByTestId("piece-import-dropzone")).not.toHaveAttribute(
+      "data-compact",
+    );
     expect(screen.getByText(OMR_COPY.dropMusic)).toBeInTheDocument();
     expect(screen.getByText(OMR_COPY.dropFormats)).toBeInTheDocument();
     expect(screen.queryByText(OMR_COPY.uploadSheet)).not.toBeInTheDocument();
@@ -164,6 +170,11 @@ describe("PieceStudioView", () => {
     expect(
       screen.getByRole("button", { name: /More actions for Canon in D/i }),
     ).toBeInTheDocument();
+    expect(screen.getByTestId("piece-import-dropzone")).toHaveAttribute(
+      "data-compact",
+      "true",
+    );
+    expect(screen.queryByTestId("piece-library-empty")).not.toBeInTheDocument();
   });
 
   it("removes a piece only after confirmation", async () => {
@@ -225,6 +236,7 @@ describe("PieceStudioView", () => {
     });
     expect(screen.queryByTestId("piece-remove-dialog")).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Your pieces" })).not.toBeInTheDocument();
+    expect(screen.getByTestId("piece-library-empty")).toBeInTheDocument();
   });
 
   it("reopens the check step for an unconfirmed page scan", async () => {

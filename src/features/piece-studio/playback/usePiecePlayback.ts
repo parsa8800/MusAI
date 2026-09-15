@@ -94,6 +94,8 @@ export function usePiecePlayback(
   const timeListenersRef = useRef(new Set<PiecePlaybackTimeListener>());
   /** Blocks RAF from scheduling between silence and re-arm after seek/tempo. */
   const transportLockRef = useRef(false);
+  /** True while the Listen scrubber is dragging — freeze clock to preview time. */
+  const scrubbingRef = useRef(false);
 
   useEffect(() => {
     instrumentIdRef.current = instrumentId;
@@ -298,11 +300,40 @@ export function usePiecePlayback(
     [scheduleMetronome],
   );
 
+  /**
+   * Live scrub preview (YouTube-style): move the playhead immediately without
+   * re-arming audio on every pointer move. `seek` commits audio on release.
+   */
+  const scrubPreview = useCallback(
+    (next: number) => {
+      const tl = timelineRef.current;
+      const duration = tl?.durationSec ?? 0;
+      const t = clampPlaybackTime(next, duration);
+      scrubbingRef.current = true;
+      pausePosRef.current = t;
+      publishTime(t);
+      const ctx = ctxRef.current;
+      if (!playingRef.current || !ctx) return;
+      transportLockRef.current = true;
+      try {
+        // Keep transport “playing” but mute until seek commits — otherwise RAF
+        // would keep advancing past the scrub thumb.
+        silence();
+        originAudioRef.current = ctx.currentTime;
+        originScoreRef.current = t;
+      } finally {
+        transportLockRef.current = false;
+      }
+    },
+    [publishTime, silence],
+  );
+
   const seek = useCallback(
     (next: number) => {
       const tl = timelineRef.current;
       const duration = tl?.durationSec ?? 0;
       const t = clampPlaybackTime(next, duration);
+      scrubbingRef.current = false;
       pausePosRef.current = t;
       publishTime(t);
       const ctx = ctxRef.current;
@@ -550,7 +581,7 @@ export function usePiecePlayback(
       const ctx = ctxRef.current;
       const tl = timelineRef.current;
       if (!ctx || !tl || !playingRef.current) return;
-      if (transportLockRef.current) {
+      if (transportLockRef.current || scrubbingRef.current) {
         raf = window.requestAnimationFrame(tick);
         return;
       }
@@ -644,6 +675,7 @@ export function usePiecePlayback(
     toggle,
     restart,
     seek,
+    scrubPreview,
     seekToMeasureAt,
     seekToMeasure,
     instrumentStatus: instrumentStatusForUi,

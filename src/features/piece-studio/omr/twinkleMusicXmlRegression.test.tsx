@@ -18,6 +18,7 @@ import {
   readPieceStructuredScore,
 } from "@/features/piece-studio/pieceStudioFiles";
 import { PieceImportReview } from "@/features/piece-studio/PieceImportReview";
+import { PieceScorePaper } from "@/features/piece-studio/PieceScorePaper";
 import { OMR_COPY } from "@/features/piece-studio/omr/omrProvider";
 import {
   commitPieceImport,
@@ -190,6 +191,17 @@ describe("Twinkle MusicXML fixture regression (OMR offline)", () => {
     const again = await commitPieceImport(draft);
     expect(listPieceWorkspaces()).toHaveLength(before + 1);
     expect(again.pieceId).toBe(draft.committedPieceId);
+
+    // Workspace reload path: paper must receive the persisted MusicXML (not
+    // the in-memory draft used during import review).
+    const confirmedId = draft.committedPieceId!;
+    const workspacePiece = listPieceWorkspaces().find((p) => p.pieceId === confirmedId);
+    expect(workspacePiece).toBeTruthy();
+    const paperXml = await readPieceRecognizedMusicXml(confirmedId);
+    expect(paperXml).toContain("score-partwise");
+    expect(paperXml).toContain("Twinkle");
+    render(<PieceScorePaper piece={workspacePiece!} embedded />);
+    expect(await screen.findByTestId("piece-osmd")).toHaveTextContent("Twinkle");
 
     expect(recognizeSheet).not.toHaveBeenCalled();
     expect(fetchMock).not.toHaveBeenCalled();

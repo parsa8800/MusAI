@@ -1,4 +1,6 @@
-import { collectCursorSnapshotsFromWalk } from "@/features/piece-studio/score/cursorSnapshotWalk";
+import { collectCursorWalkSamples } from "@/features/piece-studio/score/cursorSnapshotWalk";
+import { alignCursorSamplesToNotes } from "@/features/piece-studio/score/cursorNoteAlign";
+import { collectNoteheadPosesFromDom } from "@/features/piece-studio/score/noteheadPoses";
 import {
   applyPieceOsmdTheme,
   applyPieceOsmdZoom,
@@ -11,12 +13,18 @@ import type { CursorPose } from "@/features/piece-studio/score/cursorTrack";
 import {
   applyPieceOsmdPageMargins,
   continuousZoomBoost,
+  centerCropOsmdHostToMusic,
   fitOsmdHostToContent,
+  nextImportPreviewSingleSystemZoom,
+  prepareOsmdHostForPaint,
   pieceOsmdZoomForPresentation,
   pieceScoreOsmdPageFormat,
+  scaleOsmdHostToImportPreview,
+  scaleOsmdHostToWorkspaceReading,
   type ScoreLayoutMetrics,
   type ScorePaintOptions,
 } from "@/features/piece-studio/score/scorePresentation";
+import { MIN_SCORE_VIEWPORT_WIDTH_PX } from "@/features/piece-studio/score/scoreViewport";
 
 type OsmdCursor = {
   reset: () => void;
@@ -35,6 +43,8 @@ type OsmdCursor = {
     currentTimeStamp?: { RealValue: number };
     CurrentSourceTimestamp?: { RealValue: number };
   };
+  NotesUnderCursor?: () => readonly unknown[];
+  SkipInvisibleNotes?: boolean;
 };
 
 type OsmdMusicPage = {
@@ -75,7 +85,11 @@ function resolveOsmdCtor(mod: Record<string, unknown>): OsmdCtor | null {
 }
 
 function getCursor(osmd: OsmdHandle): OsmdCursor | null {
-  return osmd.cursor ?? osmd.cursors?.[0] ?? null;
+  const fromList = osmd.cursors?.[0];
+  if (fromList && typeof fromList.next === "function") return fromList;
+  const single = osmd.cursor;
+  if (single && typeof single.next === "function") return single;
+  return null;
 }
 
 function emptyMetrics(): ScoreLayoutMetrics {
@@ -114,6 +128,8 @@ export function createOpenSheetMusicDisplayRenderer(): ScoreRenderer {
   let mountGeneration = 0;
   let cursorsEnabled = false;
   let lastViewMode: ScorePaintOptions["viewMode"] = "continuous";
+  /** Container width passed to prepareOsmdHostForPaint / OSMD render(). */
+  let lastPaintWidthPx = 0;
 
   return {
     id: "opensheetmusicdisplay",
@@ -143,6 +159,9 @@ export function createOpenSheetMusicDisplayRenderer(): ScoreRenderer {
         drawComposer: false,
         drawLyricist: false,
         drawCredits: false,
+        // Piece Studio is a practice surface — part labels add clutter, not clarity.
+        drawPartNames: false,
+        drawPartAbbreviations: false,
         pageFormat: "Endless",
         cursorsOptions: [
           {
@@ -168,13 +187,29 @@ export function createOpenSheetMusicDisplayRenderer(): ScoreRenderer {
     paint(theme: PieceOsmdTheme, options?: ScorePaintOptions): ScoreLayoutMetrics {
       if (!osmd || !host) return emptyMetrics();
       const viewMode = options?.viewMode ?? "continuous";
+      // Prefer the scroll wrap width — the SVG host is often `fit-content` and
+      // still empty here, so host.clientWidth is 0 and OSMD engraves blank.
+      const parentW =
+        host.parentElement?.clientWidth ||
+        host.parentElement?.getBoundingClientRect().width ||
+        0;
       const viewportW =
         options?.viewportWidthPx ||
+        parentW ||
         host.clientWidth ||
         host.getBoundingClientRect().width ||
         0;
       const viewportH = options?.viewportHeightPx || 0;
       lastViewMode = viewMode;
+
+      if (viewportW < MIN_SCORE_VIEWPORT_WIDTH_PX) {
+        return emptyMetrics();
+      }
+
+      // OSMD measures *this* container for SkyBottomLineCalculator — must be
+      // non-zero *before every* render(), including the zoom-boost pass.
+      prepareOsmdHostForPaint(host, viewportW);
+      lastPaintWidthPx = viewportW;
 
       const pageFormat = pieceScoreOsmdPageFormat(viewMode);
       try {
@@ -184,8 +219,14 @@ export function createOpenSheetMusicDisplayRenderer(): ScoreRenderer {
       }
 
       applyPieceOsmdTheme(osmd, theme);
-      applyPieceOsmdPageMargins(osmd.EngravingRules ?? null, viewMode);
-      let zoom = pieceOsmdZoomForPresentation(viewportW, viewportH, viewMode);
+      const purpose = options?.purpose ?? "workspace";
+      applyPieceOsmdPageMargins(osmd.EngravingRules ?? null, viewMode, purpose);
+      let zoom = pieceOsmdZoomForPresentation(
+        viewportW,
+        viewportH,
+        viewMode,
+        purpose,
+      );
       applyPieceOsmdZoom(osmd, viewportW, zoom);
       osmd.render();
 
@@ -209,23 +250,107 @@ export function createOpenSheetMusicDisplayRenderer(): ScoreRenderer {
               host.style.height = "auto";
               return sized;
             })()
-          : fitOsmdHostToContent(host);
+          : fitOsmdHostToContent(host, {
+              cropEmptyPage: purpose !== "import-preview",
+            });
 
       // Short Continuous scores: one adaptive zoom pass so they don't look lost.
-      if (viewMode === "continuous" && viewportW > 0) {
+      // Workspace skips OSMD boost (display scale) so Twinkle stays one system.
+      if (viewMode === "continuous" && viewportW > 0 && purpose !== "workspace") {
         const draft = readSheetMetrics(osmd, fitted);
         const boosted = continuousZoomBoost(
           zoom,
           draft,
           viewportW,
           viewportH || fitted.contentHeightPx * 2,
+          purpose,
         );
         if (boosted != null) {
           zoom = boosted;
+          prepareOsmdHostForPaint(host, viewportW);
           applyPieceOsmdZoom(osmd, viewportW, zoom);
           osmd.render();
           fitted = fitOsmdHostToContent(host);
         }
+      }
+
+      // Workspace Continuous: if a short score still wrapped, step zoom down
+      // until it fits one system (size comes from display scale after).
+      if (purpose === "workspace" && viewMode === "continuous") {
+        let draft = readSheetMetrics(osmd, fitted);
+        if (draft.pageCount <= 1 && draft.systemCount > 1 && draft.systemCount <= 3) {
+          const zoomBeforePack = zoom;
+          let packed = false;
+          const downSteps = [1.0, 0.95, 0.9, 0.85, 0.8] as const;
+          for (const tryZoom of downSteps) {
+            if (tryZoom >= zoomBeforePack - 0.001) continue;
+            prepareOsmdHostForPaint(host, viewportW);
+            applyPieceOsmdZoom(osmd, viewportW, tryZoom);
+            osmd.render();
+            const tryFit = fitOsmdHostToContent(host);
+            const tryMetrics = readSheetMetrics(osmd, tryFit);
+            if (tryMetrics.systemCount === 1) {
+              zoom = tryZoom;
+              fitted = tryFit;
+              draft = tryMetrics;
+              packed = true;
+              break;
+            }
+          }
+          // Failed pack attempts leave the DOM on the last try — restore.
+          if (!packed) {
+            prepareOsmdHostForPaint(host, viewportW);
+            applyPieceOsmdZoom(osmd, viewportW, zoomBeforePack);
+            osmd.render();
+            fitted = fitOsmdHostToContent(host);
+            draft = readSheetMetrics(osmd, fitted);
+          }
+        }
+        if (draft.pageCount <= 1 && draft.systemCount <= 3) {
+          fitted = centerCropOsmdHostToMusic(host);
+          const afterCrop = readSheetMetrics(osmd, fitted);
+          fitted = scaleOsmdHostToWorkspaceReading(
+            host,
+            viewportW,
+            viewportH || fitted.contentHeightPx * 2,
+            afterCrop,
+          );
+        }
+      }
+
+      // Import review: largest one-system zoom for playable note size, then
+      // gentle display scale. Never crop Continuous pages to a thin strip.
+      if (purpose === "import-preview" && viewMode === "continuous") {
+        let previewMetrics = readSheetMetrics(osmd, fitted);
+        if (previewMetrics.systemCount === 1) {
+          let nextZoom = nextImportPreviewSingleSystemZoom(zoom);
+          while (nextZoom != null) {
+            prepareOsmdHostForPaint(host, viewportW);
+            applyPieceOsmdZoom(osmd, viewportW, nextZoom);
+            osmd.render();
+            const tryFit = fitOsmdHostToContent(host, { cropEmptyPage: false });
+            const tryMetrics = readSheetMetrics(osmd, tryFit);
+            if (tryMetrics.systemCount === 1) {
+              zoom = nextZoom;
+              fitted = tryFit;
+              previewMetrics = tryMetrics;
+              nextZoom = nextImportPreviewSingleSystemZoom(zoom);
+            } else {
+              prepareOsmdHostForPaint(host, viewportW);
+              applyPieceOsmdZoom(osmd, viewportW, zoom);
+              osmd.render();
+              fitted = fitOsmdHostToContent(host, { cropEmptyPage: false });
+              break;
+            }
+          }
+        }
+        fitted = scaleOsmdHostToImportPreview(
+          host,
+          viewportW,
+          viewportH || fitted.contentHeightPx * 2,
+          fitted,
+        );
+        fitted = centerCropOsmdHostToMusic(host);
       }
 
       const metrics = readSheetMetrics(osmd, fitted);
@@ -252,11 +377,62 @@ export function createOpenSheetMusicDisplayRenderer(): ScoreRenderer {
       });
     },
 
-    collectCursorSnapshots(wrap, wholeNotesToSeconds): CursorPose[] {
+    collectCursorSnapshots(wrap, wholeNotesToSeconds, noteTimes): CursorPose[] {
       if (!osmd) return [];
+      try {
+        osmd.enableOrDisableCursors?.(true);
+        cursorsEnabled = true;
+      } catch {
+        /* cursor optional */
+      }
+
+      // Prefer engraved noteheads in the SVG — one pose per sounding head.
+      // The OSMD iterator walk often stops mid-piece or lands on the meter.
+      if (noteTimes && noteTimes.length > 0) {
+        const heads = collectNoteheadPosesFromDom(wrap);
+        if (heads.length > 0) {
+          const fromDom = alignCursorSamplesToNotes(
+            heads.map((h, i) => ({
+              realValue: i,
+              x: h.x,
+              y: h.y,
+              height: h.height,
+            })),
+            noteTimes,
+            wholeNotesToSeconds,
+          );
+          if (fromDom.length === noteTimes.length) {
+            return fromDom;
+          }
+        }
+      }
+
       const cursor = getCursor(osmd);
       if (!cursor) return [];
-      return collectCursorSnapshotsFromWalk(cursor, wrap, wholeNotesToSeconds);
+      const samples = collectCursorWalkSamples(
+        cursor,
+        wrap,
+        {
+          paintWidthPx: lastPaintWidthPx,
+        },
+        undefined,
+        noteTimes && noteTimes.length > 0
+          ? { targetNoteCount: noteTimes.length }
+          : undefined,
+      );
+      if (noteTimes && noteTimes.length > 0) {
+        return alignCursorSamplesToNotes(
+          samples,
+          noteTimes,
+          wholeNotesToSeconds,
+        );
+      }
+      return samples.map((sample) => ({
+        tSec: wholeNotesToSeconds(sample.realValue),
+        x: sample.x,
+        y: sample.y,
+        height: sample.height,
+      }));
     },
 
     dispose() {

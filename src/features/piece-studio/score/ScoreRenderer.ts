@@ -23,12 +23,14 @@ export type ScoreRenderer = {
     options?: ScorePaintOptions,
   ): ScoreLayoutMetrics;
   /**
-   * Walk the engraved cursor to map musical time → on-screen poses.
-   * Used for Listen playhead / seek; must not touch React state.
+   * Walk the engraved cursor for on-screen poses.
+   * When `noteTimes` is provided, MusaiScore note seconds own the clock;
+   * OSMD only supplies x/y (Listen playhead accuracy).
    */
   collectCursorSnapshots(
     wrap: HTMLElement,
     wholeNotesToSeconds: (wholeNotes: number) => number,
+    noteTimes?: readonly { startSec: number; endSec: number }[],
   ): CursorPose[];
   /** Show only one engraved page (Page mode). No-op for Continuous. */
   setVisiblePage?(pageIndex: number): void;

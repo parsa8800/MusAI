@@ -102,7 +102,7 @@ function PieceWorkspaceShell({
   return (
     <StudioViewport>
       <div className="musai-piece-workspace">
-        <header className="musai-piece-workspace__nav">
+        <header className="musai-piece-workspace__nav flex shrink-0 items-center gap-2 px-0 py-2 sm:gap-3 sm:py-2.5">
           <PracticeHubBackLink
             className="!mb-0 shrink-0"
             href={PIECE_STUDIO_HREF}
@@ -435,6 +435,15 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
     );
   }, [coachIssues]);
 
+  const playbackNoteTimes = useMemo(
+    () =>
+      playback.timeline?.notes.map((n) => ({
+        startSec: n.startSec,
+        endSec: n.endSec,
+      })) ?? undefined,
+    [playback.timeline],
+  );
+
   if (piece === undefined) {
     return <PieceWorkspaceOpening />;
   }
@@ -473,6 +482,7 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
       getPlaybackTime={playback.getCurrentSec}
       wholeNotesToSeconds={wholeNotesToSeconds}
       onSeekFromScore={playback.seek}
+      playbackNotes={playbackNoteTimes}
       highlight={highlight}
       onHighlightSelect={onHighlightSelect}
     />
@@ -550,7 +560,7 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
               : "musai-piece-workspace"
         }
       >
-        <header className="musai-piece-workspace__nav">
+        <header className="musai-piece-workspace__nav flex shrink-0 items-center gap-2 px-0 py-2 sm:gap-3 sm:py-2.5">
           <PracticeHubBackLink
             className="!mb-0 shrink-0"
             href={PIECE_STUDIO_HREF}
@@ -625,6 +635,7 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
                 onToggle={onTogglePlayback}
                 onRestart={onRestartPlayback}
                 onSeek={playback.seek}
+                onScrubPreview={playback.scrubPreview}
                 onBpm={playback.setBpm}
                 onSpeedPreset={playback.setSpeedPreset}
                 onToggleMetronome={playback.toggleMetronome}

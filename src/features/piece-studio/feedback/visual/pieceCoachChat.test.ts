@@ -45,9 +45,9 @@ describe("pieceCoachChat", () => {
 
   it("offers a few follow-up chips", () => {
     expect(pieceCoachSuggestedQuestions(issue)).toEqual([
-      "Where on the score?",
-      "How do I practise?",
       "Why?",
+      "How do I practise?",
+      "What next?",
     ]);
   });
 });

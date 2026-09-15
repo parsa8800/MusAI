@@ -140,6 +140,7 @@ describe("PieceImportReview", () => {
     expect(screen.getByTestId("piece-import-confirm")).toHaveTextContent(
       OMR_COPY.looksGood,
     );
+    expect(screen.getByText(OMR_COPY.confirmLead)).toBeInTheDocument();
     expect(screen.queryByTestId("piece-import-keep-original")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("piece-import-confirm"));
@@ -283,9 +284,15 @@ describe("PieceImportReview", () => {
       "data-state",
       "reading",
     );
+    expect(screen.getByTestId("piece-import-loading")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: OMR_COPY.openingScore }),
+    ).toBeInTheDocument();
     expect(screen.getByText(OMR_COPY.reading)).toBeInTheDocument();
-    expect(screen.queryByRole("heading")).not.toBeInTheDocument();
+    expect(screen.getByText(OMR_COPY.readingPatience)).toBeInTheDocument();
     expect(screen.queryByTestId("piece-import-confirm")).not.toBeInTheDocument();
     expect(screen.queryByText(OMR_COPY.emptyPreview)).not.toBeInTheDocument();
+    expect(screen.queryByText(/MusicXML/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\bOMR\b/)).not.toBeInTheDocument();
   });
 });

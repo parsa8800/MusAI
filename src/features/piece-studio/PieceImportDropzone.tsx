@@ -14,12 +14,15 @@ export function PieceImportDropzone({
   disabled = false,
   onFile,
   inputRef,
+  compact = false,
 }: {
   busy?: boolean;
   busyLabel?: string | null;
   disabled?: boolean;
   onFile: (file: File) => void;
   inputRef?: RefObject<HTMLInputElement | null>;
+  /** Smaller target once the library already has pieces. */
+  compact?: boolean;
 }) {
   const autoId = useId();
   const localRef = useRef<HTMLInputElement>(null);
@@ -68,6 +71,7 @@ export function PieceImportDropzone({
     <div
       className={[
         "musai-piece-drop",
+        compact ? "musai-piece-drop--compact" : "",
         dragging ? "musai-piece-drop--active" : "",
         busy ? "musai-piece-drop--busy" : "",
       ]
@@ -76,6 +80,7 @@ export function PieceImportDropzone({
       data-testid="piece-import-dropzone"
       data-dragging={dragging ? "true" : undefined}
       data-busy={busy ? "true" : undefined}
+      data-compact={compact ? "true" : undefined}
       onDragEnter={onDragEnter}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
@@ -86,6 +91,9 @@ export function PieceImportDropzone({
         className="musai-piece-drop__body musai-pressable"
         aria-disabled={locked || undefined}
       >
+        <span className="musai-piece-drop__motif" aria-hidden>
+          <DropzoneStaffMotif />
+        </span>
         {busy && busyLabel ? (
           <>
             <span className="musai-piece-drop__title">{busyLabel}</span>
@@ -114,5 +122,41 @@ export function PieceImportDropzone({
         />
       </label>
     </div>
+  );
+}
+
+/** Quiet staff + page motif — Piece Studio only (no OSMD / VexFlow). */
+function DropzoneStaffMotif() {
+  return (
+    <svg
+      className="musai-piece-drop__motif-svg"
+      viewBox="0 0 120 72"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <rect
+        x="8"
+        y="6"
+        width="104"
+        height="60"
+        rx="10"
+        className="musai-piece-drop__motif-page"
+      />
+      <g className="musai-piece-drop__motif-staff" strokeWidth="1.15">
+        <path d="M22 22h76" />
+        <path d="M22 30h76" />
+        <path d="M22 38h76" />
+        <path d="M22 46h76" />
+        <path d="M22 54h76" />
+      </g>
+      <g className="musai-piece-drop__motif-notes" fill="currentColor">
+        <ellipse cx="42" cy="45" rx="5.2" ry="3.8" transform="rotate(-18 42 45)" />
+        <path d="M46.6 44.2V24.5" stroke="currentColor" strokeWidth="1.6" />
+        <ellipse cx="62" cy="37" rx="5.2" ry="3.8" transform="rotate(-18 62 37)" />
+        <path d="M66.6 36.2V22" stroke="currentColor" strokeWidth="1.6" />
+        <ellipse cx="82" cy="29" rx="5.2" ry="3.8" transform="rotate(-18 82 29)" />
+        <path d="M86.6 28.2V18.5" stroke="currentColor" strokeWidth="1.6" />
+      </g>
+    </svg>
   );
 }

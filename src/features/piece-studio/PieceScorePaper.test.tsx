@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { clearPieceCatalog } from "@/features/piece-studio/pieceStudioCatalog";
 import { PieceScorePaper } from "@/features/piece-studio/PieceScorePaper";
 import {
   clearPieceFileMemory,
@@ -51,6 +52,7 @@ function piece(partial: Partial<PieceWorkspaceV1> = {}): PieceWorkspaceV1 {
 
 describe("PieceScorePaper", () => {
   afterEach(() => {
+    clearPieceCatalog();
     clearPieceFileMemory();
   });
 
@@ -62,6 +64,32 @@ describe("PieceScorePaper", () => {
     render(<PieceScorePaper piece={piece()} />);
     expect(await screen.findByTestId("piece-osmd")).toHaveTextContent("Twinkle");
     expect(screen.getByText("Mozart · C major · 4/4 · 100 bpm")).toBeInTheDocument();
+  });
+
+  it("loads recognized MusicXML for an embedded workspace piece", async () => {
+    await savePieceRecognizedMusicXml("twinkle", TWINKLE_XML);
+    render(<PieceScorePaper piece={piece()} embedded />);
+    expect(await screen.findByTestId("piece-osmd")).toHaveTextContent("Twinkle");
+    expect(screen.queryByRole("heading", { name: "Twinkle" })).not.toBeInTheDocument();
+  });
+
+  it("after confirm import, workspace paper receives saved MusicXML", async () => {
+    const { commitPieceImport, importPieceFromFile } = await import(
+      "@/features/piece-studio/pieceStudioImport"
+    );
+    const { clearPieceCatalog } = await import(
+      "@/features/piece-studio/pieceStudioCatalog"
+    );
+    clearPieceCatalog();
+    const file = new File([TWINKLE_XML], "twinkle.musicxml", {
+      type: "application/xml",
+    });
+    const result = await importPieceFromFile(file);
+    expect(result.status).toBe("ready");
+    if (result.status !== "ready") return;
+    const confirmed = await commitPieceImport(result.draft);
+    render(<PieceScorePaper piece={confirmed} embedded />);
+    expect(await screen.findByTestId("piece-osmd")).toHaveTextContent("Twinkle");
   });
 
   it("does not load OSMD when the original MusicXML is missing", async () => {

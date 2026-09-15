@@ -38,6 +38,7 @@ export function PieceScorePaper({
   getPlaybackTime,
   wholeNotesToSeconds,
   onSeekFromScore,
+  playbackNotes,
   highlight = null,
   onHighlightSelect,
 }: {
@@ -48,6 +49,7 @@ export function PieceScorePaper({
   getPlaybackTime?: () => number;
   wholeNotesToSeconds?: (wholeNotes: number) => number;
   onSeekFromScore?: (tSec: number) => void;
+  playbackNotes?: readonly { startSec: number; endSec: number }[];
   highlight?: PieceScoreHighlight | null;
   onHighlightSelect?: (id: string) => void;
 }) {
@@ -60,6 +62,10 @@ export function PieceScorePaper({
   useEffect(() => {
     let revoked: string | null = null;
     let cancelled = false;
+    setMusicXml(null);
+    setXmlError(null);
+    setObjectUrl(null);
+    setXmlLoading(true);
 
     void (async () => {
       const recognized = await readPieceRecognizedMusicXml(piece.pieceId);
@@ -191,6 +197,7 @@ export function PieceScorePaper({
             getPlaybackTime={getPlaybackTime}
             wholeNotesToSeconds={wholeNotesToSeconds}
             onSeek={onSeekFromScore}
+            playbackNotes={playbackNotes}
             highlight={followPlayback || showOriginal ? null : highlight}
             onHighlightSelect={onHighlightSelect}
           />

@@ -7,13 +7,10 @@ export function pieceCoachOpenerText(_issue: PieceCoachIssueView): string {
 }
 
 export function pieceCoachSuggestedQuestions(
-  issue: PieceCoachIssueView,
+  _issue: PieceCoachIssueView,
 ): string[] {
-  return [
-    "Where on the score?",
-    "How do I practise?",
-    issue.what ? "Why?" : "What next?",
-  ].slice(0, 3);
+  void _issue;
+  return ["Why?", "How do I practise?", "What next?"];
 }
 
 /**

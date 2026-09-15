@@ -5361,41 +5361,87 @@ html[data-theme="dark"] .musai-note-ring-label[data-selected="true"] {
   flex: 1 1 auto;
   flex-direction: column;
   gap: 0.1rem;
-  padding: 0.1rem clamp(0.7rem, 2.6vw, 1.35rem) 0.7rem;
+  /* Top padding lives on __nav — match Scale Studio header (py-2 / sm:py-2.5). */
+  padding: 0 clamp(0.7rem, 2.6vw, 1.35rem) 0.7rem;
 }
 
 .musai-piece-home__nav {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  min-height: 1.7rem;
+  min-height: 2.5rem;
+  /* Match Scale Studio header: py-2 / sm:py-2.5 (Tailwind on the element too). */
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .musai-piece-home__nav {
+    padding-top: 0.625rem;
+    padding-bottom: 0.625rem;
+  }
 }
 
 .musai-piece-home__shell {
   display: flex;
   width: 100%;
-  max-width: min(30rem, 100%);
+  max-width: min(34rem, 100%);
   min-height: 0;
   margin: 0 auto;
   flex: 1 1 auto;
   flex-direction: column;
-  gap: clamp(0.75rem, 2vh, 1.15rem);
-  padding-top: clamp(0.35rem, 2.2vh, 1rem);
+  gap: clamp(0.85rem, 2.2vh, 1.25rem);
+  padding-top: clamp(0.35rem, 2vh, 0.9rem);
   justify-content: flex-start;
+}
+
+/* Empty room: centre the composition in the viewport, not stuck under the nav. */
+.musai-piece-home__shell[data-has-library="false"] {
+  justify-content: center;
+  padding-block: clamp(0.5rem, 3vh, 1.5rem) clamp(0.85rem, 3vh, 1.75rem);
+  gap: clamp(1rem, 2.8vh, 1.45rem);
+}
+
+.musai-piece-home__shell[data-has-library="true"] {
+  justify-content: flex-start;
+  padding-top: clamp(0.2rem, 1.2vh, 0.55rem);
+  gap: clamp(0.65rem, 1.6vh, 0.95rem);
 }
 
 .musai-piece-home__intro {
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
   text-align: center;
 }
 
 .musai-piece-home__title {
   margin: 0;
-  font-size: clamp(1.7rem, 3.5vh, 2.15rem);
+  font-size: clamp(1.75rem, 3.8vh, 2.25rem);
   font-weight: 600;
   letter-spacing: -0.03em;
   line-height: 1.1;
   color: var(--musai-ink);
+}
+
+.musai-piece-home__shell[data-has-library="true"] .musai-piece-home__title {
+  font-size: clamp(1.45rem, 2.8vh, 1.85rem);
+}
+
+.musai-piece-home__lead {
+  margin: 0;
+  max-width: 22rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--musai-muted) 92%, var(--musai-ink));
+}
+
+.musai-piece-home__shell[data-has-library="true"] .musai-piece-home__lead {
+  font-size: 0.8125rem;
+  max-width: 20rem;
 }
 
 .musai-piece-home__action {
@@ -5409,93 +5455,184 @@ html[data-theme="dark"] .musai-note-ring-label[data-selected="true"] {
 
 .musai-piece-home__error {
   margin: 0 auto;
-  max-width: 22rem;
+  max-width: 24rem;
   font-size: 0.8125rem;
   line-height: 1.4;
   text-align: center;
   color: var(--musai-accent-2);
 }
 
+/* Demoted scanning note — never the visual centre of the empty room. */
 .musai-piece-home__hint {
-  margin: 0 auto;
-  max-width: 22rem;
-  font-size: 0.78rem;
+  margin: 0.15rem auto 0;
+  max-width: 24rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
   line-height: 1.45;
   text-align: center;
-  color: var(--musai-muted);
+  color: color-mix(in srgb, var(--musai-muted) 82%, transparent);
 }
 
-/* Unified import dropzone — same family as Scale capture import */
+/* Unified import dropzone — larger music-room target */
 .musai-piece-drop {
   display: flex;
   width: 100%;
-  max-width: min(22rem, 100%);
+  max-width: min(28rem, 100%);
   margin-inline: auto;
   flex-direction: column;
   align-items: stretch;
   overflow: hidden;
   border-radius: var(--musai-radius-lg);
-  border: 1px solid var(--musai-glass-stroke);
-  background: var(--musai-glass-fill);
-  box-shadow: inset 0 1px 0 var(--musai-glass-highlight);
+  border: 1.5px dashed color-mix(in srgb, var(--musai-border) 72%, var(--musai-accent) 10%);
+  background:
+    linear-gradient(
+      165deg,
+      color-mix(in srgb, var(--musai-surface) 55%, transparent) 0%,
+      color-mix(in srgb, var(--musai-glass-fill) 88%, transparent) 100%
+    );
+  box-shadow:
+    inset 0 1px 0 var(--musai-glass-highlight),
+    0 10px 28px -22px color-mix(in srgb, var(--musai-ink) 28%, transparent);
   -webkit-backdrop-filter: var(--musai-glass-filter);
   backdrop-filter: var(--musai-glass-filter);
   transition:
     background-color 200ms var(--musai-ease-out),
     border-color 200ms ease,
-    box-shadow 220ms var(--musai-ease-out);
+    box-shadow 220ms var(--musai-ease-out),
+    transform 180ms var(--musai-ease-out);
+}
+
+.musai-piece-drop--compact {
+  max-width: min(24rem, 100%);
+  border-style: solid;
+  border-width: 1px;
 }
 
 .musai-piece-drop:hover {
-  border-color: color-mix(in srgb, var(--musai-accent) 22%, var(--musai-glass-stroke));
-  background: color-mix(in srgb, var(--musai-surface) 40%, var(--musai-glass-fill));
+  border-color: color-mix(in srgb, var(--musai-accent) 42%, var(--musai-glass-stroke));
+  background:
+    linear-gradient(
+      165deg,
+      color-mix(in srgb, var(--musai-accent-soft) 28%, var(--musai-surface)) 0%,
+      color-mix(in srgb, var(--musai-surface) 48%, var(--musai-glass-fill)) 100%
+    );
+  box-shadow:
+    inset 0 1px 0 var(--musai-glass-highlight),
+    0 14px 32px -20px color-mix(in srgb, var(--musai-accent) 22%, transparent);
 }
 
 .musai-piece-drop--active {
-  border-color: color-mix(in srgb, var(--musai-accent) 36%, var(--musai-glass-stroke));
-  background: color-mix(in srgb, var(--musai-accent-soft) 48%, var(--musai-glass-fill));
+  border-color: color-mix(in srgb, var(--musai-accent) 55%, var(--musai-glass-stroke));
+  border-style: solid;
+  background: color-mix(in srgb, var(--musai-accent-soft) 55%, var(--musai-glass-fill));
   box-shadow:
     inset 0 1px 0 var(--musai-glass-highlight),
-    0 0 0 1px color-mix(in srgb, var(--musai-accent) 18%, transparent);
+    0 0 0 2px color-mix(in srgb, var(--musai-accent) 22%, transparent);
+  transform: scale(1.01);
 }
 
 .musai-piece-drop--busy {
-  border-color: color-mix(in srgb, var(--musai-accent) 22%, var(--musai-glass-stroke));
+  border-color: color-mix(in srgb, var(--musai-accent) 28%, var(--musai-glass-stroke));
+  border-style: solid;
   background: color-mix(in srgb, var(--musai-accent-soft) 36%, var(--musai-glass-fill));
   pointer-events: none;
 }
 
 .musai-piece-drop__body {
   display: flex;
-  min-height: 7.5rem;
+  min-height: 11.5rem;
   width: 100%;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.35rem;
-  padding: 1.15rem 1.25rem;
+  gap: 0.45rem;
+  padding: 1.35rem 1.4rem 1.45rem;
   cursor: pointer;
   text-align: center;
+}
+
+.musai-piece-drop--compact .musai-piece-drop__body {
+  min-height: 6.75rem;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.55rem 0.85rem;
+  padding: 0.85rem 1.1rem;
 }
 
 .musai-piece-drop__body[aria-disabled="true"] {
   cursor: default;
 }
 
+.musai-piece-drop__motif {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.15rem;
+  color: color-mix(in srgb, var(--musai-ink) 55%, var(--musai-muted));
+}
+
+.musai-piece-drop--compact .musai-piece-drop__motif {
+  margin-bottom: 0;
+}
+
+.musai-piece-drop__motif-svg {
+  width: 5.75rem;
+  height: auto;
+  display: block;
+}
+
+.musai-piece-drop--compact .musai-piece-drop__motif-svg {
+  width: 3.25rem;
+}
+
+.musai-piece-drop__motif-page {
+  fill: color-mix(in srgb, var(--musai-surface-2) 55%, transparent);
+  stroke: color-mix(in srgb, var(--musai-border) 70%, transparent);
+  stroke-width: 1.25;
+}
+
+.musai-piece-drop__motif-staff {
+  stroke: color-mix(in srgb, var(--musai-ink) 28%, var(--musai-muted));
+}
+
+.musai-piece-drop__motif-notes {
+  opacity: 0.78;
+}
+
+.musai-piece-drop:hover .musai-piece-drop__motif,
+.musai-piece-drop--active .musai-piece-drop__motif {
+  color: color-mix(in srgb, var(--musai-accent) 45%, var(--musai-ink));
+}
+
+.musai-piece-drop:hover .musai-piece-drop__motif-staff,
+.musai-piece-drop--active .musai-piece-drop__motif-staff {
+  stroke: color-mix(in srgb, var(--musai-accent) 35%, var(--musai-ink));
+}
+
 .musai-piece-drop__title {
   margin: 0;
-  font-size: 0.9375rem;
-  font-weight: 600;
+  font-size: 1.05rem;
+  font-weight: 650;
   letter-spacing: -0.015em;
   line-height: 1.25;
   color: var(--musai-ink);
 }
 
+.musai-piece-drop--compact .musai-piece-drop__title {
+  font-size: 0.9rem;
+}
+
 .musai-piece-drop__hint {
   margin: 0;
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   line-height: 1.35;
   color: var(--musai-muted);
+}
+
+.musai-piece-drop--compact .musai-piece-drop__hint {
+  width: 100%;
+  font-size: 0.72rem;
 }
 
 .musai-piece-home--review {
@@ -5516,8 +5653,10 @@ html[data-theme="dark"] .musai-note-ring-label[data-selected="true"] {
   min-height: 0;
   flex: 1;
   flex-direction: column;
-  gap: 0.7rem;
-  padding: 0.1rem 0.15rem 0.45rem;
+  /* One decision composition: title → preview → actions, not footer-stuck. */
+  justify-content: center;
+  gap: 0.85rem;
+  padding: 0.35rem 0.15rem 0.85rem;
 }
 
 .musai-piece-import-review__head {
@@ -5558,34 +5697,126 @@ html[data-theme="dark"] .musai-note-ring-label[data-selected="true"] {
   gap: 0.85rem;
 }
 
-/* Sized for OSMD while “Preparing score” — not display:none (zero width blanks paint). */
-.musai-piece-import-review__paint-host {
-  position: absolute;
-  width: min(40rem, calc(100% - 1.5rem));
-  max-width: 100%;
-  min-width: min(100%, 16rem);
-  height: min(44vh, 24rem);
-  opacity: 0;
-  pointer-events: none;
-  overflow: hidden;
-  inset-inline: 0;
-  margin-inline: auto;
+/* Full-page import load — same composition as the ready review form. */
+.musai-piece-import-review__loading {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.85rem;
+  padding: 0.35rem 0.15rem 0.85rem;
 }
 
-.musai-piece-import-review__paint-host .musai-piece-import-review__compare,
-.musai-piece-import-review__paint-host .musai-piece-import-review__frame,
-.musai-piece-import-review__paint-host .musai-piece-score-viewer,
-.musai-piece-import-review__paint-host .musai-piece-osmd-wrap {
+.musai-piece-import-review__loading .musai-piece-import-review__head {
+  gap: 0.45rem;
+}
+
+.musai-piece-import-review__loading-tip {
+  margin: 0;
+  max-width: 22rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--musai-muted) 88%, transparent);
+}
+
+.musai-piece-import-review__frame--loading {
+  min-height: min(28vh, 14rem);
+  max-height: min(40vh, 22rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.musai-piece-import-review__loading-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1.5rem 1.25rem;
+  color: color-mix(in srgb, var(--musai-ink) 55%, var(--musai-muted));
+}
+
+.musai-piece-import-review__loading-staff {
+  width: min(22rem, 100%);
+  height: auto;
+  display: block;
+  opacity: 0.85;
+  animation: musai-piece-import-review-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes musai-piece-import-review-shimmer {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.95;
+  }
+}
+
+.musai-piece-import-review__primary-ghost {
+  display: inline-flex;
   width: 100%;
-  min-width: 0;
-  height: 100%;
-  min-height: 100%;
+  min-height: 2.85rem;
+  min-width: 9.5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--musai-radius);
+  border: 1px solid color-mix(in srgb, var(--musai-border) 55%, transparent);
+  background: color-mix(in srgb, var(--musai-surface-2) 40%, transparent);
+  padding: 0 1rem;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  color: color-mix(in srgb, var(--musai-muted) 70%, transparent);
+  user-select: none;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .musai-piece-import-review__loading-staff,
+  .musai-piece-import-review__pulse {
+    animation: none;
+  }
+}
+
+/* Preview stage: OSMD always paints into a real layout box; preparing is an overlay. */
+.musai-piece-import-review__stage--preview {
+  position: relative;
+  min-height: 0;
+  justify-content: center;
+}
+
+.musai-piece-import-review__prepare-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: calc(var(--musai-radius-lg) + 2px);
+  background: color-mix(in srgb, var(--musai-bg) 88%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+.musai-piece-import-review__prepare-overlay .musai-piece-import-review__processing {
+  min-height: 0;
+  flex: 0 0 auto;
+}
+
+.musai-piece-import-review__stage--preview[data-preparing="true"]
+  .musai-piece-import-review__compare {
+  /* Keep width/height for OSMD; overlay covers the unfinished paint. */
+  visibility: visible;
 }
 
 .musai-piece-import-review__stage {
   display: flex;
   min-height: 0;
-  flex: 1 1 auto;
+  /* Hug the preview — do not expand and shove actions to the footer. */
+  flex: 0 1 auto;
   flex-direction: column;
   align-items: stretch;
   justify-content: center;
@@ -5595,7 +5826,7 @@ html[data-theme="dark"] .musai-note-ring-label[data-selected="true"] {
 .musai-piece-import-review__fail {
   display: flex;
   min-height: 0;
-  flex: 1;
+  flex: 0 1 auto;
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
@@ -5603,20 +5834,81 @@ html[data-theme="dark"] .musai-note-ring-label[data-selected="true"] {
 }
 
 .musai-piece-import-review__compare--digital {
-  align-items: stretch;
+  align-items: center;
+  flex: 0 1 auto;
+  min-height: 0;
+  justify-content: center;
 }
 
 .musai-piece-import-review__compare--digital .musai-piece-import-review__frame {
-  width: 100%;
-  max-width: min(40rem, 100%);
+  /* Wide enough for OSMD to measure before paint; hugs after engraving. */
+  width: min(100%, 48rem);
+  max-width: min(48rem, 100%);
+  min-width: min(100%, 20rem);
+  min-height: 0;
+  max-height: min(48vh, 26rem);
+  height: auto;
+  flex: 0 1 auto;
+  overflow: auto;
+  margin-inline: auto;
+  background: color-mix(in srgb, var(--musai-surface) 98%, #fff 8%);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, #fff 55%, transparent),
+    0 18px 40px -28px color-mix(in srgb, var(--musai-ink) 30%, transparent);
+}
+
+.musai-piece-import-review__compare--digital
+  .musai-piece-import-review__frame:has(.musai-piece-osmd svg) {
+  width: fit-content;
   min-width: 0;
-  min-height: min(44vh, 24rem);
 }
 
 .musai-piece-import-review__compare--digital .musai-piece-score-viewer,
 .musai-piece-import-review__compare--digital .musai-piece-osmd-wrap {
   width: 100%;
   min-width: 0;
+  flex: 0 1 auto;
+  min-height: 0;
+  height: auto;
+}
+
+.musai-piece-import-review__compare--digital
+  .musai-piece-import-review__frame:has(.musai-piece-osmd svg)
+  .musai-piece-score-viewer,
+.musai-piece-import-review__compare--digital
+  .musai-piece-import-review__frame:has(.musai-piece-osmd svg)
+  .musai-piece-osmd-wrap {
+  width: fit-content;
+  max-width: 100%;
+}
+
+.musai-piece-import-review__compare--digital .musai-piece-score-viewer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.musai-piece-import-review__compare--digital .musai-piece-osmd-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 0;
+  padding: 1.55rem clamp(1.15rem, 3vw, 2rem);
+  overflow: visible;
+}
+
+.musai-piece-import-review__compare--digital .musai-piece-osmd {
+  width: fit-content;
+  max-width: 100%;
+  min-width: 0;
+  margin-inline: auto;
+}
+
+html[data-theme="dark"]
+  .musai-piece-import-review__compare--digital
+  .musai-piece-import-review__frame {
+  background: color-mix(in srgb, var(--musai-surface) 92%, transparent);
 }
 
 .musai-piece-import-review__segmented {
@@ -5778,32 +6070,69 @@ html[data-theme="dark"] .musai-note-ring-label[data-selected="true"] {
   color: var(--musai-muted);
 }
 
+.musai-piece-import-review__decide {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 22rem;
+  margin-inline: auto;
+  padding: 0.35rem 0.85rem 0.15rem;
+}
+
+.musai-piece-import-review__decide-lead {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+  text-align: center;
+  color: var(--musai-ink);
+}
+
 .musai-piece-import-review__actions {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
   justify-content: center;
-  gap: 0.45rem 0.85rem;
+  gap: 0.45rem;
+  width: 100%;
   flex: 0 0 auto;
-  padding-top: 0.1rem;
 }
 
 .musai-piece-import-review__primary {
-  min-width: 9.5rem;
+  width: 100%;
+  min-width: 0;
+  min-height: 2.85rem;
+  font-size: 0.9375rem;
+  font-weight: 650;
 }
 
 .musai-piece-import-review__secondary {
-  min-height: 2.35rem;
+  display: inline-flex;
+  width: 100%;
+  min-height: 2.55rem;
+  align-items: center;
+  justify-content: center;
   border: 0;
+  border-radius: var(--musai-radius);
   background: transparent;
-  padding: 0 0.25rem;
-  font-size: 0.8125rem;
+  padding: 0 0.85rem;
+  font-size: 0.875rem;
   font-weight: 650;
-  color: var(--musai-muted);
+  color: var(--musai-ink);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--musai-ink) 22%, transparent);
+  text-underline-offset: 0.18em;
 }
 
 .musai-piece-import-review__secondary:hover {
   color: var(--musai-ink);
+  background: color-mix(in srgb, var(--musai-wash) 55%, transparent);
+  text-decoration-color: color-mix(in srgb, var(--musai-ink) 45%, transparent);
 }
 
 .musai-piece-import-review__remove {
@@ -5830,12 +6159,13 @@ html[data-theme="dark"] .musai-note-ring-label[data-selected="true"] {
 .musai-piece-import-review__frame .musai-piece-osmd,
 .musai-piece-import-review__frame .musai-piece-osmd-host,
 .musai-piece-import-review__frame [data-testid="piece-osmd"] {
-  /* Host sizes to engraved SVG — do not flex-collapse width before paint. */
+  /* Start full-width for OSMD measure; shrink-to-content after paint (JS). */
   flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
   min-height: 0;
   overflow: visible;
 }
-
 
 .musai-piece-home__library {
   display: flex;
@@ -5855,7 +6185,19 @@ html[data-theme="dark"] .musai-note-ring-label[data-selected="true"] {
   min-height: 0;
   border: 0;
   background: transparent;
-  padding: 0;
+  padding: 0.15rem 0 0;
+  overflow: visible;
+}
+
+.musai-piece-home__library-empty {
+  margin: 0 auto;
+  max-width: 20rem;
+  padding: 0.35rem 0.75rem 0.15rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.4;
+  text-align: center;
+  color: color-mix(in srgb, var(--musai-muted) 88%, transparent);
 }
 
 html[data-theme="dark"] .musai-piece-home__library:not([data-empty="true"]) {
@@ -6233,7 +6575,7 @@ html[data-theme="dark"] .musai-piece-library__rail-fill {
   }
 
   .musai-piece-home__shell {
-    gap: 0.75rem;
+    gap: 0.85rem;
     max-width: 100%;
   }
 
@@ -6246,7 +6588,12 @@ html[data-theme="dark"] .musai-piece-library__rail-fill {
   }
 
   .musai-piece-drop__body {
-    min-height: 6.75rem;
+    min-height: 10.25rem;
+    padding: 1.15rem 1.1rem 1.25rem;
+  }
+
+  .musai-piece-drop--compact .musai-piece-drop__body {
+    min-height: 5.75rem;
   }
 
   .musai-piece-library__card {
@@ -6260,19 +6607,43 @@ html[data-theme="dark"] .musai-piece-library__rail-fill {
 
 @media (min-width: 481px) and (max-width: 899px) {
   .musai-piece-home__shell {
-    max-width: min(31rem, 100%);
+    max-width: min(34rem, 100%);
   }
 }
 
 @media (min-width: 900px) {
   .musai-piece-home__shell {
-    max-width: 32rem;
+    max-width: 36rem;
   }
 }
 
 @media (min-width: 1200px) {
   .musai-piece-home__shell {
-    max-width: 33.5rem;
+    max-width: 38rem;
+  }
+}
+
+@media (max-height: 820px) {
+  .musai-piece-home__shell[data-has-library="false"] {
+    padding-block: 0.45rem 0.85rem;
+    gap: 0.85rem;
+  }
+
+  .musai-piece-drop__body {
+    min-height: 9.5rem;
+    padding-block: 1.1rem;
+  }
+
+  .musai-piece-drop__motif-svg {
+    width: 4.85rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .musai-piece-drop,
+  .musai-piece-drop--active {
+    transition: none;
+    transform: none;
   }
 }
 
@@ -6284,14 +6655,24 @@ html[data-theme="dark"] .musai-piece-library__rail-fill {
   flex: 1 1 auto;
   flex-direction: column;
   gap: 0.35rem;
-  padding: 0.2rem clamp(0.55rem, 1.8vw, 1.15rem) 0.55rem;
+  /* Top padding lives on __nav — match Scale Studio header (py-2 / sm:py-2.5). */
+  padding: 0 clamp(0.55rem, 1.8vw, 1.15rem) 0.55rem;
 }
 
 .musai-piece-workspace__nav {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  min-height: 2rem;
+  min-height: 2.5rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .musai-piece-workspace__nav {
+    padding-top: 0.625rem;
+    padding-bottom: 0.625rem;
+  }
 }
 
 .musai-piece-workspace__identity {
@@ -6306,18 +6687,18 @@ html[data-theme="dark"] .musai-piece-library__rail-fill {
 
 .musai-piece-workspace__title {
   margin: 0;
-  max-width: min(42rem, 100%);
-  font-size: clamp(1.05rem, 2.2vh, 1.4rem);
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  line-height: 1.15;
+  max-width: min(48rem, 100%);
+  font-size: clamp(1.55rem, 3.4vh + 0.55rem, 2.15rem);
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  line-height: 1.12;
   color: var(--musai-ink);
 }
 
 .musai-piece-workspace__meta {
   margin: 0;
-  max-width: min(38rem, 100%);
-  font-size: 0.75rem;
+  max-width: min(42rem, 100%);
+  font-size: 0.8125rem;
   font-weight: 500;
   line-height: 1.35;
   color: var(--musai-muted);
@@ -6357,6 +6738,7 @@ html[data-theme="dark"] .musai-piece-library__rail-fill {
   flex: 1 1 auto;
 }
 
+/* Ambient stage: centers the score card. Paper lives on the wrap, not a giant plate. */
 .musai-piece-workspace__stage {
   display: flex;
   min-width: 0;
@@ -6364,15 +6746,17 @@ html[data-theme="dark"] .musai-piece-library__rail-fill {
   height: 100%;
   flex: 1 1 auto;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
   border-radius: calc(var(--musai-radius-lg) + 0.1rem);
-  background: color-mix(in srgb, var(--musai-surface) 98%, white 2%);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, white 40%, transparent);
+  background: transparent;
+  box-shadow: none;
 }
 
 html[data-theme="dark"] .musai-piece-workspace__stage {
-  background: color-mix(in srgb, var(--musai-surface) 92%, #101820 8%);
-  box-shadow: inset 0 1px 0 var(--musai-glass-highlight);
+  background: transparent;
+  box-shadow: none;
 }
 
 .musai-piece-workspace__practise-stage {
@@ -6474,6 +6858,561 @@ html[data-theme="dark"] .musai-piece-workspace__support {
   border-top: 1px solid color-mix(in srgb, var(--musai-border) 55%, transparent);
 }
 
+/* Listen: floating dock under the score — not a full-bleed footer. */
+.musai-piece-workspace--listen .musai-piece-workspace__dock {
+  min-height: 0;
+  max-height: none;
+  overflow: visible;
+  border-top: 0;
+  padding: 0.45rem clamp(0.55rem, 2.2vw, 1.1rem) 0.95rem;
+  align-items: center;
+  background: transparent;
+}
+
+.musai-piece-dock {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.5rem 0.2rem 0.3rem;
+  border-top: 0;
+}
+
+.musai-piece-dock__label {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--musai-muted);
+}
+
+.musai-piece-dock__copy {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--musai-muted);
+}
+
+/*
+ * Listen playback dock — warm floating card aligned with the score column.
+ * YouTube-like timeline hierarchy without a heavy media-player chrome.
+ */
+.musai-piece-listen {
+  width: min(100%, 46rem);
+  margin-inline: auto;
+  gap: 0;
+  padding: 0;
+  border-top: 0;
+  background: transparent;
+}
+
+.musai-piece-listen--unavailable {
+  width: min(100%, 46rem);
+  margin-inline: auto;
+  padding: 0.75rem 1rem;
+  border-radius: 1.05rem;
+  border: 1px solid color-mix(in srgb, var(--musai-border) 55%, transparent);
+  background: color-mix(in srgb, var(--musai-surface) 88%, var(--musai-surface-2));
+}
+
+.musai-piece-listen__shell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.7rem 0.85rem 0.75rem;
+  border-radius: 1.15rem;
+  border: 1px solid color-mix(in srgb, var(--musai-border) 58%, transparent);
+  background: color-mix(in srgb, var(--musai-surface) 92%, var(--musai-surface-2));
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--musai-surface) 70%, transparent),
+    0 10px 28px color-mix(in srgb, var(--musai-ink) 5%, transparent);
+}
+
+html[data-theme="dark"] .musai-piece-listen__shell {
+  background: color-mix(in srgb, var(--musai-surface-2) 78%, var(--musai-surface));
+  box-shadow: 0 10px 28px color-mix(in srgb, #000 28%, transparent);
+}
+
+.musai-piece-listen__transport {
+  display: grid;
+  width: 100%;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  column-gap: 0.65rem;
+  align-items: center;
+}
+
+.musai-piece-listen__timeline {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  column-gap: 0.55rem;
+  align-items: center;
+}
+
+.musai-piece-listen__time {
+  margin: 0;
+  min-width: 2.35rem;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.musai-piece-listen__time--elapsed {
+  font-weight: 650;
+  color: var(--musai-ink);
+  text-align: right;
+}
+
+.musai-piece-listen__time--total {
+  font-weight: 500;
+  color: var(--musai-muted);
+  text-align: left;
+}
+
+.musai-piece-listen__icon-btn {
+  display: inline-flex;
+  height: 2.45rem;
+  width: 2.45rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--musai-border) 70%, transparent);
+  background: color-mix(in srgb, var(--musai-surface-2) 42%, transparent);
+  color: var(--musai-ink);
+  cursor: pointer;
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    transform 160ms ease;
+}
+
+.musai-piece-listen__icon-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.musai-piece-listen__icon-btn--restart:hover:not(:disabled) {
+  color: var(--musai-ink);
+  border-color: color-mix(in srgb, var(--musai-ink) 18%, var(--musai-border));
+  background: color-mix(in srgb, var(--musai-wash) 70%, transparent);
+}
+
+.musai-piece-listen__icon-btn--play {
+  height: 3.05rem;
+  width: 3.05rem;
+  border-color: color-mix(in srgb, var(--musai-accent) 42%, var(--musai-border));
+  background: color-mix(in srgb, var(--musai-accent) 92%, var(--musai-ink));
+  color: #fffcf8;
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--musai-accent) 35%, transparent);
+}
+
+.musai-piece-listen__icon-btn--play:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--musai-accent) 82%, var(--musai-ink));
+}
+
+.musai-piece-listen__icon-btn--play:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+html[data-theme="dark"] .musai-piece-listen__icon-btn--play {
+  background: color-mix(in srgb, var(--musai-accent) 88%, #0b1210);
+  color: #0f1513;
+  border-color: color-mix(in srgb, var(--musai-accent) 55%, transparent);
+}
+
+.musai-piece-listen__icon-btn--tool {
+  height: 2.05rem;
+  width: 2.05rem;
+}
+
+.musai-piece-listen__icon-btn--tool[data-active="true"] {
+  border-color: color-mix(in srgb, var(--musai-accent) 36%, var(--musai-border));
+  background: color-mix(in srgb, var(--musai-accent) 14%, var(--musai-surface-2));
+  color: var(--musai-ink);
+}
+
+.musai-piece-listen__play-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center;
+}
+
+.musai-piece-listen__glyph {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+.musai-piece-listen__icon-btn--play .musai-piece-listen__glyph {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.musai-piece-listen__glyph--play {
+  margin-left: 0.12rem;
+}
+
+.musai-piece-listen__glyph--more {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.musai-piece-listen__loading-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.7;
+}
+
+.musai-piece-listen__seek {
+  display: block;
+  min-width: 0;
+  width: 100%;
+  height: 1.55rem;
+}
+
+.musai-piece-listen__seek input[type="range"] {
+  --musai-listen-progress: 0%;
+  --musai-listen-track: color-mix(in srgb, var(--musai-ink) 10%, transparent);
+  --musai-listen-fill: color-mix(in srgb, var(--musai-accent) 78%, var(--musai-ink));
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 1.55rem;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.musai-piece-listen__seek input[type="range"]:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.musai-piece-listen__seek input[type="range"]::-webkit-slider-runnable-track {
+  height: 0.34rem;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--musai-listen-fill) 0 var(--musai-listen-progress),
+    var(--musai-listen-track) var(--musai-listen-progress) 100%
+  );
+  transition: height 160ms ease;
+}
+
+.musai-piece-listen__seek input[type="range"]::-moz-range-track {
+  height: 0.34rem;
+  border-radius: 999px;
+  background: var(--musai-listen-track);
+}
+
+.musai-piece-listen__seek input[type="range"]::-moz-range-progress {
+  height: 0.34rem;
+  border-radius: 999px;
+  background: var(--musai-listen-fill);
+}
+
+.musai-piece-listen__seek input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 0.85rem;
+  height: 0.85rem;
+  margin-top: calc((0.34rem - 0.85rem) / 2);
+  border-radius: 999px;
+  border: 2px solid color-mix(in srgb, var(--musai-surface) 92%, transparent);
+  background: color-mix(in srgb, var(--musai-accent) 88%, var(--musai-ink));
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--musai-ink) 16%, transparent);
+  transition:
+    transform 160ms ease,
+    width 160ms ease,
+    height 160ms ease,
+    margin-top 160ms ease;
+}
+
+.musai-piece-listen__seek input[type="range"]::-moz-range-thumb {
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 999px;
+  border: 2px solid color-mix(in srgb, var(--musai-surface) 92%, transparent);
+  background: color-mix(in srgb, var(--musai-accent) 88%, var(--musai-ink));
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--musai-ink) 16%, transparent);
+  transition: transform 160ms ease;
+}
+
+.musai-piece-listen__seek input[type="range"]:hover::-webkit-slider-runnable-track,
+.musai-piece-listen[data-scrubbing="true"]
+  .musai-piece-listen__seek
+  input[type="range"]::-webkit-slider-runnable-track {
+  height: 0.42rem;
+}
+
+.musai-piece-listen__seek input[type="range"]:hover::-webkit-slider-thumb,
+.musai-piece-listen__seek input[type="range"][data-scrubbing="true"]::-webkit-slider-thumb {
+  width: 1.05rem;
+  height: 1.05rem;
+  margin-top: calc((0.42rem - 1.05rem) / 2);
+  transform: scale(1.02);
+}
+
+.musai-piece-listen__seek input[type="range"]:hover::-moz-range-thumb,
+.musai-piece-listen__seek input[type="range"][data-scrubbing="true"]::-moz-range-thumb {
+  transform: scale(1.12);
+}
+
+.musai-piece-listen__more-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.musai-piece-listen__more {
+  display: inline-flex;
+  height: 2.45rem;
+  width: 2.45rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--musai-muted);
+  cursor: pointer;
+  transition:
+    background 180ms ease,
+    color 180ms ease,
+    border-color 180ms ease;
+}
+
+.musai-piece-listen__more:hover {
+  color: var(--musai-ink);
+  border-color: color-mix(in srgb, var(--musai-border) 70%, transparent);
+  background: color-mix(in srgb, var(--musai-wash) 60%, transparent);
+}
+
+.musai-piece-listen__more[data-active="true"] {
+  color: var(--musai-ink);
+  border-color: color-mix(in srgb, var(--musai-border) 70%, transparent);
+  background: color-mix(in srgb, var(--musai-surface-2) 55%, transparent);
+}
+
+.musai-piece-listen__popover {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 0.55rem);
+  z-index: 8;
+  display: flex;
+  min-width: min(20rem, calc(100vw - 2.5rem));
+  max-width: 22rem;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.75rem 0.8rem;
+  border-radius: 0.95rem;
+  border: 1px solid color-mix(in srgb, var(--musai-border) 60%, transparent);
+  background: color-mix(in srgb, var(--musai-surface) 96%, var(--musai-surface-2));
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--musai-ink) 10%, transparent);
+}
+
+html[data-theme="dark"] .musai-piece-listen__popover {
+  background: color-mix(in srgb, var(--musai-surface-2) 92%, var(--musai-surface));
+  box-shadow: 0 12px 32px color-mix(in srgb, #000 35%, transparent);
+}
+
+.musai-piece-listen__group {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.55rem;
+}
+
+.musai-piece-listen__group-label {
+  min-width: 3.2rem;
+  font-size: 0.62rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--musai-muted) 92%, var(--musai-ink));
+}
+
+.musai-piece-listen__seg {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.1rem;
+  padding: 0.12rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--musai-border) 65%, transparent);
+  background: color-mix(in srgb, var(--musai-surface-2) 35%, transparent);
+}
+
+.musai-piece-listen__seg-btn {
+  min-height: 1.55rem;
+  min-width: 1.85rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  padding: 0 0.45rem;
+  font-size: 0.7rem;
+  font-weight: 650;
+  color: var(--musai-muted);
+  cursor: pointer;
+}
+
+.musai-piece-listen__seg-btn[data-active="true"] {
+  background: color-mix(in srgb, var(--musai-surface) 88%, transparent);
+  color: var(--musai-ink);
+}
+
+.musai-piece-listen__tempo {
+  display: inline-flex;
+  min-width: 0;
+  flex: 1 1 8rem;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 14rem;
+}
+
+.musai-piece-listen__tempo input {
+  min-width: 0;
+  flex: 1 1 auto;
+  accent-color: color-mix(in srgb, var(--musai-accent) 70%, var(--musai-ink));
+}
+
+.musai-piece-listen__tempo-readout {
+  flex-shrink: 0;
+  min-width: 3.4rem;
+  font-size: 0.68rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--musai-ink);
+}
+
+.musai-piece-listen__tempo-readout span {
+  font-weight: 500;
+  color: var(--musai-muted);
+}
+
+.musai-piece-listen__section-btn {
+  flex-shrink: 0;
+  min-height: 1.85rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--musai-border) 65%, transparent);
+  background: transparent;
+  padding: 0 0.7rem;
+  font-size: 0.7rem;
+  font-weight: 650;
+  color: var(--musai-muted);
+  cursor: pointer;
+}
+
+.musai-piece-listen__section-btn[data-active="true"] {
+  border-color: color-mix(in srgb, var(--musai-ink) 22%, var(--musai-border));
+  color: var(--musai-ink);
+  background: color-mix(in srgb, var(--musai-surface-2) 50%, transparent);
+}
+
+.musai-piece-listen__section {
+  padding: 0.1rem 0 0;
+  border-top: 1px solid color-mix(in srgb, var(--musai-border) 42%, transparent);
+  padding-top: 0.55rem;
+}
+
+.musai-piece-listen__section-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.45rem;
+}
+
+.musai-piece-listen__section-row input[type="number"] {
+  width: 3.1rem;
+  min-height: 1.7rem;
+  border-radius: var(--musai-radius);
+  border: 1px solid color-mix(in srgb, var(--musai-border) 70%, transparent);
+  background: color-mix(in srgb, var(--musai-surface-2) 40%, transparent);
+  padding: 0 0.35rem;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--musai-ink);
+}
+
+.musai-piece-listen__section-sep {
+  color: var(--musai-muted);
+  font-size: 0.75rem;
+}
+
+.musai-piece-listen__section-action {
+  min-height: 1.7rem;
+  border: 0;
+  background: transparent;
+  padding: 0 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 650;
+  color: var(--musai-ink);
+  cursor: pointer;
+}
+
+.musai-piece-listen__status {
+  margin: 0;
+  padding: 0 0.15rem;
+  font-size: 0.7rem;
+  color: var(--musai-muted);
+}
+
+@media (max-width: 640px) {
+  .musai-piece-listen {
+    width: min(100%, 36rem);
+  }
+
+  .musai-piece-listen__shell {
+    padding: 0.6rem 0.65rem 0.65rem;
+  }
+
+  .musai-piece-listen__transport {
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    column-gap: 0.45rem;
+  }
+
+  .musai-piece-listen__icon-btn--play {
+    height: 2.85rem;
+    width: 2.85rem;
+  }
+
+  .musai-piece-listen__time {
+    min-width: 2.1rem;
+    font-size: 0.68rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .musai-piece-listen__transport {
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    column-gap: 0.35rem;
+  }
+
+  .musai-piece-listen__icon-btn {
+    height: 2.25rem;
+    width: 2.25rem;
+  }
+
+  .musai-piece-listen__icon-btn--play {
+    height: 2.7rem;
+    width: 2.7rem;
+  }
+
+  .musai-piece-listen__more {
+    height: 2.25rem;
+    width: 2.25rem;
+  }
+
+  .musai-piece-listen__time--total {
+    display: none;
+  }
+}
+
 @media (max-width: 767px) {
   .musai-piece-workspace__score-pane {
     min-height: min(46vh, 22rem);
@@ -6507,10 +7446,6 @@ html[data-theme="dark"] .musai-piece-workspace__support {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }
-
-  .musai-piece-workspace--listen .musai-piece-workspace__dock {
-    max-height: min(38vh, 20rem);
-  }
 }
 
 /* Score paper */
@@ -6529,6 +7464,103 @@ html[data-theme="dark"] .musai-piece-workspace__support {
 .musai-piece-score--embedded {
   gap: 0;
   padding: 0;
+}
+
+/*
+ * Workspace Score/Listen/Practise: OSMD needs a real flex box before paint.
+ * After engraving, compact wraps hug the SVG (import-review card language).
+ * Scroll wraps keep the full stage and scroll inside the shell.
+ */
+.musai-piece-workspace__stage .musai-piece-score--embedded {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  max-width: 100%;
+  max-height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.musai-piece-workspace__stage .musai-piece-score__stage,
+.musai-piece-workspace__stage .musai-piece-score-viewer {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  max-width: 100%;
+  max-height: 100%;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.musai-piece-workspace__stage .musai-piece-osmd-wrap {
+  width: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  max-width: min(52rem, 100%);
+  margin-inline: auto;
+  border-radius: calc(var(--musai-radius-lg) + 0.05rem);
+  background: color-mix(in srgb, var(--musai-surface) 98%, white 2%);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, #fff 50%, transparent),
+    0 16px 36px -28px color-mix(in srgb, var(--musai-ink) 28%, transparent);
+}
+
+html[data-theme="dark"] .musai-piece-workspace__stage .musai-piece-osmd-wrap {
+  background: color-mix(in srgb, var(--musai-surface) 92%, #101820 8%);
+  box-shadow:
+    0 1px 0 var(--musai-glass-highlight),
+    0 16px 36px -28px color-mix(in srgb, #000 55%, transparent);
+}
+
+/* Short scores: after paint, paper follows SVG bounds (modest padding stays). */
+.musai-piece-workspace__stage .musai-piece-osmd-wrap--compact:has(.musai-piece-osmd svg) {
+  width: fit-content;
+  height: fit-content;
+  flex: 0 1 auto;
+  max-height: 100%;
+}
+
+.musai-piece-workspace__stage
+  .musai-piece-score--embedded:has(.musai-piece-osmd-wrap--compact .musai-piece-osmd svg),
+.musai-piece-workspace__stage
+  .musai-piece-score__stage:has(.musai-piece-osmd-wrap--compact .musai-piece-osmd svg),
+.musai-piece-workspace__stage
+  .musai-piece-score-viewer:has(.musai-piece-osmd-wrap--compact .musai-piece-osmd svg) {
+  width: fit-content;
+  height: fit-content;
+  flex: 0 1 auto;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+/* Long scores: full stage card, systems scroll inside. */
+.musai-piece-workspace__stage .musai-piece-osmd-wrap--scroll {
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
+  flex: 1 1 auto;
+}
+
+.musai-piece-workspace__stage .musai-piece-osmd {
+  width: 100%;
+  min-width: 0;
+  margin-inline: auto;
+}
+
+.musai-piece-workspace__stage
+  .musai-piece-osmd-wrap--compact:has(.musai-piece-osmd svg)
+  .musai-piece-osmd {
+  width: fit-content;
+  max-width: 100%;
 }
 
 .musai-piece-score__head {
@@ -6663,6 +7695,16 @@ html[data-theme="dark"] .musai-piece-workspace__support {
   align-items: center;
 }
 
+/* Listen follow keeps seek cursor; compact still centres short cards. */
+.musai-piece-osmd-wrap--follow.musai-piece-osmd-wrap--compact {
+  justify-content: center;
+  align-items: center;
+}
+
+.musai-piece-osmd-wrap--follow.musai-piece-osmd-wrap--scroll {
+  justify-content: flex-start;
+}
+
 .musai-piece-osmd-wrap--page {
   justify-content: center;
   align-items: center;
@@ -6676,17 +7718,22 @@ html[data-theme="dark"] .musai-piece-workspace__support {
 
 .musai-piece-osmd-wrap--follow {
   cursor: pointer;
-  justify-content: flex-start;
 }
 
-.musai-piece-osmd-wrap .cursor {
+.musai-piece-osmd-wrap .cursor,
+.musai-piece-osmd-wrap [id^="cursorImg"] {
+  /* Hide OSMD’s native iterator; keep layout box measurable for snapshots. */
   opacity: 0 !important;
-  pointer-events: none;
+  pointer-events: none !important;
+  color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
 }
 
 .musai-piece-osmd {
   display: block;
-  width: fit-content;
+  /* 100% until first paint — fit-content on an empty host is width 0 and blanks OSMD. */
+  width: 100%;
   max-width: 100%;
   min-height: 0;
   height: fit-content;
@@ -6805,57 +7852,125 @@ html[data-theme="dark"] .musai-piece-osmd--overview > svg {
   color: var(--musai-muted);
 }
 
-.musai-piece-cursor-measure {
+/*
+ * Shared score overlay language (Listen “now” + Practise focus).
+ * Practise keeps a filled plate + centre marker; Listen uses a short
+ * underline under the notehead so the note itself stays clear.
+ */
+.musai-piece-note-plate {
+  --musai-piece-plate: color-mix(in srgb, var(--musai-ink) 55%, var(--musai-accent));
   position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 1;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--musai-accent) 10%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--musai-accent) 16%, transparent);
-  pointer-events: none;
-  will-change: transform, width;
-}
-
-.musai-piece-cursor-band {
-  position: absolute;
-  top: 0;
-  left: 0;
   z-index: 2;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--musai-accent) 28%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--musai-accent) 38%, transparent);
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 0.38rem;
+  background: color-mix(in srgb, var(--musai-piece-plate) 18%, transparent);
+  box-shadow: inset 0 0 0 1.5px
+    color-mix(in srgb, var(--musai-piece-plate) 48%, transparent);
+  padding: 0;
+  margin: 0;
   pointer-events: none;
-  will-change: transform, width;
+  will-change: transform, left, top, width, height;
 }
 
-.musai-piece-cursor {
+.musai-piece-note-plate__marker {
   position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 3;
+  display: block;
+  width: 0.4rem;
+  height: 0.4rem;
+  margin: 0;
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+  background: color-mix(
+    in srgb,
+    var(--musai-piece-plate) 82%,
+    var(--musai-ink)
+  );
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--musai-surface) 88%, transparent);
+  pointer-events: none;
+}
+
+/*
+ * Listen playhead — underline cue below the notehead only.
+ * Nothing sits on top of the note itself.
+ */
+.musai-piece-note-plate[data-role="now"] {
+  --musai-piece-plate: var(--musai-accent);
   top: 0;
   left: 0;
+  overflow: visible;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--musai-piece-plate) 22%, transparent);
+  box-shadow: none;
+}
+
+html[data-theme="dark"] .musai-piece-note-plate[data-role="now"] {
+  --musai-piece-plate: var(--musai-accent);
+  background: color-mix(in srgb, var(--musai-piece-plate) 30%, transparent);
+}
+
+.musai-piece-note-plate[data-role="now"]::before,
+.musai-piece-note-plate[data-role="now"]::after {
+  content: none;
+}
+
+.musai-piece-note-plate[data-role="now"] .musai-piece-note-plate__marker {
+  top: 50%;
+  left: 50%;
+  bottom: auto;
   z-index: 3;
-  width: 2.5px;
-  margin-left: -1px;
-  border-radius: 1px;
-  background: color-mix(in srgb, var(--musai-accent) 94%, white);
+  width: 0.34rem;
+  height: 0.34rem;
+  min-width: 0;
+  max-width: none;
+  border-radius: 999px;
+  border: 0;
+  transform: translate(-50%, -50%);
+  background: color-mix(in srgb, var(--musai-piece-plate) 92%, var(--musai-ink));
   box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--musai-accent) 40%, transparent),
-    0 0 10px color-mix(in srgb, var(--musai-accent) 28%, transparent);
-  pointer-events: none;
-  will-change: transform;
+    0 0 0 1.5px color-mix(in srgb, var(--musai-surface) 88%, transparent),
+    0 1px 4px color-mix(in srgb, var(--musai-piece-plate) 28%, transparent);
 }
 
-.musai-piece-osmd-wrap--follow .musai-piece-cursor {
-  width: 3px;
+@media (prefers-reduced-motion: no-preference) {
+  .musai-piece-note-plate[data-role="now"] .musai-piece-note-plate__marker {
+    animation: musai-piece-now-underline 1.25s ease-in-out infinite;
+  }
 }
 
-.musai-piece-osmd-wrap--follow .musai-piece-cursor-band {
-  background: color-mix(in srgb, var(--musai-accent) 32%, transparent);
+@keyframes musai-piece-now-underline {
+  0%,
+  100% {
+    opacity: 0.78;
+    transform: translate(-50%, -50%) scale(0.92);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
 }
 
-.musai-piece-osmd-wrap--follow .musai-piece-cursor-measure {
-  background: color-mix(in srgb, var(--musai-accent) 12%, transparent);
+@media (prefers-reduced-motion: reduce) {
+  .musai-piece-note-plate[data-role="now"] .musai-piece-note-plate__marker {
+    animation: none;
+  }
 }
+
+/* Practise note heat is interactive; same plate shape. */
+button.musai-piece-note-plate {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+button.musai-piece-note-plate:hover,
+button.musai-piece-note-plate:focus-visible {
+  outline: none;
+  background: color-mix(in srgb, var(--musai-piece-plate) 26%, transparent);
+}
+
 
 .musai-piece-osmd-error,
 .musai-piece-osmd-status {
@@ -6872,320 +7987,7 @@ html[data-theme="dark"] .musai-piece-osmd--overview > svg {
   color: var(--musai-muted);
 }
 
-/* Docks / listen / practise — shared chrome tokens */
-.musai-piece-dock {
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  padding: 0.5rem 0.2rem 0.3rem;
-  border-top: 0;
-}
-
-.musai-piece-dock__label {
-  margin: 0;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--musai-muted);
-}
-
-.musai-piece-dock__copy {
-  margin: 0;
-  font-size: 0.75rem;
-  line-height: 1.4;
-  color: var(--musai-muted);
-}
-
-.musai-piece-listen {
-  gap: 0.45rem;
-  padding: 0.45rem 0.25rem 0.3rem;
-  border-top: 0;
-}
-
-.musai-piece-listen__transport {
-  display: grid;
-  width: 100%;
-  grid-template-columns: auto minmax(0, 1fr);
-  column-gap: 0.65rem;
-  align-items: center;
-}
-
-.musai-piece-listen__transport-btns {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.musai-piece-listen__scrub {
-  display: grid;
-  min-width: 0;
-  grid-template-columns: minmax(0, 1fr) auto;
-  column-gap: 0.55rem;
-  align-items: center;
-}
-
-.musai-piece-listen__icon-btn {
-  display: inline-flex;
-  height: 2.4rem;
-  width: 2.4rem;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--musai-border) 70%, transparent);
-  background: color-mix(in srgb, var(--musai-surface-2) 55%, transparent);
-  color: var(--musai-ink);
-  cursor: pointer;
-}
-
-.musai-piece-listen__icon-btn:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-
-.musai-piece-listen__icon-btn--play {
-  height: 2.7rem;
-  width: 2.7rem;
-  border-color: color-mix(in srgb, var(--musai-ink) 18%, var(--musai-border));
-  background: color-mix(in srgb, var(--musai-ink) 88%, transparent);
-  color: var(--musai-surface);
-}
-
-html[data-theme="dark"] .musai-piece-listen__icon-btn--play {
-  background: color-mix(in srgb, var(--musai-ink) 92%, transparent);
-  color: var(--musai-bg);
-}
-
-.musai-piece-listen__icon-btn--tool[data-active="true"] {
-  border-color: color-mix(in srgb, var(--musai-accent) 36%, var(--musai-border));
-  background: color-mix(in srgb, var(--musai-accent) 14%, var(--musai-surface-2));
-  color: var(--musai-ink);
-}
-
-.musai-piece-listen__glyph {
-  width: 1.05rem;
-  height: 1.05rem;
-}
-
-.musai-piece-listen__glyph--play {
-  margin-left: 0.12rem;
-}
-
-.musai-piece-listen__loading-dot {
-  width: 0.55rem;
-  height: 0.55rem;
-  border-radius: 999px;
-  background: currentColor;
-  opacity: 0.7;
-}
-
-.musai-piece-listen__seek {
-  display: block;
-  min-width: 0;
-  width: 100%;
-}
-
-.musai-piece-listen__seek input {
-  width: 100%;
-  height: 1.4rem;
-  accent-color: color-mix(in srgb, var(--musai-accent) 72%, var(--musai-ink));
-  cursor: pointer;
-}
-
-.musai-piece-listen__clock {
-  display: inline-flex;
-  margin: 0;
-  min-width: 5.8rem;
-  align-items: baseline;
-  justify-content: flex-end;
-  gap: 0.25rem;
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
-  font-weight: 650;
-  color: var(--musai-ink);
-}
-
-.musai-piece-listen__clock-sep {
-  font-weight: 500;
-  color: var(--musai-muted);
-}
-
-.musai-piece-listen__clock [data-testid="piece-listen-time-total"] {
-  font-weight: 500;
-  color: var(--musai-muted);
-}
-
-.musai-piece-listen__group {
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.musai-piece-listen__group-label {
-  font-size: 0.62rem;
-  font-weight: 650;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: color-mix(in srgb, var(--musai-muted) 92%, var(--musai-ink));
-}
-
-.musai-piece-listen__secondary {
-  display: flex;
-  min-width: 0;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.55rem 0.85rem;
-  padding: 0.2rem 0.15rem 0.05rem;
-  border-top: 1px solid color-mix(in srgb, var(--musai-border) 42%, transparent);
-}
-
-.musai-piece-listen__seg {
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 0.1rem;
-  padding: 0.12rem;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--musai-border) 65%, transparent);
-  background: color-mix(in srgb, var(--musai-surface-2) 35%, transparent);
-}
-
-.musai-piece-listen__seg-btn {
-  min-height: 1.55rem;
-  min-width: 1.85rem;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  padding: 0 0.45rem;
-  font-size: 0.7rem;
-  font-weight: 650;
-  color: var(--musai-muted);
-  cursor: pointer;
-}
-
-.musai-piece-listen__seg-btn[data-active="true"] {
-  background: color-mix(in srgb, var(--musai-surface) 88%, transparent);
-  color: var(--musai-ink);
-}
-
-.musai-piece-listen__tempo {
-  display: inline-flex;
-  min-width: 0;
-  flex: 1 1 8rem;
-  align-items: center;
-  gap: 0.35rem;
-  max-width: 14rem;
-}
-
-.musai-piece-listen__tempo input {
-  min-width: 0;
-  flex: 1 1 auto;
-  accent-color: color-mix(in srgb, var(--musai-ink) 55%, var(--musai-muted));
-}
-
-.musai-piece-listen__tempo-readout {
-  flex-shrink: 0;
-  min-width: 3.4rem;
-  font-size: 0.68rem;
-  font-weight: 650;
-  font-variant-numeric: tabular-nums;
-  color: var(--musai-ink);
-}
-
-.musai-piece-listen__tempo-readout span {
-  font-weight: 500;
-  color: var(--musai-muted);
-}
-
-.musai-piece-listen__section-btn {
-  flex-shrink: 0;
-  min-height: 1.85rem;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--musai-border) 65%, transparent);
-  background: transparent;
-  padding: 0 0.7rem;
-  font-size: 0.7rem;
-  font-weight: 650;
-  color: var(--musai-muted);
-  cursor: pointer;
-}
-
-.musai-piece-listen__section-btn[data-active="true"] {
-  border-color: color-mix(in srgb, var(--musai-ink) 22%, var(--musai-border));
-  color: var(--musai-ink);
-  background: color-mix(in srgb, var(--musai-surface-2) 50%, transparent);
-}
-
-.musai-piece-listen__section {
-  padding: 0.15rem 0.1rem 0.05rem;
-}
-
-.musai-piece-listen__section-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.35rem 0.45rem;
-}
-
-.musai-piece-listen__section-row input[type="number"] {
-  width: 3.1rem;
-  min-height: 1.7rem;
-  border-radius: var(--musai-radius);
-  border: 1px solid color-mix(in srgb, var(--musai-border) 70%, transparent);
-  background: color-mix(in srgb, var(--musai-surface-2) 40%, transparent);
-  padding: 0 0.35rem;
-  font-size: 0.72rem;
-  font-variant-numeric: tabular-nums;
-  color: var(--musai-ink);
-}
-
-.musai-piece-listen__section-sep {
-  color: var(--musai-muted);
-  font-size: 0.75rem;
-}
-
-.musai-piece-listen__section-action {
-  min-height: 1.7rem;
-  border: 0;
-  background: transparent;
-  padding: 0 0.35rem;
-  font-size: 0.7rem;
-  font-weight: 650;
-  color: var(--musai-ink);
-  cursor: pointer;
-}
-
-.musai-piece-listen__status {
-  margin: 0;
-  font-size: 0.7rem;
-  color: var(--musai-muted);
-}
-
-@media (max-width: 520px) {
-  .musai-piece-listen__transport {
-    grid-template-columns: 1fr;
-    row-gap: 0.35rem;
-  }
-
-  .musai-piece-listen__scrub {
-    grid-template-columns: minmax(0, 1fr);
-    row-gap: 0.15rem;
-  }
-
-  .musai-piece-listen__clock {
-    min-width: 0;
-    justify-content: flex-start;
-    padding-left: 0.15rem;
-  }
-
-  .musai-piece-listen__tempo {
-    flex: 1 1 100%;
-    max-width: none;
-  }
-}
-
+/* Practise dock */
 .musai-piece-practise {
   flex-shrink: 0;
   display: flex;
@@ -7260,13 +8062,52 @@ html[data-theme="dark"] .musai-piece-listen__icon-btn--play {
 .musai-piece-practise__tools {
   display: flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.35rem;
   margin-left: auto;
+  flex-shrink: 0;
 }
 
-.musai-piece-practise__mic-picker {
-  max-width: 8.5rem;
+/* Icon + “Mic” face; native select opens a full-label device list. */
+.musai-piece-practise__mic {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
   min-height: 1.85rem;
+  flex-shrink: 0;
+}
+
+.musai-piece-practise__mic-face {
+  pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  min-height: 1.85rem;
+  padding: 0 0.55rem;
+  border: 1px solid color-mix(in srgb, var(--musai-border) 75%, transparent);
+  border-radius: var(--musai-radius);
+  background: color-mix(in srgb, var(--musai-surface-2) 55%, transparent);
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: var(--musai-muted);
+}
+
+.musai-piece-practise__mic:focus-within .musai-piece-practise__mic-face {
+  color: var(--musai-ink);
+  border-color: color-mix(in srgb, var(--musai-accent) 35%, var(--musai-border));
+}
+
+.musai-piece-practise__mic-select {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+  opacity: 0;
+  appearance: none;
+  border: 0;
+  background: transparent;
 }
 
 .musai-piece-practise__import-btn {
@@ -7412,23 +8253,25 @@ html[data-theme="dark"] .musai-piece-listen__icon-btn--play {
   z-index: 2;
   margin: 0;
   border: 0;
-  border-radius: 0.55rem;
-  background: color-mix(in srgb, var(--musai-accent-2) 16%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--musai-accent-2) 26%, transparent);
   cursor: pointer;
   padding: 0;
 }
 
+/* Wash / measure only — note focus uses .musai-piece-note-plate shape. */
+.musai-piece-heat:not(.musai-piece-note-plate) {
+  border-radius: 0.55rem;
+  background: color-mix(in srgb, var(--musai-accent-2) 16%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--musai-accent-2) 26%, transparent);
+}
+
 .musai-piece-heat:hover,
 .musai-piece-heat:focus-visible {
-  background: color-mix(in srgb, var(--musai-accent-2) 24%, transparent);
   outline: none;
 }
 
-.musai-piece-heat[data-style="note"] {
-  border-radius: 0.4rem;
-  background: color-mix(in srgb, var(--musai-accent) 22%, transparent);
-  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--musai-accent) 42%, transparent);
+.musai-piece-heat:hover:not(.musai-piece-note-plate),
+.musai-piece-heat:focus-visible:not(.musai-piece-note-plate) {
+  background: color-mix(in srgb, var(--musai-accent-2) 24%, transparent);
 }
 
 .musai-piece-heat[data-style="measure"] {
@@ -7446,44 +8289,36 @@ html[data-theme="dark"] .musai-piece-listen__icon-btn--play {
   );
 }
 
-.musai-piece-heat[data-tone="pitch"] {
-  --musai-piece-heat: color-mix(in srgb, #c45c26 70%, var(--musai-accent));
-  background: color-mix(in srgb, var(--musai-piece-heat) 20%, transparent);
-  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--musai-piece-heat) 45%, transparent);
+/*
+ * Note focus: plate primitive owns shape. Tone only retints --musai-piece-plate.
+ * Do not redefine border-radius / marker layout here.
+ */
+.musai-piece-heat.musai-piece-note-plate[data-tone="pitch"] {
+  --musai-piece-plate: color-mix(in srgb, #c45c26 72%, var(--musai-accent));
 }
 
-.musai-piece-heat[data-tone="rhythm"] {
-  --musai-piece-heat: color-mix(in srgb, #2f6f8f 75%, var(--musai-accent-2));
-  background: color-mix(in srgb, var(--musai-piece-heat) 18%, transparent);
-  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--musai-piece-heat) 40%, transparent);
+.musai-piece-heat.musai-piece-note-plate[data-tone="rhythm"] {
+  --musai-piece-plate: color-mix(in srgb, #2f6f8f 78%, var(--musai-accent));
 }
 
-.musai-piece-heat[data-tone="rushing"] {
-  --musai-piece-heat: color-mix(in srgb, #b45309 70%, var(--musai-accent));
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--musai-piece-heat) 6%, transparent),
-    color-mix(in srgb, var(--musai-piece-heat) 22%, transparent),
-    color-mix(in srgb, var(--musai-piece-heat) 8%, transparent)
-  );
+.musai-piece-heat.musai-piece-note-plate[data-tone="rushing"] {
+  --musai-piece-plate: color-mix(in srgb, #b45309 72%, var(--musai-accent));
 }
 
-.musai-piece-heat[data-tone="dragging"] {
-  --musai-piece-heat: color-mix(in srgb, #5b6b8c 80%, var(--musai-muted));
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--musai-piece-heat) 8%, transparent),
-    color-mix(in srgb, var(--musai-piece-heat) 20%, transparent),
-    color-mix(in srgb, var(--musai-piece-heat) 6%, transparent)
-  );
+.musai-piece-heat.musai-piece-note-plate[data-tone="dragging"] {
+  --musai-piece-plate: color-mix(in srgb, #5b6b8c 82%, var(--musai-muted));
 }
 
-.musai-piece-heat[data-tone="dynamics"] {
-  --musai-piece-heat: color-mix(in srgb, #6b5b95 70%, var(--musai-accent-2));
-  background: color-mix(in srgb, var(--musai-piece-heat) 12%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--musai-piece-heat) 28%, transparent);
+.musai-piece-heat.musai-piece-note-plate[data-tone="dynamics"] {
+  --musai-piece-plate: color-mix(in srgb, #6b5b95 72%, var(--musai-accent));
 }
 
+/* Default Practise note tint when no tone is set. */
+.musai-piece-heat.musai-piece-note-plate:not([data-tone]) {
+  --musai-piece-plate: var(--musai-accent);
+}
+
+/* Non-note heat markers (measure / wash) — not the note-plate language. */
 .musai-piece-heat__marker {
   position: absolute;
   top: 0.2rem;
@@ -7492,7 +8327,7 @@ html[data-theme="dark"] .musai-piece-listen__icon-btn--play {
   height: 0.42rem;
   border-radius: 999px;
   transform: translateX(-50%);
-  background: color-mix(in srgb, var(--musai-piece-heat, var(--musai-accent-2)) 88%, var(--musai-ink));
+  background: color-mix(in srgb, var(--musai-accent-2) 88%, var(--musai-ink));
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--musai-surface) 80%, transparent);
   pointer-events: none;
 }
@@ -7531,9 +8366,136 @@ html[data-theme="dark"] .musai-piece-listen__icon-btn--play {
   min-height: 0;
   min-width: 0;
   flex-direction: column;
-  gap: 0;
-  padding: 0;
-  border-bottom: 0;
+  gap: 0.55rem;
+  padding: 0.15rem 0.1rem 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.musai-piece-review__skills {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.musai-piece-review__skills-label {
+  margin: 0;
+  font-size: 0.62rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--musai-muted);
+  line-height: 1.2;
+}
+
+.musai-piece-review__skills-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.musai-piece-review__skill {
+  min-height: 1.55rem;
+  border: 1px solid color-mix(in srgb, var(--musai-border) 70%, transparent);
+  border-radius: 999px;
+  background: transparent;
+  padding: 0.15rem 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--musai-muted);
+  cursor: pointer;
+}
+
+.musai-piece-review__skill:hover {
+  color: var(--musai-ink);
+  border-color: color-mix(in srgb, var(--musai-accent) 28%, var(--musai-border));
+}
+
+.musai-piece-review__skill.is-active {
+  color: var(--musai-ink);
+  border-color: color-mix(in srgb, var(--musai-accent) 40%, var(--musai-border));
+  background: color-mix(in srgb, var(--musai-accent) 12%, var(--musai-surface));
+}
+
+.musai-piece-lesson {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.55rem 0.6rem 0.6rem;
+  border-radius: calc(var(--musai-radius) + 0.05rem);
+  border: 1px solid color-mix(in srgb, var(--musai-border) 60%, transparent);
+  background: color-mix(in srgb, var(--musai-surface) 92%, transparent);
+}
+
+.musai-piece-lesson__sample {
+  margin: 0;
+  font-size: 0.62rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: var(--musai-muted);
+}
+
+.musai-piece-lesson__row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+}
+
+.musai-piece-lesson__label {
+  margin: 0;
+  font-size: 0.62rem;
+  font-weight: 650;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--musai-muted);
+  line-height: 1.2;
+}
+
+.musai-piece-lesson__body {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.4;
+  color: var(--musai-ink);
+}
+
+.musai-piece-lesson__show {
+  align-self: flex-start;
+  min-height: 1.7rem;
+  margin-top: 0.1rem;
+  border: 1px solid color-mix(in srgb, var(--musai-accent) 35%, var(--musai-border));
+  border-radius: var(--musai-radius);
+  background: color-mix(in srgb, var(--musai-accent) 10%, var(--musai-surface));
+  padding: 0.2rem 0.7rem;
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: var(--musai-ink);
+  cursor: pointer;
+}
+
+.musai-piece-lesson__show:hover {
+  background: color-mix(in srgb, var(--musai-accent) 16%, var(--musai-surface));
+}
+
+.musai-piece-review__chat {
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.musai-piece-review__chat .musai-coach-bubble {
+  min-height: 0;
+  flex: 1 1 auto;
+  border: 0;
+  border-radius: calc(var(--musai-radius) + 0.1rem);
+  background: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 .musai-coach-parsa {
@@ -7659,21 +8621,6 @@ html[data-theme="dark"] .musai-piece-listen__icon-btn--play {
   border-color: color-mix(in srgb, var(--musai-accent) 40%, var(--musai-border));
 }
 
-@media (max-width: 640px) {
-  .musai-piece-workspace--listen .musai-piece-workspace__dock {
-    max-height: min(40vh, 22rem);
-  }
-
-  .musai-piece-listen__clock {
-    order: 3;
-    flex: 1 1 100%;
-  }
-
-  .musai-piece-listen__tempo {
-    margin-left: auto;
-  }
-}
-
 @media (max-width: 420px) {
   .musai-piece-workspace {
     gap: 0.25rem;
@@ -7681,7 +8628,7 @@ html[data-theme="dark"] .musai-piece-listen__icon-btn--play {
   }
 
   .musai-piece-workspace__title {
-    font-size: 1.15rem;
+    font-size: clamp(1.35rem, 5.5vw, 1.75rem);
   }
 
   .musai-piece-listen__tempo input {
