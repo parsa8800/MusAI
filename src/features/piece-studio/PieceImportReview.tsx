@@ -163,45 +163,51 @@ export function PieceImportReview({
       data-paint={scoreParsed ? paintState : undefined}
     >
       {mode === "reading" ? (
-        <ProcessingState label={readingLabel} />
+        <ImportLoadingLayout
+          title={OMR_COPY.openingScore}
+          label={readingLabel}
+          tip={OMR_COPY.readingPatience}
+        />
       ) : null}
 
       {scoreParsed && !failed ? (
         <>
-          {mode === "preparing" ? (
-            <ProcessingState label={OMR_COPY.preparingScore} />
-          ) : null}
+          <header className="musai-piece-import-review__head">
+            {title ? (
+              <h1 className="musai-piece-import-review__title font-display">
+                {title}
+              </h1>
+            ) : null}
+            {mode === "ready" && uncertain ? (
+              <p
+                className="musai-piece-import-review__hint"
+                role="status"
+                data-testid="piece-import-check-section"
+              >
+                {OMR_COPY.checkSection}
+              </p>
+            ) : null}
+          </header>
 
-          {mode === "ready" ? (
-            <header className="musai-piece-import-review__head">
-              {title ? (
-                <h1 className="musai-piece-import-review__title font-display">
-                  {title}
-                </h1>
-              ) : null}
-              {uncertain ? (
-                <p
-                  className="musai-piece-import-review__hint"
-                  role="status"
-                  data-testid="piece-import-check-section"
-                >
-                  {OMR_COPY.checkSection}
-                </p>
-              ) : null}
-            </header>
-          ) : null}
-
+          {/*
+            Always paint in this laid-out stage (never opacity:0 / absolute).
+            Preparing is an overlay so OSMD sees the same width users will see.
+          */}
           <div
-            className={
-              mode === "preparing"
-                ? "musai-piece-import-review__paint-host"
-                : "musai-piece-import-review__stage"
-            }
-            aria-hidden={mode === "preparing" ? true : undefined}
-            data-testid={
-              mode === "preparing" ? "piece-import-paint-host" : undefined
-            }
+            className="musai-piece-import-review__stage musai-piece-import-review__stage--preview"
+            data-preparing={mode === "preparing" ? "true" : undefined}
+            data-testid="piece-import-preview-stage"
           >
+            {mode === "preparing" ? (
+              <div
+                className="musai-piece-import-review__prepare-overlay"
+                role="status"
+                data-testid="piece-import-paint-host"
+              >
+                <ImportLoadingCompact label={OMR_COPY.preparingScore} />
+              </div>
+            ) : null}
+
             {isDigitalSource ? (
               <DigitalScorePreview
                 title={title || "Piece"}
@@ -227,31 +233,41 @@ export function PieceImportReview({
             )}
           </div>
 
-          <div className="musai-piece-import-review__actions">
+          <div
+            className="musai-piece-import-review__decide"
+            data-ready={mode === "ready" ? "true" : undefined}
+          >
             {mode === "ready" ? (
+              <p className="musai-piece-import-review__decide-lead">
+                {OMR_COPY.confirmLead || OMR_COPY.confirm}
+              </p>
+            ) : null}
+            <div className="musai-piece-import-review__actions">
+              {mode === "ready" ? (
+                <button
+                  type="button"
+                  className="musai-pressable musai-btn-primary musai-piece-import-review__primary"
+                  data-testid="piece-import-confirm"
+                  onClick={() => {
+                    tapFeedback("medium");
+                    onConfirm();
+                  }}
+                >
+                  {OMR_COPY.looksGood}
+                </button>
+              ) : null}
               <button
                 type="button"
-                className="musai-pressable musai-btn-primary musai-piece-import-review__primary"
-                data-testid="piece-import-confirm"
+                className="musai-pressable musai-piece-import-review__secondary"
+                data-testid="piece-import-try-again"
                 onClick={() => {
-                  tapFeedback("medium");
-                  onConfirm();
+                  tapFeedback("light");
+                  onTryAgain();
                 }}
               >
-                {OMR_COPY.looksGood}
+                {OMR_COPY.tryAgain}
               </button>
-            ) : null}
-            <button
-              type="button"
-              className="musai-pressable musai-piece-import-review__secondary"
-              data-testid="piece-import-try-again"
-              onClick={() => {
-                tapFeedback("light");
-                onTryAgain();
-              }}
-            >
-              {OMR_COPY.tryAgain}
-            </button>
+            </div>
           </div>
         </>
       ) : null}
@@ -291,31 +307,33 @@ export function PieceImportReview({
             ) : null}
           </div>
 
-          <div className="musai-piece-import-review__actions">
-            <button
-              type="button"
-              className="musai-pressable musai-btn-primary musai-piece-import-review__primary"
-              data-testid="piece-import-try-again"
-              onClick={() => {
-                tapFeedback("light");
-                onTryAgain();
-              }}
-            >
-              {displayFailed || isDigitalSource
-                ? OMR_COPY.tryAgain
-                : OMR_COPY.tryAnotherImage}
-            </button>
-            <button
-              type="button"
-              className="musai-pressable musai-piece-import-review__secondary"
-              data-testid="piece-import-choose-another"
-              onClick={() => {
-                tapFeedback("light");
-                onChooseAnotherFile();
-              }}
-            >
-              {OMR_COPY.chooseAnotherFile}
-            </button>
+          <div className="musai-piece-import-review__decide" data-ready="true">
+            <div className="musai-piece-import-review__actions">
+              <button
+                type="button"
+                className="musai-pressable musai-btn-primary musai-piece-import-review__primary"
+                data-testid="piece-import-try-again"
+                onClick={() => {
+                  tapFeedback("light");
+                  onTryAgain();
+                }}
+              >
+                {displayFailed || isDigitalSource
+                  ? OMR_COPY.tryAgain
+                  : OMR_COPY.tryAnotherImage}
+              </button>
+              <button
+                type="button"
+                className="musai-pressable musai-piece-import-review__secondary"
+                data-testid="piece-import-choose-another"
+                onClick={() => {
+                  tapFeedback("light");
+                  onChooseAnotherFile();
+                }}
+              >
+                {OMR_COPY.chooseAnotherFile}
+              </button>
+            </div>
           </div>
         </>
       ) : null}
@@ -323,12 +341,94 @@ export function PieceImportReview({
   );
 }
 
-function ProcessingState({ label }: { label: string }) {
+function ImportLoadingLayout({
+  title,
+  label,
+  tip,
+}: {
+  title: string;
+  label: string;
+  tip?: string;
+}) {
   return (
-    <div className="musai-piece-import-review__processing" role="status">
+    <div
+      className="musai-piece-import-review__loading"
+      data-testid="piece-import-loading"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+    >
+      <header className="musai-piece-import-review__head">
+        <h1 className="musai-piece-import-review__title font-display">{title}</h1>
+        <p className="musai-piece-import-review__loading-copy">{label}</p>
+        {tip ? <p className="musai-piece-import-review__loading-tip">{tip}</p> : null}
+      </header>
+
+      <div className="musai-piece-import-review__stage musai-piece-import-review__stage--preview">
+        <div
+          className="musai-piece-import-review__compare musai-piece-import-review__compare--digital"
+          aria-hidden
+        >
+          <div className="musai-piece-import-review__frame musai-piece-import-review__frame--loading">
+            <div className="musai-piece-import-review__loading-score">
+              <span className="musai-piece-import-review__pulse" />
+              <LoadingStaffMotif />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="musai-piece-import-review__decide" aria-hidden>
+        <div className="musai-piece-import-review__actions">
+          <span className="musai-piece-import-review__primary-ghost">
+            {OMR_COPY.looksGood}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ImportLoadingCompact({ label }: { label: string }) {
+  return (
+    <div className="musai-piece-import-review__processing">
       <span className="musai-piece-import-review__pulse" aria-hidden />
       <p className="musai-piece-import-review__loading-copy">{label}</p>
     </div>
+  );
+}
+
+function LoadingStaffMotif() {
+  return (
+    <svg
+      className="musai-piece-import-review__loading-staff"
+      viewBox="0 0 280 72"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden
+    >
+      <g
+        stroke="currentColor"
+        strokeWidth="1.2"
+        opacity="0.35"
+      >
+        <path d="M16 18h248" />
+        <path d="M16 28h248" />
+        <path d="M16 38h248" />
+        <path d="M16 48h248" />
+        <path d="M16 58h248" />
+      </g>
+      <g fill="currentColor" opacity="0.45">
+        <ellipse cx="72" cy="48" rx="6" ry="4.4" transform="rotate(-18 72 48)" />
+        <path d="M77.2 47V28" stroke="currentColor" strokeWidth="1.8" />
+        <ellipse cx="118" cy="38" rx="6" ry="4.4" transform="rotate(-18 118 38)" />
+        <path d="M123.2 37V24" stroke="currentColor" strokeWidth="1.8" />
+        <ellipse cx="164" cy="48" rx="6" ry="4.4" transform="rotate(-18 164 48)" />
+        <path d="M169.2 47V28" stroke="currentColor" strokeWidth="1.8" />
+        <ellipse cx="210" cy="32" rx="6" ry="4.4" transform="rotate(-18 210 32)" />
+        <path d="M215.2 31V20" stroke="currentColor" strokeWidth="1.8" />
+      </g>
+    </svg>
   );
 }
 
@@ -372,6 +472,7 @@ function DigitalScorePreview({
               highlight={highlight}
               onPaintState={onPaintState}
               showInlineError={false}
+              paintPurpose="import-preview"
             />
           ) : (
             <QuietEmpty />
@@ -452,6 +553,7 @@ function ReadyCompare({
               highlight={highlight}
               onPaintState={onPaintState}
               showInlineError={false}
+              paintPurpose="import-preview"
             />
           ) : (
             <QuietEmpty />

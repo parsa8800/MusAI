@@ -7,155 +7,198 @@ const SCORE_STORE = "scores";
 const XML_STORE = "musicxml";
 const RECORDING_STORE = "recordings";
 const FEEDBACK_STORE = "feedback";
-const DB_VERSION = 5;
+/** Bump when adding stores — upgrades recreate any missing object stores. */
+const DB_VERSION = 6;
 const fileMemory = new Map<string, Blob>();
 const scoreMemory = new Map<string, MusaiScoreV1>();
 const xmlMemory = new Map<string, string>();
 const recordingMemory = new Map<string, Record<string, Blob>>();
 const feedbackMemory = new Map<string, Record<string, PieceFeedbackReportV1>>();
 
+function ensurePieceStores(db: IDBDatabase): void {
+  if (!db.objectStoreNames.contains(FILE_STORE)) {
+    db.createObjectStore(FILE_STORE);
+  }
+  if (!db.objectStoreNames.contains(SCORE_STORE)) {
+    db.createObjectStore(SCORE_STORE);
+  }
+  if (!db.objectStoreNames.contains(XML_STORE)) {
+    db.createObjectStore(XML_STORE);
+  }
+  if (!db.objectStoreNames.contains(RECORDING_STORE)) {
+    db.createObjectStore(RECORDING_STORE);
+  }
+  if (!db.objectStoreNames.contains(FEEDBACK_STORE)) {
+    db.createObjectStore(FEEDBACK_STORE);
+  }
+}
+
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(MUSAI_PIECE_FILES_DB, DB_VERSION);
     req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(FILE_STORE)) {
-        db.createObjectStore(FILE_STORE);
-      }
-      if (!db.objectStoreNames.contains(SCORE_STORE)) {
-        db.createObjectStore(SCORE_STORE);
-      }
-      if (!db.objectStoreNames.contains(XML_STORE)) {
-        db.createObjectStore(XML_STORE);
-      }
-      if (!db.objectStoreNames.contains(RECORDING_STORE)) {
-        db.createObjectStore(RECORDING_STORE);
-      }
-      if (!db.objectStoreNames.contains(FEEDBACK_STORE)) {
-        db.createObjectStore(FEEDBACK_STORE);
-      }
+      ensurePieceStores(req.result);
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error ?? new Error("IndexedDB open failed"));
   });
 }
 
+function idbWriteFailed(where: string, err: unknown): void {
+  if (process.env.NODE_ENV !== "production") {
+    console.error(`[piece-files] ${where} IndexedDB write failed; memory kept`, err);
+  }
+}
+
 export async function savePieceOriginalFile(
   pieceId: string,
   blob: Blob,
 ): Promise<void> {
-  if (typeof indexedDB === "undefined") {
-    fileMemory.set(pieceId, blob);
-    return;
+  // Always mirror in memory so soft navigations after “Use this score” work
+  // even when IndexedDB is slow or unavailable.
+  fileMemory.set(pieceId, blob);
+  if (typeof indexedDB === "undefined") return;
+  try {
+    const db = await openDb();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(FILE_STORE, "readwrite");
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error ?? new Error("IndexedDB write failed"));
+      tx.objectStore(FILE_STORE).put(blob, pieceId);
+    });
+    db.close();
+  } catch (err) {
+    idbWriteFailed("savePieceOriginalFile", err);
   }
-  const db = await openDb();
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(FILE_STORE, "readwrite");
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error ?? new Error("IndexedDB write failed"));
-    tx.objectStore(FILE_STORE).put(blob, pieceId);
-  });
-  db.close();
 }
 
 export async function readPieceOriginalFile(
   pieceId: string,
 ): Promise<Blob | null> {
-  if (typeof indexedDB === "undefined") {
+  const cached = fileMemory.get(pieceId);
+  if (cached) return cached;
+  if (typeof indexedDB === "undefined") return null;
+  try {
+    const db = await openDb();
+    const blob = await new Promise<Blob | null>((resolve, reject) => {
+      const tx = db.transaction(FILE_STORE, "readonly");
+      const req = tx.objectStore(FILE_STORE).get(pieceId);
+      req.onsuccess = () => {
+        const value = req.result;
+        resolve(value instanceof Blob ? value : null);
+      };
+      req.onerror = () => reject(req.error ?? new Error("IndexedDB read failed"));
+    });
+    db.close();
+    if (blob) fileMemory.set(pieceId, blob);
+    return blob;
+  } catch {
     return fileMemory.get(pieceId) ?? null;
   }
-  const db = await openDb();
-  const blob = await new Promise<Blob | null>((resolve, reject) => {
-    const tx = db.transaction(FILE_STORE, "readonly");
-    const req = tx.objectStore(FILE_STORE).get(pieceId);
-    req.onsuccess = () => {
-      const value = req.result;
-      resolve(value instanceof Blob ? value : null);
-    };
-    req.onerror = () => reject(req.error ?? new Error("IndexedDB read failed"));
-  });
-  db.close();
-  return blob;
 }
 
 export async function savePieceStructuredScore(
   pieceId: string,
   score: MusaiScoreV1,
 ): Promise<void> {
-  if (typeof indexedDB === "undefined") {
-    scoreMemory.set(pieceId, score);
-    return;
+  scoreMemory.set(pieceId, score);
+  if (typeof indexedDB === "undefined") return;
+  try {
+    const db = await openDb();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(SCORE_STORE, "readwrite");
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error ?? new Error("IndexedDB write failed"));
+      tx.objectStore(SCORE_STORE).put(score, pieceId);
+    });
+    db.close();
+  } catch (err) {
+    idbWriteFailed("savePieceStructuredScore", err);
   }
-  const db = await openDb();
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(SCORE_STORE, "readwrite");
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error ?? new Error("IndexedDB write failed"));
-    tx.objectStore(SCORE_STORE).put(score, pieceId);
-  });
-  db.close();
 }
 
 export async function readPieceStructuredScore(
   pieceId: string,
 ): Promise<MusaiScoreV1 | null> {
-  if (typeof indexedDB === "undefined") {
-    return scoreMemory.get(pieceId) ?? null;
+  const cached = scoreMemory.get(pieceId);
+  if (cached && cached.schemaVersion === 1) return cached;
+  if (typeof indexedDB === "undefined") return null;
+  try {
+    const db = await openDb();
+    const score = await new Promise<MusaiScoreV1 | null>((resolve, reject) => {
+      const tx = db.transaction(SCORE_STORE, "readonly");
+      const req = tx.objectStore(SCORE_STORE).get(pieceId);
+      req.onsuccess = () => {
+        const value = req.result as MusaiScoreV1 | undefined;
+        resolve(value && value.schemaVersion === 1 ? value : null);
+      };
+      req.onerror = () => reject(req.error ?? new Error("IndexedDB read failed"));
+    });
+    db.close();
+    if (score) scoreMemory.set(pieceId, score);
+    return score;
+  } catch {
+    const fallback = scoreMemory.get(pieceId);
+    return fallback && fallback.schemaVersion === 1 ? fallback : null;
   }
-  const db = await openDb();
-  const score = await new Promise<MusaiScoreV1 | null>((resolve, reject) => {
-    const tx = db.transaction(SCORE_STORE, "readonly");
-    const req = tx.objectStore(SCORE_STORE).get(pieceId);
-    req.onsuccess = () => {
-      const value = req.result as MusaiScoreV1 | undefined;
-      resolve(value && value.schemaVersion === 1 ? value : null);
-    };
-    req.onerror = () => reject(req.error ?? new Error("IndexedDB read failed"));
-  });
-  db.close();
-  return score;
 }
 
 export async function savePieceRecognizedMusicXml(
   pieceId: string,
   musicXml: string,
 ): Promise<void> {
-  if (typeof indexedDB === "undefined") {
-    xmlMemory.set(pieceId, musicXml);
-    return;
+  const trimmed = musicXml.trim();
+  if (!trimmed) {
+    throw new Error("Recognized MusicXML is empty.");
   }
-  const db = await openDb();
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(XML_STORE, "readwrite");
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error ?? new Error("IndexedDB write failed"));
-    tx.objectStore(XML_STORE).put(musicXml, pieceId);
-  });
-  db.close();
+  xmlMemory.set(pieceId, trimmed);
+  if (typeof indexedDB === "undefined") return;
+  try {
+    const db = await openDb();
+    if (!db.objectStoreNames.contains(XML_STORE)) {
+      db.close();
+      throw new Error("musicxml object store missing");
+    }
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(XML_STORE, "readwrite");
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error ?? new Error("IndexedDB write failed"));
+      tx.objectStore(XML_STORE).put(trimmed, pieceId);
+    });
+    db.close();
+  } catch (err) {
+    idbWriteFailed("savePieceRecognizedMusicXml", err);
+  }
 }
 
 export async function readPieceRecognizedMusicXml(
   pieceId: string,
 ): Promise<string | null> {
-  if (typeof indexedDB === "undefined") {
-    return xmlMemory.get(pieceId) ?? null;
+  const cached = xmlMemory.get(pieceId);
+  if (typeof cached === "string" && cached.trim()) return cached;
+  if (typeof indexedDB === "undefined") return null;
+  try {
+    const db = await openDb();
+    const xml = await new Promise<string | null>((resolve, reject) => {
+      if (!db.objectStoreNames.contains(XML_STORE)) {
+        resolve(null);
+        return;
+      }
+      const tx = db.transaction(XML_STORE, "readonly");
+      const req = tx.objectStore(XML_STORE).get(pieceId);
+      req.onsuccess = () => {
+        const value = req.result;
+        resolve(typeof value === "string" && value.trim() ? value : null);
+      };
+      req.onerror = () => reject(req.error ?? new Error("IndexedDB read failed"));
+    });
+    db.close();
+    if (xml) xmlMemory.set(pieceId, xml);
+    return xml;
+  } catch {
+    const fallback = xmlMemory.get(pieceId);
+    return typeof fallback === "string" && fallback.trim() ? fallback : null;
   }
-  const db = await openDb();
-  const xml = await new Promise<string | null>((resolve, reject) => {
-    if (!db.objectStoreNames.contains(XML_STORE)) {
-      resolve(null);
-      return;
-    }
-    const tx = db.transaction(XML_STORE, "readonly");
-    const req = tx.objectStore(XML_STORE).get(pieceId);
-    req.onsuccess = () => {
-      const value = req.result;
-      resolve(typeof value === "string" && value.trim() ? value : null);
-    };
-    req.onerror = () => reject(req.error ?? new Error("IndexedDB read failed"));
-  });
-  db.close();
-  return xml;
 }
 
 export async function savePieceAttemptRecording(

@@ -9,6 +9,7 @@ import {
   type CursorBand,
   type CursorPose,
 } from "@/features/piece-studio/score/cursorTrack";
+import { shapeNotePlateRect } from "@/features/piece-studio/score/notePlate";
 import type { PiecePlaybackTimeListener } from "@/features/piece-studio/playback/playbackTime";
 import {
   readPieceOsmdTheme,
@@ -45,12 +46,84 @@ export type PieceScoreHighlight = {
 /** Import review / gated preview — parent enables confirm only after `ready`. */
 export type ScorePaintState = "preparing" | "ready" | "failed";
 
-function hostHasEngravedSvg(host: HTMLElement | null): boolean {
-  return Boolean(host?.querySelector("svg"));
+/**
+ * True only when OSMD left real notation geometry (not an empty SVG shell).
+ * Blank paints often leave a large attributed SVG plus a tiny .cursor remnant —
+ * do not treat attribute width alone as engraved music.
+ * Also reject OSMD page wrappers stuck at width:0 (getBBox can still look valid).
+ */
+export function hostHasVisibleEngraving(host: HTMLElement | null): boolean {
+  if (!host) return false;
+  const svgs = [...host.querySelectorAll("svg")] as SVGSVGElement[];
+  if (svgs.length === 0) return false;
+
+  const pages = [
+    ...host.querySelectorAll<HTMLElement>('[id^="osmdCanvasPage"]'),
+  ];
+  if (pages.length > 0) {
+    const anyOpen = pages.some((page) => {
+      const styled = Number.parseFloat(page.style.width || "");
+      const w =
+        page.clientWidth ||
+        page.getBoundingClientRect().width ||
+        (Number.isFinite(styled) ? styled : 0);
+      return w >= 40;
+    });
+    if (!anyOpen) return false;
+  }
+
+  for (const svg of svgs) {
+    const marks = [...svg.querySelectorAll(
+      "path, line, rect, use, circle, ellipse, polyline, polygon, text",
+    )].filter((el) => !el.closest(".cursor"));
+    if (marks.length < 8) continue;
+    const layout = svg.getBoundingClientRect();
+    if (layout.width > 0 || layout.height > 0) {
+      if (layout.width < 40 || layout.height < 24) continue;
+    }
+    try {
+      const box = svg.getBBox();
+      if (box.width >= 40 && box.height >= 24) return true;
+    } catch {
+      // getBBox can throw if not in the document yet — fall back to mark count.
+      if (marks.length >= 16) return true;
+    }
+  }
+  return false;
+}
+
+function resolveScorePaintViewport(wrap: HTMLElement): {
+  width: number;
+  height: number;
+  wrapWidth: number;
+} {
+  const wrapW = wrap.clientWidth || wrap.getBoundingClientRect().width || 0;
+  const wrapH = wrap.clientHeight || wrap.getBoundingClientRect().height || 0;
+  let stage: HTMLElement | null = wrap.parentElement;
+  while (
+    stage &&
+    !stage.classList.contains("musai-piece-workspace__stage") &&
+    !stage.classList.contains("musai-piece-score__stage") &&
+    !stage.classList.contains("musai-piece-score-viewer") &&
+    !stage.classList.contains("musai-piece-score--embedded")
+  ) {
+    stage = stage.parentElement;
+  }
+  const stageW = stage
+    ? stage.clientWidth || stage.getBoundingClientRect().width || 0
+    : 0;
+  const stageH = stage
+    ? stage.clientHeight || stage.getBoundingClientRect().height || 0
+    : 0;
+  return {
+    width: Math.max(wrapW, stageW),
+    height: Math.max(wrapH, stageH),
+    wrapWidth: wrapW,
+  };
 }
 
 function metricsLookEngraved(metrics: ScoreLayoutMetrics): boolean {
-  return metrics.contentWidthPx > 0 && metrics.contentHeightPx > 0;
+  return metrics.contentWidthPx >= 12 && metrics.contentHeightPx >= 12;
 }
 
 function shapeOverlayRect(
@@ -58,13 +131,7 @@ function shapeOverlayRect(
   style: PieceScoreHighlight["visualStyle"],
 ) {
   if (style === "note") {
-    const width = Math.min(36, Math.max(22, rect.width * 0.42));
-    return {
-      ...rect,
-      x: rect.x + Math.max(0, (rect.width - width) * 0.35),
-      width,
-      height: Math.max(rect.height, 34),
-    };
+    return shapeNotePlateRect(rect);
   }
   if (style === "measure") {
     return {
@@ -95,10 +162,13 @@ export function OsmdScoreAdapter({
   getPlaybackTime,
   wholeNotesToSeconds,
   onSeek,
+  playbackNotes,
   highlight = null,
   onHighlightSelect,
   onPaintState,
   showInlineError = true,
+  themeOverride = null,
+  paintPurpose = "workspace",
 }: {
   musicXml: string;
   title: string;
@@ -107,6 +177,8 @@ export function OsmdScoreAdapter({
   getPlaybackTime?: () => number;
   wholeNotesToSeconds?: (wholeNotes: number) => number;
   onSeek?: (tSec: number) => void;
+  /** MusaiScore note times — when set, playhead clock follows these, not OSMD units. */
+  playbackNotes?: readonly { startSec: number; endSec: number }[];
   /** One focused overlay at a time. Listen playback hides it. */
   highlight?: PieceScoreHighlight | null;
   onHighlightSelect?: (id: string) => void;
@@ -114,19 +186,27 @@ export function OsmdScoreAdapter({
   onPaintState?: (state: ScorePaintState) => void;
   /** When false, parent owns the failure UI (no inline error card). */
   showInlineError?: boolean;
+  themeOverride?: PieceOsmdTheme | null;
+  /** Import review uses a larger, centred engraving. */
+  paintPurpose?: "workspace" | "import-preview";
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
   const cursorRef = useRef<HTMLSpanElement>(null);
   const bandRef = useRef<HTMLSpanElement>(null);
-  const measureRef = useRef<HTMLSpanElement>(null);
   const rendererRef = useRef<ScoreRenderer | null>(null);
   const snapsRef = useRef<CursorPose[]>([]);
   const convertRef = useRef(wholeNotesToSeconds);
   convertRef.current = wholeNotesToSeconds;
+  const playbackNotesRef = useRef(playbackNotes);
+  playbackNotesRef.current = playbackNotes;
   const onPaintStateRef = useRef(onPaintState);
   onPaintStateRef.current = onPaintState;
-  const themeRef = useRef<PieceOsmdTheme>(readPieceOsmdTheme());
+  const paintPurposeRef = useRef(paintPurpose);
+  paintPurposeRef.current = paintPurpose;
+  const themeRef = useRef<PieceOsmdTheme>(
+    themeOverride ?? readPieceOsmdTheme(),
+  );
   const viewModeRef = useRef<PieceScoreViewMode>("continuous");
   const engravedModeRef = useRef<PieceScoreViewMode | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -134,9 +214,11 @@ export function OsmdScoreAdapter({
   const [viewMode, setViewMode] = useState<PieceScoreViewMode>("continuous");
   const [pageIndex, setPageIndex] = useState(0);
   const [metrics, setMetrics] = useState<ScoreLayoutMetrics | null>(null);
-  const [density, setDensity] = useState<ScoreScrollDensity>("compact");
+  const [density, setDensity] = useState<ScoreScrollDensity>("scroll");
   const [viewportHeight, setViewportHeight] = useState(0);
   const lastScrollY = useRef<number | null>(null);
+  /** Re-apply Listen pose after layout snapshot refreshes (snapsRef only). */
+  const syncPlaybackPoseRef = useRef<(() => void) | null>(null);
   viewModeRef.current = followPlayback ? "continuous" : viewMode;
 
   const heatRects = useMemo(() => {
@@ -164,11 +246,67 @@ export function OsmdScoreAdapter({
     if (!renderer || !wrap) return;
     const convert = convertRef.current ?? ((wn: number) => wn * 4 * (60 / 100));
     try {
-      snapsRef.current = renderer.collectCursorSnapshots(wrap, convert);
-    } catch {
+      const next = renderer.collectCursorSnapshots(
+        wrap,
+        convert,
+        playbackNotesRef.current,
+      );
+      snapsRef.current = next;
+      if (process.env.NODE_ENV !== "production") {
+        const svg = wrap.querySelector("svg");
+        const wrapRect = wrap.getBoundingClientRect();
+        const svgRect = svg?.getBoundingClientRect();
+        const svgLeft = svgRect
+          ? svgRect.left - wrapRect.left + wrap.scrollLeft
+          : 0;
+        const svgRight = svgLeft + (svgRect?.width ?? 0);
+        const xLast = next[next.length - 1]?.x ?? 0;
+        console.info("[piece-osmd] cursor snapshots", {
+          count: next.length,
+          notes: playbackNotesRef.current?.length ?? 0,
+          t0: next[0]?.tSec,
+          tLast: next[next.length - 1]?.tSec,
+          note0: playbackNotesRef.current?.[0]?.startSec,
+          noteLast:
+            playbackNotesRef.current?.[
+              (playbackNotesRef.current?.length ?? 1) - 1
+            ]?.startSec,
+          x0: next[0]?.x,
+          xLast,
+          svgLeft,
+          svgRight,
+          withinContent: xLast <= svgRight + 12,
+          boundToNotes:
+            Boolean(playbackNotesRef.current?.length) &&
+            next.length === playbackNotesRef.current?.length,
+        });
+        (
+          window as unknown as { __pieceCursorSnaps?: typeof next }
+        ).__pieceCursorSnaps = next;
+      }
+    } catch (err) {
       snapsRef.current = [];
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[piece-osmd] cursor snapshot walk failed", err);
+      }
     }
     setSnapVersion((n) => n + 1);
+    syncPlaybackPoseRef.current?.();
+  };
+
+  /** After Listen toggles --follow/--scroll, wait a frame so layout matches poses. */
+  const takeSnapshotsAfterLayout = () => {
+    let outer = 0;
+    let inner = 0;
+    outer = window.requestAnimationFrame(() => {
+      inner = window.requestAnimationFrame(() => {
+        takeSnapshots();
+      });
+    });
+    return () => {
+      window.cancelAnimationFrame(outer);
+      window.cancelAnimationFrame(inner);
+    };
   };
 
   useEffect(() => {
@@ -221,17 +359,31 @@ export function OsmdScoreAdapter({
       }
     };
 
+    /** Soft layout retries before a hard fail — workspace flex can settle late. */
+    let softFailCount = 0;
+    const MAX_SOFT_FAILS = 10;
+
+    const noteSoftFail = (detail: string) => {
+      softFailCount += 1;
+      musicXmlPreviewLog("PREVIEW_RENDER_FAIL", {
+        message: detail,
+        softFail: softFailCount,
+      });
+      if (softFailCount >= MAX_SOFT_FAILS) {
+        failPaint(detail);
+      }
+    };
+
     const paint = (opts?: { force?: boolean }) => {
       if (!renderer || cancelled) return false;
-      const width = wrap.clientWidth || wrap.getBoundingClientRect().width || 0;
-      const height =
-        wrap.clientHeight || wrap.getBoundingClientRect().height || 0;
-      // Never engrave into a zero-width host — OSMD leaves a blank score.
-      if (!canPaintScoreViewport(width)) {
+      const { width, height, wrapWidth } = resolveScorePaintViewport(wrap);
+      // Never engrave into a zero-size host — OSMD leaves a blank score.
+      if (!canPaintScoreViewport(width, height)) {
         if (process.env.NODE_ENV !== "production") {
-          console.info("[PREVIEW_RENDER_START] waiting for layout width", {
+          console.info("[PREVIEW_RENDER_START] waiting for layout size", {
             width,
             height,
+            wrapWidth,
             force: Boolean(opts?.force),
           });
         }
@@ -240,7 +392,8 @@ export function OsmdScoreAdapter({
       if (
         !opts?.force &&
         lastPaintWidth > 0 &&
-        Math.abs(width - lastPaintWidth) < 24
+        Math.abs(width - lastPaintWidth) < 24 &&
+        hostHasVisibleEngraving(host)
       ) {
         return false;
       }
@@ -248,6 +401,7 @@ export function OsmdScoreAdapter({
         musicXmlPreviewLog("PREVIEW_RENDER_START", {
           width,
           height,
+          wrapWidth,
           xmlChars: musicXml.length,
           force: Boolean(opts?.force),
         });
@@ -255,33 +409,42 @@ export function OsmdScoreAdapter({
           viewMode: viewModeRef.current,
           viewportWidthPx: width,
           viewportHeightPx: height,
+          purpose: paintPurposeRef.current,
         });
         if (!cancelled) {
           engravedModeRef.current = viewModeRef.current;
           setMetrics(nextMetrics);
           setViewportHeight(height);
-          setDensity(
-            classifyScoreScrollDensity(nextMetrics, height || width),
-          );
+          setDensity((prev) => {
+            const next =
+              paintPurposeRef.current === "import-preview"
+                ? "compact"
+                : classifyScoreScrollDensity(nextMetrics, height || width);
+            return prev === next ? prev : next;
+          });
           if (viewModeRef.current === "page") {
             setPageIndex(0);
             renderer.setVisiblePage?.(0);
           }
           if (
             metricsLookEngraved(nextMetrics) &&
-            hostHasEngravedSvg(host)
+            hostHasVisibleEngraving(host)
           ) {
             lastPaintWidth = width;
+            softFailCount = 0;
             musicXmlPreviewLog("PREVIEW_RENDER_SUCCESS", {
               width,
               pageCount: nextMetrics.pageCount,
               contentWidthPx: nextMetrics.contentWidthPx,
               contentHeightPx: nextMetrics.contentHeightPx,
+              markProbe: host.querySelectorAll("path, line, rect, use").length,
             });
             setError(null);
             reportPaint("ready");
           } else {
-            failPaint("paint produced no engraved score content");
+            // Do not lock lastPaintWidth on a blank shell — ResizeObserver must retry.
+            lastPaintWidth = 0;
+            noteSoftFail("paint produced no visible notation");
             return false;
           }
         }
@@ -309,7 +472,7 @@ export function OsmdScoreAdapter({
           renderer.dispose();
           return;
         }
-        themeRef.current = readPieceOsmdTheme();
+        themeRef.current = themeOverride ?? readPieceOsmdTheme();
         rendererRef.current = renderer;
         await renderer.load(musicXmlRenderSource(musicXml));
         if (cancelled) {
@@ -323,8 +486,8 @@ export function OsmdScoreAdapter({
           renderer.dispose();
           return;
         }
-        if (!canPaintScoreViewport(layout.width)) {
-          // One more frame after CSS flex settle (import review remount).
+        if (!canPaintScoreViewport(layout.width, layout.height)) {
+          // One more frame after CSS flex settle (import review / workspace).
           await new Promise<void>((r) => requestAnimationFrame(() => r()));
           if (cancelled) {
             renderer.dispose();
@@ -333,20 +496,30 @@ export function OsmdScoreAdapter({
         }
         const painted = paint({ force: true });
         if (!painted && !cancelled) {
-          // ResizeObserver will retry; keep a visible status if still empty.
+          // ResizeObserver will retry; one more forced attempt after layout paint.
           window.requestAnimationFrame(() => {
             if (cancelled) return;
-            if (!paint({ force: true }) && lastPaintWidth < 1) {
-              failPaint("viewport width still zero after layout wait");
-            } else if (lastPaintWidth > 0) {
+            if (paint({ force: true })) {
               scheduleSnapshot();
+              return;
+            }
+            if (lastPaintWidth < 1) {
+              noteSoftFail("viewport still unusable after layout wait");
             }
           });
           return;
         }
         window.requestAnimationFrame(() => {
           if (cancelled) return;
-          paint();
+          if (!hostHasVisibleEngraving(host)) {
+            // One forced re-paint after the frame is in the visible tree.
+            if (!paint({ force: true }) || !hostHasVisibleEngraving(host)) {
+              noteSoftFail("notation missing after first paint");
+              return;
+            }
+          } else {
+            paint();
+          }
           scheduleSnapshot();
         });
       } catch (err) {
@@ -364,11 +537,34 @@ export function OsmdScoreAdapter({
     const onResize = () => {
       if (resizeTimer != null) window.clearTimeout(resizeTimer);
       resizeTimer = window.setTimeout(() => {
-        if (paint()) scheduleSnapshot();
+        const { width, wrapWidth } = resolveScorePaintViewport(wrap);
+        const engraved = hostHasVisibleEngraving(host);
+        // Compact hug shrinks wrap around fitted SVG. Never re-engrave into
+        // that narrower box — it blanks OSMD. Only refresh cursor poses.
+        if (
+          lastPaintWidth > 0 &&
+          wrapWidth > 0 &&
+          wrapWidth + 24 < lastPaintWidth
+        ) {
+          scheduleSnapshot();
+          return;
+        }
+        if (
+          engraved &&
+          lastPaintWidth > 0 &&
+          width > 0 &&
+          width <= lastPaintWidth + 24
+        ) {
+          scheduleSnapshot();
+          return;
+        }
+        const needsForce = lastPaintWidth < 1 || !engraved;
+        if (paint({ force: needsForce })) scheduleSnapshot();
       }, 140);
     };
 
     const onThemeMutation = () => {
+      if (themeOverride) return;
       const next = readPieceOsmdTheme();
       if (next === themeRef.current) return;
       themeRef.current = next;
@@ -408,7 +604,7 @@ export function OsmdScoreAdapter({
       snapsRef.current = [];
     };
     // Mode changes re-paint via the dedicated effect below.
-  }, [musicXml]);
+  }, [musicXml, themeOverride]);
 
   // Re-engrave only when the engraved page format actually changes.
   // Score ↔ Listen both use Continuous — skip a full paint on that toggle.
@@ -418,29 +614,36 @@ export function OsmdScoreAdapter({
     if (!renderer || !wrap) return;
     const mode: PieceScoreViewMode = followPlayback ? "continuous" : viewMode;
     if (engravedModeRef.current === mode) {
-      if (followPlayback) takeSnapshots();
+      if (followPlayback) {
+        return takeSnapshotsAfterLayout();
+      }
       return;
     }
-    const width = wrap.clientWidth || wrap.getBoundingClientRect().width || 0;
-    const height =
-      wrap.clientHeight || wrap.getBoundingClientRect().height || 0;
-    if (!canPaintScoreViewport(width)) return;
+    const { width, height } = resolveScorePaintViewport(wrap);
+    if (!canPaintScoreViewport(width, height)) return;
     try {
       const nextMetrics = renderer.paint(themeRef.current, {
         viewMode: mode,
         viewportWidthPx: width,
         viewportHeightPx: height,
+        purpose: paintPurposeRef.current,
       });
       engravedModeRef.current = mode;
       setMetrics(nextMetrics);
       setViewportHeight(height);
-      setDensity(classifyScoreScrollDensity(nextMetrics, height || width));
+      setDensity((prev) => {
+        const next =
+          paintPurposeRef.current === "import-preview"
+            ? "compact"
+            : classifyScoreScrollDensity(nextMetrics, height || width);
+        return prev === next ? prev : next;
+      });
       if (!followPlayback && mode === "page") {
         const page = clampScorePageIndex(pageIndex, nextMetrics.pageCount);
         setPageIndex(page);
         renderer.setVisiblePage?.(page);
       }
-      takeSnapshots();
+      return takeSnapshotsAfterLayout();
     } catch (err) {
       if (process.env.NODE_ENV !== "production") {
         console.error("[piece-osmd] view mode paint failed", err);
@@ -450,6 +653,23 @@ export function OsmdScoreAdapter({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode, followPlayback]);
 
+  // Always re-bind when Listen arms or the timeline notes arrive.
+  useEffect(() => {
+    if (!rendererRef.current || !wrapRef.current) return;
+    if (!hostHasVisibleEngraving(hostRef.current)) return;
+    if (!followPlayback && !playbackNotes?.length) return;
+    return takeSnapshotsAfterLayout();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [followPlayback, playbackNotes]);
+
+  // Density class changes compact↔scroll (and :has hug). Refresh poses after layout.
+  useEffect(() => {
+    if (!rendererRef.current || !wrapRef.current) return;
+    if (!hostHasVisibleEngraving(hostRef.current)) return;
+    return takeSnapshotsAfterLayout();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [density]);
+
   useEffect(() => {
     if (viewMode !== "page" || followPlayback) return;
     rendererRef.current?.setVisiblePage?.(pageIndex);
@@ -458,39 +678,30 @@ export function OsmdScoreAdapter({
   useEffect(() => {
     const el = cursorRef.current;
     const band = bandRef.current;
-    const measure = measureRef.current;
     if (!followPlayback) {
       if (el) el.style.visibility = "hidden";
       if (band) band.style.visibility = "hidden";
-      if (measure) measure.style.visibility = "hidden";
       lastScrollY.current = null;
       return;
     }
     if (!subscribePlaybackTime) return;
 
+    // Listen armed — re-collect once. snaps live in snapsRef; do not depend on
+    // snapVersion here or takeSnapshots → setSnapVersion loops forever.
+    takeSnapshots();
+
     const applyPose = (next: CursorBand | null) => {
-      if (!el || !band) return;
+      if (!band) return;
       if (!next) {
-        el.style.visibility = "hidden";
+        if (el) el.style.visibility = "hidden";
         band.style.visibility = "hidden";
-        if (measure) measure.style.visibility = "hidden";
         return;
       }
-      el.style.visibility = "visible";
+      if (el) el.style.visibility = "visible";
       band.style.visibility = "visible";
-      el.style.height = `${next.height}px`;
-      el.style.transform = `translate3d(${next.x}px, ${next.y}px, 0)`;
-      band.style.height = `${next.height}px`;
       band.style.width = `${next.width}px`;
+      band.style.height = `${next.height}px`;
       band.style.transform = `translate3d(${next.x}px, ${next.y}px, 0)`;
-      if (measure) {
-        const mw = next.measureWidth ?? next.width * 2.4;
-        const mx = next.measureX ?? Math.max(0, next.x - mw * 0.15);
-        measure.style.visibility = "visible";
-        measure.style.height = `${next.height + 10}px`;
-        measure.style.width = `${mw}px`;
-        measure.style.transform = `translate3d(${mx}px, ${Math.max(0, next.y - 5)}px, 0)`;
-      }
 
       const wrap = wrapRef.current;
       if (!wrap) return;
@@ -516,9 +727,18 @@ export function OsmdScoreAdapter({
       applyPose(interpolateCursorBand(snapsRef.current, tSec));
     };
 
+    syncPlaybackPoseRef.current = () => {
+      onTime(getPlaybackTime?.() ?? 0);
+    };
     onTime(getPlaybackTime?.() ?? 0);
-    return subscribePlaybackTime(onTime);
-  }, [followPlayback, subscribePlaybackTime, getPlaybackTime, snapVersion]);
+    const unsubscribe = subscribePlaybackTime(onTime);
+    return () => {
+      syncPlaybackPoseRef.current = null;
+      unsubscribe();
+    };
+    // snapVersion intentionally omitted — snapsRef is updated in place.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [followPlayback, subscribePlaybackTime, getPlaybackTime]);
 
   const onClick = (event: React.MouseEvent<HTMLDivElement>) => {
     // Overview: tap a page thumbnail → open that page.
@@ -555,7 +775,9 @@ export function OsmdScoreAdapter({
     !followPlayback &&
     metrics != null &&
     shouldOfferScoreViewModes(metrics, viewportHeight || 640);
-  const effectiveDensity = followPlayback ? "scroll" : density;
+  // Same compact/scroll card on Score, Listen, and Practise — do not force
+  // Listen into full-bleed scroll paper for short pieces.
+  const effectiveDensity = density;
   const activeMode = followPlayback ? "continuous" : viewMode;
   const pageCount = metrics?.pageCount ?? 0;
 
@@ -615,18 +837,25 @@ export function OsmdScoreAdapter({
         />
         {!followPlayback && highlight
           ? heatRects.map((rect, i) => {
-              const shaped = shapeOverlayRect(rect, highlight.visualStyle);
+              const style = highlight.visualStyle ?? "note";
+              const isNote = style === "note";
+              const shaped = shapeOverlayRect(rect, isNote ? "note" : style);
               const mock = highlight.source !== "analysis";
               return (
                 <button
                   key={`${highlight.id}-${i}`}
                   type="button"
-                  className="musai-piece-heat"
+                  className={
+                    isNote
+                      ? "musai-piece-note-plate musai-piece-heat"
+                      : "musai-piece-heat"
+                  }
                   data-testid="piece-score-heat"
                   data-mock={mock ? "true" : "false"}
                   data-source={highlight.source ?? "mock-preview"}
                   data-tone={highlight.visualTone ?? undefined}
-                  data-style={highlight.visualStyle ?? "heat"}
+                  data-style={style}
+                  data-role={isNote ? "focus" : undefined}
                   aria-label={`${highlight.label} on the score. Ask Parsa about this.`}
                   style={{
                     left: shaped.x,
@@ -639,32 +868,34 @@ export function OsmdScoreAdapter({
                     onHighlightSelect?.(highlight.id);
                   }}
                 >
-                  <span className="musai-piece-heat__marker" aria-hidden />
+                  <span
+                    className={
+                      isNote
+                        ? "musai-piece-note-plate__marker"
+                        : "musai-piece-heat__marker"
+                    }
+                    aria-hidden
+                  />
                 </button>
               );
             })
           : null}
         <span
-          ref={measureRef}
-          className="musai-piece-cursor-measure"
-          data-testid="piece-score-cursor-measure"
-          aria-hidden
-          style={{ visibility: "hidden" }}
-        />
-        <span
           ref={bandRef}
-          className="musai-piece-cursor-band"
+          className="musai-piece-note-plate"
           data-testid="piece-score-cursor-band"
+          data-style="note"
+          data-role="now"
           aria-hidden
           style={{ visibility: "hidden" }}
-        />
-        <span
-          ref={cursorRef}
-          className="musai-piece-cursor"
-          data-testid="piece-score-cursor"
-          aria-hidden
-          style={{ visibility: "hidden" }}
-        />
+        >
+          <span
+            ref={cursorRef}
+            className="musai-piece-note-plate__marker"
+            data-testid="piece-score-cursor"
+            aria-hidden
+          />
+        </span>
         {showInlineError && error ? (
           <p className="musai-piece-osmd-error" role="status">
             {error}

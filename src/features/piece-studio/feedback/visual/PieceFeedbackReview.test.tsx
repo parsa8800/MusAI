@@ -11,7 +11,7 @@ describe("PieceFeedbackReview", () => {
     mockPieceFeedbackIssues(parseMusicXmlToScore(TWINKLE_XML, "Twinkle")),
   );
 
-  it("shows a quiet focus card and chat without mock jargon", () => {
+  it("keeps skills and lesson outside chat; sample is labeled", () => {
     const onShowOnScore = vi.fn();
     render(
       <PieceFeedbackReview
@@ -23,27 +23,39 @@ describe("PieceFeedbackReview", () => {
     );
     const preview = screen.getByTestId("piece-feedback-preview");
     expect(preview).toHaveAttribute("data-mock", "true");
-    expect(screen.queryByText(/sample review/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/from your latest take/i)).not.toBeInTheDocument();
-    expect(screen.getByTestId("coach-focus-card")).toBeInTheDocument();
-    expect(screen.getByText("Focus")).toBeInTheDocument();
-    expect(screen.getByText("Pitch")).toBeInTheDocument();
-    expect(screen.getByText("Improve")).toBeInTheDocument();
-    expect(screen.getByText("A few notes are running sharp")).toBeInTheDocument();
-    expect(screen.getByText("Try")).toBeInTheDocument();
-    expect(
-      screen.getByText("Play the phrase slowly and relax into each note"),
-    ).toBeInTheDocument();
-    expect(screen.queryByText("Where")).not.toBeInTheDocument();
-    expect(screen.getByTestId("coach-focus-where")).toBeInTheDocument();
+    expect(screen.getByTestId("piece-focus-sample")).toHaveTextContent(
+      /Sample · not from your take/i,
+    );
+    expect(screen.queryByText(/not_ready/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("Focus")).not.toBeInTheDocument();
+    expect(screen.queryByText("Improve")).not.toBeInTheDocument();
+    expect(screen.queryByText("Also")).not.toBeInTheDocument();
+
+    expect(screen.getByTestId("piece-focus-skills")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Pitch" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByTestId("piece-focus-card")).toBeInTheDocument();
+    expect(screen.getByText("Where")).toBeInTheDocument();
+    expect(screen.getByTestId("piece-focus-where")).toBeInTheDocument();
+    expect(screen.getByText("What’s wrong")).toBeInTheDocument();
+    expect(screen.getByTestId("piece-focus-what")).toHaveTextContent(
+      /running sharp/i,
+    );
+    expect(screen.getByText("Try this")).toBeInTheDocument();
+    expect(screen.getByTestId("piece-focus-try")).toHaveTextContent(
+      /slowly/i,
+    );
     expect(screen.getByTestId("coach-chat")).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/Ask your coach/i)).toBeInTheDocument();
+    expect(screen.getByText("Ask Parsa")).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("coach-focus-show-on-score"));
     expect(onShowOnScore).toHaveBeenCalledWith(issues[0]!.id);
   });
 
-  it("lets a later chip change focus without listing every overlay", () => {
+  it("switches focus from the skills rail without ALSO chips in chat", () => {
     const onActiveId = vi.fn();
     render(
       <PieceFeedbackReview
@@ -52,11 +64,12 @@ describe("PieceFeedbackReview", () => {
         onActiveId={onActiveId}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Rushing" }));
+    expect(screen.queryByText("Also")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("option", { name: "Rushing" }));
     expect(onActiveId).toHaveBeenCalledWith("mock-rushing");
   });
 
-  it("marks live analysis without a status banner", () => {
+  it("marks live analysis without sample banner", () => {
     const live = [
       {
         ...issues[0]!,
@@ -76,7 +89,7 @@ describe("PieceFeedbackReview", () => {
       "data-mock",
       "false",
     );
-    expect(screen.queryByText(/from your latest take/i)).not.toBeInTheDocument();
-    expect(screen.getByText("Pitch")).toBeInTheDocument();
+    expect(screen.queryByTestId("piece-focus-sample")).not.toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Pitch" })).toBeInTheDocument();
   });
 });

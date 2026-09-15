@@ -204,20 +204,21 @@ export function PiecePractiseDock({
 
         {!busy ? (
           <div className="musai-piece-practise__tools">
-            <div className="musai-mic-picker musai-piece-practise__mic-picker">
+            <div className="musai-piece-practise__mic">
+              <span className="musai-piece-practise__mic-face" aria-hidden>
+                <MicGlyph />
+                <span>Mic</span>
+              </span>
               <label htmlFor={micSelectId} className="sr-only">
                 Microphone
               </label>
-              <span className="musai-mic-picker__icon" aria-hidden>
-                <MicGlyph />
-              </span>
               <select
                 id={micSelectId}
                 value={selectedMicValue(selectedMicId, micDevices)}
                 disabled={busy}
                 onChange={(e) => setSelectedMicId(e.target.value)}
                 onFocus={() => void refreshMicDevices()}
-                className="musai-mic-picker__select"
+                className="musai-piece-practise__mic-select"
                 aria-label={`Microphone: ${micLabel}`}
                 title={micLabel}
                 data-testid="piece-practise-mic"
@@ -225,13 +226,10 @@ export function PiecePractiseDock({
                 <option value="">Default microphone</option>
                 {micDevices.map((device) => (
                   <option key={device.deviceId} value={device.deviceId}>
-                    {device.label || "Microphone"}
+                    {device.label?.trim() || "Microphone"}
                   </option>
                 ))}
               </select>
-              <span className="musai-mic-picker__chevron" aria-hidden>
-                <ChevronGlyph />
-              </span>
             </div>
             <label
               className="musai-pressable musai-piece-practise__import-btn"
@@ -303,9 +301,7 @@ function selectedMicLabel(
 ): string {
   if (!selectedMicId.trim()) return "Default microphone";
   const match = devices.find((d) => d.deviceId === selectedMicId);
-  const raw = match?.label?.trim();
-  if (!raw) return "Microphone";
-  return raw.length > 28 ? `${raw.slice(0, 26)}…` : raw;
+  return match?.label?.trim() || "Microphone";
 }
 
 function MicGlyph() {
@@ -327,25 +323,6 @@ function MicGlyph() {
         strokeLinecap="round"
         strokeLinejoin="round"
         d="M19 11a7 7 0 01-14 0M12 18v3"
-      />
-    </svg>
-  );
-}
-
-function ChevronGlyph() {
-  return (
-    <svg
-      viewBox="0 0 20 20"
-      className="h-3.5 w-3.5"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.75}
-      aria-hidden
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M5 7.5l5 5 5-5"
       />
     </svg>
   );

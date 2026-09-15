@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { MouseEventHandler } from "react";
 
 type Props = {
   /** Destination for the back control. Defaults to practice hub. */
@@ -8,6 +9,7 @@ type Props = {
   /** Accessible name; defaults from label. */
   ariaLabel?: string;
   className?: string;
+  onClick?: MouseEventHandler<HTMLAnchorElement>;
 };
 
 /**
@@ -18,11 +20,13 @@ export function PracticeHubBackLink({
   label = "Practice hub",
   ariaLabel,
   className = "",
+  onClick,
 }: Props) {
   return (
     <div className={`mb-5 w-fit max-w-full sm:mb-6 ${className}`.trim()}>
       <Link
         href={href}
+        onClick={onClick}
         className="group musai-pressable musai-glass inline-flex min-h-10 items-center gap-2.5 rounded-[var(--musai-radius)] py-1.5 pl-1.5 pr-3.5 text-[13px] font-medium text-[var(--musai-muted)] hover:border-[color-mix(in_srgb,var(--musai-accent)_28%,var(--musai-glass-stroke))] hover:text-[var(--musai-ink)]"
         aria-label={ariaLabel ?? `Back to ${label}`}
       >

@@ -5,6 +5,8 @@ import {
   upsertPieceWorkspace,
 } from "@/features/piece-studio/pieceStudioCatalog";
 import {
+  readPieceRecognizedMusicXml,
+  readPieceStructuredScore,
   removePieceOriginalFile,
   savePieceOriginalFile,
   savePieceRecognizedMusicXml,
@@ -181,10 +183,22 @@ async function persistPermanentPiece(args: {
   await savePieceOriginalFile(piece.pieceId, args.file);
   await savePieceRecognizedMusicXml(piece.pieceId, args.musicXml);
   await savePieceStructuredScore(piece.pieceId, args.structured);
+
+  // Fail closed if the workspace would open without engraving / playback data.
+  const [savedXml, savedScore] = await Promise.all([
+    readPieceRecognizedMusicXml(piece.pieceId),
+    readPieceStructuredScore(piece.pieceId),
+  ]);
+  if (!savedXml?.trim() || !savedScore) {
+    throw new Error("Couldn’t save that score. Try again.");
+  }
+
   upsertPieceWorkspace(piece);
   pieceImportLog("SAVE", "ok", {
     where: "permanent piece after confirmed digital score",
     pieceId: piece.pieceId,
+    xmlChars: savedXml.length,
+    notes: savedScore.noteCount,
   });
   return piece;
 }

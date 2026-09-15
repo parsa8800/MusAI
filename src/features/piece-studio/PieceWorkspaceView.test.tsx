@@ -166,19 +166,21 @@ describe("PieceWorkspaceView", () => {
       "data-mock",
       "true",
     );
-    expect(screen.queryByText(/sample review/i)).not.toBeInTheDocument();
-    expect(screen.getByTestId("coach-focus-card")).toBeInTheDocument();
-    expect(screen.getByText("Focus")).toBeInTheDocument();
-    expect(screen.getByText("Pitch")).toBeInTheDocument();
-    expect(screen.getByText("Improve")).toBeInTheDocument();
+    expect(screen.getByTestId("piece-focus-sample")).toHaveTextContent(
+      /Sample · not from your take/i,
+    );
+    expect(screen.getByTestId("piece-focus-card")).toBeInTheDocument();
+    expect(screen.getByText("What’s wrong")).toBeInTheDocument();
     expect(screen.getByText("A few notes are running sharp")).toBeInTheDocument();
-    expect(screen.getByText("Try")).toBeInTheDocument();
+    expect(screen.getByText("Try this")).toBeInTheDocument();
     expect(screen.getByTestId("coach-focus-show-on-score")).toHaveTextContent(
       /Show on score/i,
     );
     expect(screen.getByTestId("coach-chat")).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/Ask your coach/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Rushing" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Rushing" })).toBeInTheDocument();
+    expect(screen.queryByText("Also")).not.toBeInTheDocument();
+    expect(screen.queryByText(/not_ready/i)).not.toBeInTheDocument();
     expect(await screen.findByRole("tab", { name: "Practise" })).toBeInTheDocument();
   });
 
@@ -197,10 +199,11 @@ describe("PieceWorkspaceView", () => {
     expect(await screen.findByRole("heading", { name: "Canon in D" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "Listen" }));
     expect(await screen.findByRole("button", { name: "Play" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Restart" })).toBeInTheDocument();
-    expect(screen.getByTestId("piece-listen-options")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Restart from beginning" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Playback options" })).toBeInTheDocument();
+    expect(screen.queryByTestId("piece-listen-options")).not.toBeInTheDocument();
     expect(screen.getByRole("slider", { name: "Seek" })).toBeInTheDocument();
-    expect(screen.getByRole("slider", { name: /Tempo/ })).toBeInTheDocument();
+    expect(screen.queryByRole("slider", { name: /Tempo/ })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Canon in D" })).toBeInTheDocument();
   });
 

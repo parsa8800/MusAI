@@ -84,7 +84,7 @@ describe("PiecePractiseDock", () => {
     upsertPieceWorkspace(piece);
   });
 
-  it("keeps Try again / Record primary with icon mic and import", () => {
+  it("keeps Try again / Record primary with Mic control and import", () => {
     render(
       <PiecePractiseDock
         piece={piece}
@@ -98,7 +98,13 @@ describe("PiecePractiseDock", () => {
     );
     expect(screen.queryByText(/Analyse/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Mic & import/i)).not.toBeInTheDocument();
-    expect(screen.getByTestId("piece-practise-mic")).toBeInTheDocument();
+    const mic = screen.getByTestId("piece-practise-mic");
+    expect(mic).toBeInTheDocument();
+    expect(mic).toHaveAccessibleName(/Microphone: Default microphone/i);
+    expect(screen.getByText("Mic")).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: "Default microphone" }),
+    ).toBeInTheDocument();
     expect(screen.getByLabelText(/Import a take/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Record" }));
     expect(startRecording).toHaveBeenCalled();

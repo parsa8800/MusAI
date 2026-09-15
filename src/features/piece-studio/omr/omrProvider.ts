@@ -39,7 +39,7 @@ export const OMR_COPY = {
   failedTitle: "Couldn’t read this score",
   failedLead: "",
   confirm: "Check your score",
-  confirmLead: "",
+  confirmLead: "Does this look right?",
   looksGood: "Use this score",
   tryAgain: "Try another file",
   tryAnotherImage: "Try again",
@@ -57,6 +57,8 @@ export const OMR_COPY = {
   statusFailed: "Couldn’t read this score",
   emptyPreview: "No preview",
   preparingScore: "Preparing score",
+  openingScore: "Opening your score",
+  readingPatience: "Photos and PDFs can take a little longer.",
   displayFailed: "Couldn’t display this score",
   displayFailedTitle: "Couldn’t display this score",
   unavailable:

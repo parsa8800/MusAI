@@ -31,7 +31,7 @@ import {
   type PieceImportDraft,
 } from "@/features/piece-studio/pieceStudioImport";
 import { OMR_COPY } from "@/features/piece-studio/omr/omrProvider";
-import { pieceWorkspaceHref } from "@/features/piece-studio/pieceStudioRoutes";
+import { pieceWorkspaceHref, PIECE_STUDIO_HREF } from "@/features/piece-studio/pieceStudioRoutes";
 import type { PieceWorkspaceV1 } from "@/features/piece-studio/pieceStudioTypes";
 import { tapFeedback } from "@/lib/motion";
 
@@ -60,6 +60,7 @@ export function PieceStudioView() {
   const [committing, setCommitting] = useState(false);
   const [readingHint, setReadingHint] = useState<string | null>(null);
   importDraftRef.current = importDraft;
+  const importGenerationRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -107,19 +108,32 @@ export function PieceStudioView() {
   }, []);
 
   const clearDraft = async () => {
+    importGenerationRef.current += 1;
     await discardPieceImport(importDraftRef.current);
     setImportDraft(null);
+    setPhase(null);
   };
 
   const onFile = async (file: File | undefined) => {
     if (!file) return;
+    const generation = ++importGenerationRef.current;
     setError(null);
-    await clearDraft();
+    await discardPieceImport(importDraftRef.current);
+    setImportDraft(null);
     setPhase("uploading");
     try {
       const result = await importPieceFromFile(file, new Date(), {
-        onPhase: setPhase,
+        onPhase: (next) => {
+          if (generation !== importGenerationRef.current) return;
+          setPhase(next);
+        },
       });
+      if (generation !== importGenerationRef.current) {
+        if (result.status === "ready" || result.status === "failed") {
+          await discardPieceImport(result.draft);
+        }
+        return;
+      }
       tapFeedback("medium");
       if (result.status === "committed") {
         setRevision((n) => n + 1);
@@ -128,9 +142,12 @@ export function PieceStudioView() {
       }
       setImportDraft(result.draft);
     } catch (err) {
+      if (generation !== importGenerationRef.current) return;
       setError(err instanceof Error ? err.message : "Couldn’t import that file.");
     } finally {
-      setPhase(null);
+      if (generation === importGenerationRef.current) {
+        setPhase(null);
+      }
       if (fileRef.current) fileRef.current.value = "";
     }
   };
@@ -190,13 +207,24 @@ export function PieceStudioView() {
   const busy = phase != null;
   const libraryLabel = "Your pieces";
   const inReview = busy || importDraft != null;
+  const hasLibrary = ready && list.length > 0;
 
   if (inReview) {
     return (
       <StudioViewport>
         <div className="musai-piece-home musai-piece-home--review">
-          <header className="musai-piece-home__nav">
-            <PracticeHubBackLink className="!mb-0 shrink-0" />
+          <header className="musai-piece-home__nav flex shrink-0 items-center gap-2 px-0 py-2 sm:gap-3 sm:py-2.5">
+            <PracticeHubBackLink
+              href={PIECE_STUDIO_HREF}
+              label="Piece studio"
+              ariaLabel="Back to Piece studio"
+              className="!mb-0 shrink-0"
+              onClick={(event) => {
+                // Same route — clear the draft instead of relying on remount.
+                event.preventDefault();
+                void clearDraft();
+              }}
+            />
           </header>
           <PieceImportReview
             key={importDraft?.sessionId ?? (busy ? "processing" : "idle")}
@@ -214,14 +242,23 @@ export function PieceStudioView() {
 
   return (
     <StudioViewport>
-      <div className="musai-piece-home">
-        <header className="musai-piece-home__nav">
+      <div
+        className="musai-piece-home"
+        data-has-library={hasLibrary ? "true" : "false"}
+      >
+        <header className="musai-piece-home__nav flex shrink-0 items-center gap-2 px-0 py-2 sm:gap-3 sm:py-2.5">
           <PracticeHubBackLink className="!mb-0 shrink-0" />
         </header>
 
-        <div className="musai-piece-home__shell">
+        <div
+          className="musai-piece-home__shell"
+          data-has-library={hasLibrary ? "true" : "false"}
+        >
           <header className="musai-piece-home__intro">
             <h1 className="musai-piece-home__title font-display">Piece studio</h1>
+            <p className="musai-piece-home__lead">
+              Open a score, listen, then practise.
+            </p>
           </header>
 
           <section
@@ -232,6 +269,7 @@ export function PieceStudioView() {
               inputRef={fileRef}
               busy={busy}
               busyLabel={phase ? importPhaseLabel(phase) : null}
+              compact={hasLibrary}
               onFile={(file) => void onFile(file)}
             />
 
@@ -258,7 +296,14 @@ export function PieceStudioView() {
                 <div className="musai-piece-home__spinner" aria-hidden />
                 <span className="sr-only">Loading</span>
               </div>
-            ) : list.length === 0 ? null : (
+            ) : list.length === 0 ? (
+              <p
+                className="musai-piece-home__library-empty"
+                data-testid="piece-library-empty"
+              >
+                Your pieces will show up here.
+              </p>
+            ) : (
               <>
                 <div className="musai-piece-home__library-head">
                   <h2 className="musai-piece-home__library-title">

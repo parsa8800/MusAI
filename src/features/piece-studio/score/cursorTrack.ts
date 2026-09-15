@@ -1,3 +1,5 @@
+import { notePlateFromPose } from "@/features/piece-studio/score/notePlate";
+
 export type CursorPose = {
   tSec: number;
   x: number;
@@ -8,7 +10,7 @@ export type CursorPose = {
 export type CursorBand = CursorPose & {
   /** Width of the current-note highlight (px). */
   width: number;
-  /** Optional softer measure emphasis behind the note. */
+  /** Optional softer measure emphasis behind the note (unused on Listen). */
   measureWidth?: number;
   measureX?: number;
 };
@@ -43,57 +45,28 @@ export function interpolateCursor(
 }
 
 /**
- * Playhead pose plus a soft band covering the active note span, with a
- * slightly wider measure-ish emphasis derived from neighbouring snapshots.
+ * Playhead note plate (shared geometry with Practise heat).
+ * Holds on the sounding note — no smear between heads, no karaoke bar.
  */
 export function interpolateCursorBand(
   snaps: CursorPose[],
   tSec: number,
 ): CursorBand | null {
-  const pose = interpolateCursor(snaps, tSec);
-  if (!pose) return null;
-  if (snaps.length === 0) return { ...pose, width: 18 };
-
-  let i = 0;
-  while (i + 1 < snaps.length && snaps[i + 1]!.tSec <= tSec) i += 1;
-  const a = snaps[i]!;
-  const b = snaps[i + 1];
-
-  // Note width from neighbouring attacks on the same system.
-  let noteWidth = 18;
-  if (b && !systemBreak(a, b)) {
-    noteWidth = Math.max(14, Math.min(48, b.x - a.x));
-  } else if (i > 0) {
-    const prev = snaps[i - 1]!;
-    if (!systemBreak(prev, a)) {
-      noteWidth = Math.max(14, Math.min(48, a.x - prev.x));
-    }
+  if (snaps.length === 0) return null;
+  let pose = snaps[0]!;
+  if (tSec > pose.tSec) {
+    let i = 0;
+    while (i + 1 < snaps.length && snaps[i + 1]!.tSec <= tSec) i += 1;
+    pose = snaps[i]!;
   }
-
-  // Measure emphasis: stretch toward nearby snaps that share this system.
-  let left = a.x;
-  let right = a.x + noteWidth;
-  for (let j = i; j >= 0; j--) {
-    const s = snaps[j]!;
-    if (systemBreak(s, a)) break;
-    if (Math.abs(s.tSec - a.tSec) > 2.4) break;
-    left = Math.min(left, s.x);
-  }
-  for (let j = i; j < snaps.length; j++) {
-    const s = snaps[j]!;
-    if (systemBreak(a, s)) break;
-    if (Math.abs(s.tSec - a.tSec) > 2.4) break;
-    right = Math.max(right, s.x + 12);
-  }
-  const measureWidth = Math.max(noteWidth, Math.min(220, right - left));
-
+  const plate = notePlateFromPose(pose);
   return {
     ...pose,
-    // Prefer note-sized band; CSS draws a softer measure layer behind it.
-    width: noteWidth,
-    x: pose.x,
-    measureWidth,
-    measureX: left,
+    tSec,
+    x: plate.x,
+    y: plate.y,
+    width: plate.width,
+    height: plate.height,
   };
 }
 
