@@ -789,11 +789,6 @@ export function OsmdScoreAdapter({
             : classifyScoreScrollDensity(nextMetrics, height || width);
         return prev === next ? prev : next;
       });
-      if (!followPlayback && mode === "page") {
-        const page = clampScorePageIndex(pageIndex, nextMetrics.pageCount);
-        setPageIndex(page);
-        renderer.setVisiblePage?.(page);
-      }
       return takeSnapshotsAfterLayout();
     } catch (err) {
       if (process.env.NODE_ENV !== "production") {
@@ -820,11 +815,6 @@ export function OsmdScoreAdapter({
     return takeSnapshotsAfterLayout();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [density]);
-
-  useEffect(() => {
-    if (viewMode !== "page" || followPlayback) return;
-    rendererRef.current?.setVisiblePage?.(pageIndex);
-  }, [pageIndex, viewMode, followPlayback]);
 
   useEffect(() => {
     if (!playheadOn) return;
@@ -875,11 +865,7 @@ export function OsmdScoreAdapter({
       >
         <div
           ref={hostRef}
-          className={
-            activeMode === "overview"
-              ? "musai-piece-osmd musai-piece-osmd--overview"
-              : "musai-piece-osmd"
-          }
+          className="musai-piece-osmd"
           data-testid="piece-osmd"
           data-theme-ink={themeRef.current}
           data-density={effectiveDensity}

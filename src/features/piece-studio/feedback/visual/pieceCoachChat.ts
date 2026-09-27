@@ -19,11 +19,11 @@ function topicRank(issue: PieceCoachIssueView): number {
 
 function severityRank(issue: PieceCoachIssueView): number {
   if (issue.severity === "focus") return 0;
-  if (issue.severity === "secondary") return 1;
+  if (issue.severity === "notice") return 1;
   return 2;
 }
 
-/** Order issues the way a teacher would — pitch before tempo, focus before secondary. */
+/** Order issues the way a teacher would — pitch before tempo, focus before notice. */
 export function prioritizePieceCoachIssues(
   issues: readonly PieceCoachIssueView[],
 ): PieceCoachIssueView[] {

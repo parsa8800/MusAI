@@ -155,8 +155,10 @@ export function stepTunerMeter(
     };
   }
 
-  const samePending = prev.pendingSide === nextSide && prev.pendingSince != null;
-  const since = samePending ? prev.pendingSince : now;
+  const since =
+    prev.pendingSide === nextSide && prev.pendingSince != null
+      ? prev.pendingSince
+      : now;
   if (now - since >= TUNER_METER_SETTLE_MS) {
     return {
       shown: glideTunerMeterCents(prev.shown, cents, dtMs, instant),

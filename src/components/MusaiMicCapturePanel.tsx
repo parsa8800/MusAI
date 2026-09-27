@@ -23,7 +23,7 @@ type MusaiMicCapturePanelProps = {
   onMicRefresh: () => void;
   isRecording: boolean;
   hasSavedClip: boolean;
-  onDiscardClip: () => void;
+  onDiscardClip?: () => void;
   onStartRecording: () => void;
   onStopRecording: () => void;
   /** Discard the in-progress take without analysing. */

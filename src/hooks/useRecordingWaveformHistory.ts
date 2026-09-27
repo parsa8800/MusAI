@@ -100,7 +100,7 @@ export function useRecordingWaveformHistory(
       writeClock(collector.snapshot(), times.slice());
     };
 
-    let data: Float32Array | null = null;
+    let data: Float32Array<ArrayBuffer> | null = null;
     let waitFrames = 0;
 
     const startFromStream = (stream: MediaStream) => {

@@ -1,3 +1,5 @@
+import type { InstrumentId } from "@/lib/instrument/types";
+
 /**
  * Structured scale-practice session payload for UI, analytics, and future AI teacher.
  * Versioned so an LLM or backend can rely on a stable JSON shape.
@@ -81,7 +83,7 @@ export type ScalePracticeSessionV1 = {
   octaveRangeLabel: string;
   rootMidi: number;
   /** Written before instrument-aware Scale Studio; treat as violin. */
-  instrumentId?: "violin" | "viola";
+  instrumentId?: InstrumentId;
   expectedNotesMidi: number[];
   audioSourceType: ScalePracticeAudioSource;
   sampleRateHz: number;

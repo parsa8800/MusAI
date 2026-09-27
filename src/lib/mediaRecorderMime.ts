@@ -90,5 +90,5 @@ export function blobFromRecorderChunks(
   recorder: Pick<MediaRecorder, "mimeType">,
   chunks: readonly Blob[],
 ): Blob {
-  return new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+  return new Blob([...chunks], { type: recorder.mimeType || "audio/webm" });
 }
