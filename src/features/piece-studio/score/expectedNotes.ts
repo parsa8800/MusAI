@@ -3,13 +3,25 @@ import type { MusaiScoreV1, ScoreNote } from "@/features/piece-studio/score/musa
 export type PieceExpectedNote = {
   midi: number;
   label: string;
+  /** Beat within the measure. */
   onsetQuarters: number;
+  /** Onset from the start of the piece, in quarter notes. */
+  absoluteOnsetQuarters: number;
   durationQuarters: number;
   measure: string;
   beat: number;
   noteIndex: number;
   writtenDynamic: string | null;
 };
+
+function measureLengthQuarters(
+  beats: number,
+  beatType: number,
+  maxEventEnd: number,
+): number {
+  const fromTime = beats * (4 / Math.max(1, beatType));
+  return Math.max(fromTime, maxEventEnd, 0);
+}
 
 function noteLabel(note: ScoreNote): string {
   const acc =
@@ -37,14 +49,23 @@ export function expectedNotesFromScore(
   if (!part) return [];
   const out: PieceExpectedNote[] = [];
   let last: PieceExpectedNote | null = null;
+  let beats = 4;
   let beatType = 4;
+  let quarter = 0;
   let writtenDynamic: string | null = null;
   for (const measure of part.measures) {
-    if (measure.time) beatType = measure.time.beatType;
+    if (measure.time) {
+      beats = measure.time.beats;
+      beatType = measure.time.beatType;
+    }
+    let maxEnd = 0;
     for (const event of measure.events) {
       if (event.kind === "dynamic") {
         writtenDynamic = event.mark;
         continue;
+      }
+      if (event.kind === "note" || event.kind === "rest") {
+        maxEnd = Math.max(maxEnd, event.onsetQuarters + event.durationQuarters);
       }
       if (event.kind !== "note") continue;
       if (event.chord) continue;
@@ -52,6 +73,7 @@ export function expectedNotesFromScore(
         midi: event.pitch.midi,
         label: noteLabel(event),
         onsetQuarters: event.onsetQuarters,
+        absoluteOnsetQuarters: quarter + event.onsetQuarters,
         durationQuarters: event.durationQuarters,
         measure: measure.number,
         beat: Math.round(beatInMeasure(event.onsetQuarters, beatType) * 100) / 100,
@@ -62,6 +84,7 @@ export function expectedNotesFromScore(
       out.push(next);
       last = next;
     }
+    quarter += measureLengthQuarters(beats, beatType, maxEnd);
   }
   return out;
 }

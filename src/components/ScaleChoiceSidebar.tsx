@@ -22,6 +22,7 @@ type Props = {
   onScaleKind: (kind: ScaleKind) => void;
   octaveSpan: 1 | 2;
   onOctaveSpan: (span: 1 | 2) => void;
+  octaveSpans?: Array<1 | 2>;
   scaleMotion?: ScaleMotion;
   onScaleMotion?: (motion: ScaleMotion) => void;
   /**
@@ -125,6 +126,7 @@ export function ScaleChoiceSidebar({
   onScaleKind,
   octaveSpan,
   onOctaveSpan,
+  octaveSpans = [1, 2],
   scaleMotion = "up_down",
   onScaleMotion,
   density = "default",
@@ -196,12 +198,12 @@ export function ScaleChoiceSidebar({
         />
         <MusaiSegmentedControl<1 | 2>
           ariaLabel="Octave span"
-          value={octaveSpan}
+          value={octaveSpans.includes(octaveSpan) ? octaveSpan : 1}
           onChange={onOctaveSpan}
-          options={[
-            { value: 1, label: "1 oct" },
-            { value: 2, label: "2 oct" },
-          ]}
+          options={octaveSpans.map((span) => ({
+            value: span,
+            label: span === 2 ? "2 oct" : "1 oct",
+          }))}
           className={rowControls ? "min-w-0 flex-1" : "w-full"}
           size="compact"
         />

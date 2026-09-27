@@ -1,20 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
+import { animate } from "animejs";
+import { useTunerStringWave } from "@/hooks/useTunerStringWave";
+import { MUSAI_DUR, MUSAI_EASE } from "@/lib/motion";
+import type { TunerMotionFrame } from "@/lib/tunerStringMotion";
 import {
   VIOLIN_STRINGS,
-  type ViolinStringId,
+  type TunerOpenString,
+  type TunerStringId,
 } from "@/lib/violinTuner";
 
 type StringVisualState = "idle" | "active" | "holding" | "tuned";
 
-/** Even spacing — left → right = G D A E. */
-const XS = [52, 108, 164, 220] as const;
-const TOP_Y = 18;
-const BOTTOM_Y = 118;
-const LABEL_Y = 148;
-const VIEW_W = 272;
-const VIEW_H = 172;
+/** Even spacing — left → right along the current layout. */
+const XS = [58, 139, 221, 302] as const;
+const TOP_Y = 14;
+const BOTTOM_Y = 200;
+const VIEW_W = 360;
+const VIEW_H = 218;
+const HOLD_VIEW = 36;
+const HOLD_STROKE = 1.5;
+const HOLD_R = (HOLD_VIEW - HOLD_STROKE) / 2;
+const HOLD_C = 2 * Math.PI * HOLD_R;
 
 function usePrefersReducedMotion(): boolean {
   const [reduced, setReduced] = useState(false);
@@ -29,10 +37,10 @@ function usePrefersReducedMotion(): boolean {
 }
 
 function stringState(
-  id: ViolinStringId,
-  activeId: ViolinStringId | null,
-  tuned: ReadonlySet<ViolinStringId>,
-  holdingId: ViolinStringId | null,
+  id: TunerStringId,
+  activeId: TunerStringId | null,
+  tuned: ReadonlySet<TunerStringId>,
+  holdingId: TunerStringId | null,
 ): StringVisualState {
   if (tuned.has(id)) return "tuned";
   if (holdingId === id) return "holding";
@@ -46,206 +54,248 @@ function stringStroke(
   isLive: boolean,
 ): { color: string; width: number; opacity: number } {
   if (state === "tuned") {
-    return { color: "var(--musai-ok)", width: 2.2, opacity: 1 };
+    return { color: "var(--musai-ok)", width: 2.6, opacity: 1 };
   }
   if (isLive) {
     if (liveDirection === "in_tune") {
-      return { color: "var(--musai-ok)", width: 2.4, opacity: 1 };
+      return { color: "var(--musai-ok)", width: 2.85, opacity: 1 };
     }
     if (liveDirection === "low") {
-      return { color: "var(--musai-pitch-low)", width: 2.45, opacity: 1 };
+      return { color: "var(--musai-pitch-low)", width: 2.9, opacity: 1 };
     }
     if (liveDirection === "high") {
-      return { color: "var(--musai-pitch-high)", width: 2.45, opacity: 1 };
+      return { color: "var(--musai-pitch-high)", width: 2.9, opacity: 1 };
     }
-    return { color: "var(--musai-ink)", width: 2.3, opacity: 1 };
+    return { color: "var(--musai-ink)", width: 2.7, opacity: 1 };
   }
   return {
-    color: "color-mix(in srgb, var(--musai-ink) 28%, var(--musai-muted))",
-    width: 1.35,
-    opacity: 0.75,
+    color: "color-mix(in srgb, var(--musai-ink) 42%, var(--musai-muted))",
+    width: 2.05,
+    opacity: 0.92,
   };
 }
 
-/** Soft S-curve for a living string without looking busy. */
-function stringPath(x: number, wobble: number): string {
-  if (Math.abs(wobble) < 0.05) {
-    return `M ${x} ${TOP_Y} L ${x} ${BOTTOM_Y}`;
+function slotTone(
+  state: StringVisualState,
+  liveDirection: "low" | "high" | "in_tune" | "unclear" | null,
+): string {
+  if (state === "tuned" || (state === "active" && liveDirection === "in_tune")) {
+    return "ok";
   }
-  const mid = (TOP_Y + BOTTOM_Y) / 2;
-  return `M ${x} ${TOP_Y} C ${x + wobble} ${mid - 18}, ${x - wobble * 0.55} ${mid + 18}, ${x} ${BOTTOM_Y}`;
+  if (state === "active" && liveDirection === "low") return "low";
+  if (state === "active" && liveDirection === "high") return "high";
+  if (state === "holding" || state === "active") return "known";
+  return "idle";
 }
 
 /**
- * Minimal open-string diagram: four quiet lines, one light rail, G–D–A–E.
+ * Open-string seats for the active instrument. Letters are always visible;
+ * colour and motion respond as each string is heard and tuned.
  */
 export function ViolinTunerFigure({
+  strings = VIOLIN_STRINGS,
   activeId,
   tuned,
   liveDirection,
   holdingId,
   holdProgress,
-  wavePhase,
+  motionRef,
+  idle = false,
 }: {
-  activeId: ViolinStringId | null;
-  tuned: ReadonlySet<ViolinStringId>;
+  strings?: readonly TunerOpenString[];
+  /** @deprecated Letters always show; kept optional for call-site compat. */
+  revealed?: ReadonlySet<TunerStringId>;
+  activeId: TunerStringId | null;
+  tuned: ReadonlySet<TunerStringId>;
   liveDirection: "low" | "high" | "in_tune" | "unclear" | null;
-  holdingId: ViolinStringId | null;
+  holdingId: TunerStringId | null;
   holdProgress: number;
-  wavePhase: number;
+  motionRef: RefObject<TunerMotionFrame>;
+  idle?: boolean;
 }) {
   const reducedMotion = usePrefersReducedMotion();
-  const tunedList = VIOLIN_STRINGS.filter((s) => tuned.has(s.id))
-    .map((s) => s.id)
-    .join(", ");
+  const labels = strings.map((s) => s.id);
+  const tunedList = labels.filter((id) => tuned.has(id)).join(", ");
+  const pathRefs = useRef<(SVGPathElement | null)[]>([]);
+  const glowRefs = useRef<(SVGPathElement | null)[]>([]);
+  const bloomRefs = useRef<Partial<Record<TunerStringId, HTMLElement | null>>>({});
+  const slots = strings.map((s, i) => ({ id: s.id, restX: XS[i]! }));
+
+  useTunerStringWave({
+    motionRef,
+    slots,
+    reducedMotion,
+    pathRefs,
+    glowRefs,
+    bloomRefs,
+  });
+
+  const prevTuned = useRef(tuned);
+  const lockAnims = useRef<{ pause: () => void; revert?: () => void; cancel?: () => void }[]>(
+    [],
+  );
+  useEffect(() => {
+    if (reducedMotion) {
+      prevTuned.current = tuned;
+      return;
+    }
+    for (const id of tuned) {
+      if (prevTuned.current.has(id)) continue;
+      const bloom = bloomRefs.current[id];
+      if (!bloom) continue;
+      lockAnims.current.push(
+        animate(bloom, {
+          opacity: [0, 0.7, 0],
+          scale: [0.88, 1.14, 1],
+          duration: MUSAI_DUR.emphasize,
+          ease: MUSAI_EASE.out,
+        }) as (typeof lockAnims.current)[number],
+      );
+    }
+    prevTuned.current = tuned;
+  }, [reducedMotion, tuned]);
+
+  useEffect(() => {
+    return () => {
+      for (const anim of lockAnims.current) {
+        try {
+          anim.pause();
+          anim.revert?.();
+          anim.cancel?.();
+        } catch {
+          /* unmount */
+        }
+      }
+      lockAnims.current = [];
+    };
+  }, []);
 
   return (
-    <div className="relative mx-auto w-full max-w-[16.5rem]">
+    <div
+      className="musai-tuner-figure"
+      data-idle={idle ? "true" : "false"}
+    >
       <svg
         viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
-        className="h-auto w-full"
+        className="h-auto w-full overflow-visible"
         role="img"
         aria-label={
           tunedList
-            ? `Open strings G, D, A, E. In tune: ${tunedList}.`
-            : "Open strings G, D, A, and E."
+            ? `Open strings ${labels.join(", ")}. In tune: ${tunedList}.`
+            : `Open strings ${labels.join(", ")}.`
         }
       >
-        {/* Quiet baseline — reads as the nut / bridge edge */}
         <line
-          x1={XS[0] - 18}
+          x1={XS[0]! - 18}
           y1={BOTTOM_Y}
-          x2={XS[3] + 18}
+          x2={XS[3]! + 18}
           y2={BOTTOM_Y}
           stroke="var(--musai-border)"
-          strokeWidth="1.25"
+          strokeWidth="1.5"
           strokeLinecap="round"
         />
 
-        {VIOLIN_STRINGS.map((s, i) => {
+        {strings.map((s, i) => {
           const x = XS[i]!;
           const state = stringState(s.id, activeId, tuned, holdingId);
           const isLive = activeId === s.id;
-          const stroke = stringStroke(state, isLive ? liveDirection : null, isLive);
-          const vibrating = isLive && !reducedMotion;
-          const amp =
-            liveDirection === "low" || liveDirection === "high" ? 5.2 : 2.8;
-          const wobble = vibrating
-            ? Math.sin(wavePhase * Math.PI * 2) * amp
-            : 0;
-          const path = stringPath(x, wobble);
-
-          const labelFill =
-            state === "tuned"
-              ? "var(--musai-ok)"
-              : isLive && liveDirection === "in_tune"
-                ? "var(--musai-ok)"
-                : isLive && liveDirection === "low"
-                  ? "var(--musai-pitch-low)"
-                  : isLive && liveDirection === "high"
-                    ? "var(--musai-pitch-high)"
-                    : isLive
-                      ? "var(--musai-ink)"
-                      : "var(--musai-muted)";
-          const r = 11;
-          const circ = 2 * Math.PI * r;
-          const showHold =
-            holdingId === s.id && holdProgress > 0 && state !== "tuned";
+          const stroke = stringStroke(
+            state,
+            isLive ? liveDirection : null,
+            isLive,
+          );
 
           return (
-            <g key={s.id}>
-              {vibrating ? (
-                <path
-                  d={stringPath(x, wobble * 0.55)}
-                  fill="none"
-                  stroke={stroke.color}
-                  strokeWidth={stroke.width + 3}
-                  strokeLinecap="round"
-                  opacity={0.12}
-                />
-              ) : null}
+            <g key={`line-${s.id}`}>
               <path
-                d={path}
+                ref={(el) => {
+                  glowRefs.current[i] = el;
+                }}
+                d={`M ${x} ${TOP_Y} L ${x} ${BOTTOM_Y}`}
+                fill="none"
+                stroke={stroke.color}
+                strokeWidth={stroke.width + 5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity={0}
+              />
+              <path
+                ref={(el) => {
+                  pathRefs.current[i] = el;
+                }}
+                d={`M ${x} ${TOP_Y} L ${x} ${BOTTOM_Y}`}
                 fill="none"
                 stroke={stroke.color}
                 strokeWidth={stroke.width}
                 strokeLinecap="round"
+                strokeLinejoin="round"
                 opacity={stroke.opacity}
               />
-              {/* Tiny seat on the rail */}
               <circle
                 cx={x}
                 cy={BOTTOM_Y}
-                r={state === "tuned" || isLive ? 2.2 : 1.6}
+                r={state === "tuned" || isLive ? 2.6 : 2.1}
                 fill={
                   state === "tuned"
                     ? "var(--musai-ok)"
                     : isLive
                       ? "var(--musai-ink)"
-                      : "var(--musai-border)"
+                      : "color-mix(in srgb, var(--musai-ink) 45%, var(--musai-border))"
                 }
               />
-
-              <g>
-                <circle
-                  cx={x}
-                  cy={LABEL_Y}
-                  r="13.5"
-                  fill="var(--musai-surface)"
-                  stroke={
-                    state === "tuned"
-                      ? "var(--musai-ok)"
-                      : isLive && liveDirection === "low"
-                        ? "var(--musai-pitch-low)"
-                        : isLive && liveDirection === "high"
-                          ? "var(--musai-pitch-high)"
-                          : isLive
-                            ? "color-mix(in srgb, var(--musai-ok) 55%, var(--musai-border))"
-                            : "var(--musai-border)"
-                  }
-                  strokeWidth={state === "tuned" || isLive ? 1.5 : 1}
-                />
-                {showHold ? (
-                  <circle
-                    cx={x}
-                    cy={LABEL_Y}
-                    r={r}
-                    fill="none"
-                    stroke="var(--musai-ok)"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeDasharray={circ}
-                    strokeDashoffset={circ * (1 - holdProgress)}
-                    transform={`rotate(-90 ${x} ${LABEL_Y})`}
-                  />
-                ) : null}
-                {state === "tuned" ? (
-                  <circle
-                    cx={x}
-                    cy={LABEL_Y}
-                    r="13.5"
-                    fill="var(--musai-ok)"
-                    opacity="0.12"
-                  />
-                ) : null}
-                <text
-                  x={x}
-                  y={LABEL_Y + 4.5}
-                  textAnchor="middle"
-                  className="font-display"
-                  style={{
-                    fontSize: "13px",
-                    fontWeight: 600,
-                    fill: labelFill,
-                  }}
-                >
-                  {s.id}
-                </text>
-              </g>
             </g>
           );
         })}
       </svg>
+
+      <div className="musai-tuner-slots" aria-hidden>
+        {strings.map((s, i) => {
+          const x = XS[i]!;
+          const state = stringState(s.id, activeId, tuned, holdingId);
+          const isLive = activeId === s.id;
+          const showHold =
+            holdingId === s.id && holdProgress > 0 && state !== "tuned";
+          return (
+            <span
+              key={s.id}
+              className="musai-tuner-bead"
+              data-tone={slotTone(state, isLive ? liveDirection : null)}
+              style={{ left: `${(x / VIEW_W) * 100}%` }}
+            >
+              <span
+                className="musai-tuner-bead__bloom"
+                ref={(el) => {
+                  bloomRefs.current[s.id] = el;
+                }}
+              />
+              {showHold ? (
+                <svg
+                  className="musai-tuner-bead__hold"
+                  viewBox={`0 0 ${HOLD_VIEW} ${HOLD_VIEW}`}
+                  aria-hidden
+                >
+                  <circle
+                    cx={HOLD_VIEW / 2}
+                    cy={HOLD_VIEW / 2}
+                    r={HOLD_R}
+                    fill="none"
+                    stroke="var(--musai-ok)"
+                    strokeWidth={HOLD_STROKE}
+                    strokeLinecap="butt"
+                    vectorEffect="non-scaling-stroke"
+                    strokeDasharray={HOLD_C}
+                    strokeDashoffset={HOLD_C * (1 - holdProgress)}
+                    transform={`rotate(-90 ${HOLD_VIEW / 2} ${HOLD_VIEW / 2})`}
+                  />
+                </svg>
+              ) : null}
+              <span className="musai-tuner-bead__letter font-display">
+                {s.id}
+              </span>
+            </span>
+          );
+        })}
+      </div>
     </div>
   );
 }

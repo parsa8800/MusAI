@@ -1,0 +1,105 @@
+---
+description: Shared instrument profiles — one feature implementation per studio/tool
+alwaysApply: true
+---
+
+# Instrument architecture
+
+## Core rule
+
+Every studio, trainer, and practice tool is implemented **once**.
+
+Instrument differences come from the shared instrument configuration system
+(`src/lib/instrument/*` + `InstrumentProvider`). Do **not** create parallel
+instrument-specific feature trees.
+
+| Do | Do not |
+|----|--------|
+| `PieceStudio` | `ViolinPieceStudio` / `ViolaPieceStudio` |
+| `ScaleStudio` | `ViolinScaleStudio` / `ViolaScaleStudio` |
+| `Tuner` / Note trainer / future `RhythmStudio` | Per-instrument copies of the same feature |
+
+A UI, animation, UX, or logic improvement to a studio is made **once** and
+applies to every supported instrument automatically.
+
+Shared **chrome** (recording, viewport, coach bubble) follows the same rule:
+one `MusaiMicCapturePanel` / `MusaiCaptureDock`, not a copy per studio. See
+`.cursor/rules/shared-studio-capture.mdc`.
+
+## Data flow
+
+```
+Feature (Piece / Scale / Tuner / …)
+        ↓
+useInstrument() / InstrumentProfile helpers
+        ↓
+Violin · Viola · future instruments (profiles only)
+```
+
+## Put instrument specifics in profiles / helpers
+
+Prefer central config and helpers for:
+
+- strings, tuning, open-string layout
+- primary clef and notation rules
+- playable pitch range / Hz window
+- scale registers and expected pitch sequences
+- instrument name, coach role, method-book hints
+- playback / soundfont hints when tied to the **player** instrument
+- any genuine musical constraints
+
+Feature UI and flow code should **consume** this data, not hard-code violin or viola.
+
+## Avoid scattered instrument branches
+
+Do **not** sprinkle UI with:
+
+```ts
+if (instrument === "viola") { … }
+if (instrument.id === "violin") { … }
+```
+
+If behaviour must differ, prefer:
+
+1. fields on `InstrumentProfile`
+2. reusable helpers under `src/lib/instrument/`
+3. small strategy modules keyed by capability — not by copying the whole feature
+
+Keep instrument logic out of presentation components whenever practical.
+
+## Adding a new feature
+
+Example: Rhythm Studio
+
+1. Build **one** `RhythmStudio` (one route, one view tree)
+2. Read `useInstrument()` (or pass `InstrumentProfile` into pure libs)
+3. Persist `instrumentId` on sessions / progress keys when needed
+4. Pass pitch windows into analysis explicitly — do not rely on violin defaults in shared analyzers
+5. Extend profiles/helpers if the feature needs new instrument fields
+
+## Adding a new instrument
+
+Primarily:
+
+1. Extend `InstrumentId` + catalog
+2. Add a profile (strings, clef, range, scale defaults, coach copy, …)
+3. Add only rules that cannot be derived from the profile (e.g. fingering)
+
+Do **not** rebuild every studio for the new instrument.
+
+## Existing naming debt (do not make worse)
+
+Some shared modules still have violin-branded names (`ViolinTuner`, `ScaleTrebleStaff`,
+`violinTuner.ts`) but are already instrument-agnostic. Prefer renaming toward
+neutral names when touching those files; never fork a Viola copy instead.
+
+Piece Studio playback timbre (`piano` | `violin` soundfont) is **not** the same
+as Settings player instrument — do not conflate the two IDs.
+
+## Checklist before shipping feature work
+
+- [ ] One implementation path for all instruments
+- [ ] No new `ViolinX` / `ViolaX` feature components
+- [ ] Instrument differences live in profile or `src/lib/instrument` helpers
+- [ ] Analysis / detection receives profile pitch bounds when relevant
+- [ ] Progress / session keys include `instrumentId` when history is per-instrument

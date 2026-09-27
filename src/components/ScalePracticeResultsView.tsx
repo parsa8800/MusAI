@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { MusaiLoadingMark } from "@/components/MusaiLoadingMark";
 import { AnimatedReveal } from "@/components/motion/AnimatedReveal";
 import {
   MusaiSplitPane,
@@ -19,8 +20,15 @@ import { ScaleInlineFeedback } from "@/components/ScaleInlineFeedback";
 import { ScalePitchCueKey } from "@/components/ScalePitchCueKey";
 import { DraftNotesFrame, DraftTipsFrame } from "@/components/ScaleStudioHomeDraft";
 import { ScaleTakeHistoryStrip } from "@/components/ScaleTakeHistoryStrip";
+import {
+  ScaleFingeringToggle,
+  useScaleFingeringEnabled,
+} from "@/components/ScaleFingeringToggle";
 import { ScaleTrebleStaff } from "@/components/ScaleTrebleStaff";
+import { StudioCoachLauncher } from "@/components/StudioCoachLauncher";
 import { alignExpectedMidisToDetectedOctave } from "@/lib/alignScaleOctave";
+import { useInstrument } from "@/components/InstrumentProvider";
+import { hasStringFingering, instrumentForSession } from "@/lib/instrument";
 import type { ScalePracticeSessionV1 } from "@/lib/scalePracticeTypes";
 import { buildTakeSummaries } from "@/lib/scaleTakeHistory";
 import { type ScaleStudioPhase } from "@/lib/scaleTakeLoop";
@@ -54,6 +62,7 @@ export function ScalePracticeResultsView({
   readyCaption = "",
   readyStaff,
   showStaffHeading = true,
+  quietHome = false,
 }: {
   session?: ScalePracticeSessionV1 | null;
   /** Chronological attempts in the current loop (includes `session`). */
@@ -71,8 +80,15 @@ export function ScalePracticeResultsView({
   readyStaff?: ScaleStudioReadyStaff | "draft";
   /** When false, only take caption / historical nav show above the stave. */
   showStaffHeading?: boolean;
+  /**
+   * Scale Studio home before a take: quieter frames.
+   * The coach is the same edge button on home and on a scale page.
+   */
+  quietHome?: boolean;
 }) {
   const embedded = Boolean(capture);
+  const { instrument } = useInstrument();
+  const fingeringsOn = useScaleFingeringEnabled();
   const hasSession = Boolean(session);
   const resolvedPhase: ScaleStudioPhase =
     phase ?? (hasSession ? "results" : "ready");
@@ -80,6 +96,8 @@ export function ScalePracticeResultsView({
   const [ready, setReady] = useState(!hasSession);
   const [chatStart, setChatStart] = useState(!hasSession);
   const [viewedSessionId, setViewedSessionId] = useState<string | null>(null);
+  const [coachOpen, setCoachOpen] = useState(false);
+  const homeQuiet = quietHome && !session;
   const seenSessionRef = useRef<string | null>(null);
   const attempts = useMemo(
     () =>
@@ -107,6 +125,11 @@ export function ScalePracticeResultsView({
     if (viewedSessionId === latestSession.sessionId) return latestSession;
     return attempts.find((a) => a.sessionId === viewedSessionId) ?? latestSession;
   }, [attempts, latestSession, livePhase, viewedSessionId]);
+  const fingeringInstrument = displaySession
+    ? instrumentForSession(displaySession)
+    : instrument;
+  const stringFingers = hasStringFingering(fingeringInstrument);
+  const showFingerings = fingeringsOn && stringFingers;
   const viewingHistorical = Boolean(
     displaySession &&
       latestSession &&
@@ -171,6 +194,7 @@ export function ScalePracticeResultsView({
     const displayMidis = alignExpectedMidisToDetectedOctave(
       expectedNotesMidi,
       notes,
+      instrumentForSession(displaySession),
     );
     const n = displayMidis.length;
     const looksRoundTrip = n >= 3 && displayMidis[0] === displayMidis[n - 1];
@@ -194,6 +218,9 @@ export function ScalePracticeResultsView({
 
   const inLoop = Boolean(onTryAgain);
   const title = session?.scaleLabel ?? readyTitle;
+  const scaleNotesReady = Boolean(
+    displaySession || (readyStaff && readyStaff !== "draft"),
+  );
   const viewedTakeNumber = displaySession
     ? Math.max(
         1,
@@ -204,7 +231,7 @@ export function ScalePracticeResultsView({
     resolvedPhase === "recording"
       ? "Recording"
       : resolvedPhase === "analysing"
-        ? "Analysing…"
+        ? "Listening…"
         : viewingHistorical
           ? `Take ${viewedTakeNumber}`
           : displaySession && octaveSpan
@@ -265,9 +292,11 @@ export function ScalePracticeResultsView({
       <div
         data-anime-enter
         className={
-          embedded
-            ? "min-h-0 flex-1 overflow-hidden"
-            : "h-auto min-h-0 overflow-hidden md:h-[min(70vh,42rem)] md:min-h-[26rem]"
+          `${
+            embedded
+              ? "min-h-0 flex-1 overflow-hidden"
+              : "h-auto min-h-0 overflow-hidden md:h-[min(70vh,42rem)] md:min-h-[26rem]"
+          }${homeQuiet ? " musai-studio-home--quiet" : ""}`
         }
       >
         <MusaiSplitPane
@@ -282,11 +311,12 @@ export function ScalePracticeResultsView({
           left={
             <div className="musai-studio-col flex h-full min-h-0 flex-col">
             <section
-              className={`musai-glass-panel flex min-h-0 flex-1 flex-col overflow-hidden ${
+              className={`musai-glass-panel relative flex min-h-0 flex-1 flex-col overflow-hidden ${
                 embedded
                   ? "musai-studio-notes-panel px-2.5 py-1.5 sm:px-3 sm:py-2"
                   : "px-4 py-4 sm:px-5 sm:py-5"
               }`}
+              data-coach={coachOpen ? "open" : undefined}
               data-historical={viewingHistorical ? "true" : "false"}
               aria-label={
                 viewingHistorical
@@ -310,13 +340,16 @@ export function ScalePracticeResultsView({
                 <div
                   className={`musai-scale-staff-heading${
                     embedded ? " musai-scale-staff-heading--compact" : ""
-                  }${!caption && !viewingHistorical ? " musai-scale-staff-heading--title-only" : ""}`}
+                  }${!caption && !viewingHistorical ? " musai-scale-staff-heading--title-only" : ""}${
+                    scaleNotesReady ? " musai-scale-staff-heading--finger" : ""
+                  }`}
                 >
                   {showStaffHeading ? (
                     <h1 className="musai-scale-staff-heading__title font-display">
                       {title}
                     </h1>
                   ) : null}
+                  {scaleNotesReady && stringFingers ? <ScaleFingeringToggle /> : null}
                   {caption ? (
                     <p
                       className="musai-scale-staff-heading__take"
@@ -352,24 +385,23 @@ export function ScalePracticeResultsView({
                     scaleKind={displaySession.scaleKind}
                     keepPhrasesWhole
                     density={embedded ? "pad" : "default"}
+                    showFingerings={showFingerings}
                     className="min-h-0 flex-1"
                   />
                 ) : resolvedPhase === "analysing" ? (
                   <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3">
-                    <div
-                      className="h-10 w-10 rounded-full border-2 border-transparent border-t-[var(--musai-accent)] motion-safe:animate-spin motion-reduce:animate-none"
-                      aria-hidden
-                    />
+                    <MusaiLoadingMark />
                     <p className="text-[14px] font-medium text-[var(--musai-ink)]">
-                      Analysing…
+                      Listening…
                     </p>
                   </div>
                 ) : readyStaff && readyStaff !== "draft" ? (
-                  <div
-                    className="musai-notes-draft-frame musai-notes-preview flex min-h-0 w-full flex-1 flex-col justify-center overflow-hidden px-2.5 py-2.5 sm:px-3.5 sm:py-3"
-                    role="img"
-                    aria-label="Selected scale preview. Your notes and feedback will appear here"
-                  >
+                  <>
+                    {showStaffHeading || caption || viewingHistorical || !stringFingers ? null : (
+                      <div className="musai-notes-finger flex w-full shrink-0 justify-center">
+                        <ScaleFingeringToggle />
+                      </div>
+                    )}
                     <ScaleTrebleStaff
                       ascendingMidis={readyStaff.ascendingMidis}
                       descendingMidis={readyStaff.descendingMidis}
@@ -377,10 +409,10 @@ export function ScalePracticeResultsView({
                       scaleKind={readyStaff.scaleKind}
                       keepPhrasesWhole
                       density={embedded ? "pad" : "default"}
-                      appearance="preview"
+                      showFingerings={showFingerings}
                       className="min-h-0 flex-1"
                     />
-                  </div>
+                  </>
                 ) : (
                   <DraftNotesFrame className="min-h-0 flex-1" />
                 )}
@@ -391,6 +423,49 @@ export function ScalePracticeResultsView({
                   <ScalePitchCueKey compact />
                 </div>
               ) : null}
+
+              {coachOpen ? (
+                <aside
+                  id="scale-studio-coach"
+                  className="musai-studio-coach-drawer"
+                  aria-label="Coach"
+                >
+                  {session && chatStart ? (
+                    <ScaleInlineFeedback
+                      session={session}
+                      loopAttempts={attempts}
+                    />
+                  ) : session ? (
+                    <div className="musai-glass-panel flex h-full min-h-0 items-center gap-2.5 px-3 py-2.5">
+                      <div
+                        className="h-5 w-5 shrink-0 rounded-full border-2 border-[var(--musai-border)] border-t-[var(--musai-accent)] motion-safe:animate-spin motion-reduce:animate-none"
+                        aria-hidden
+                      />
+                      <p className="text-[14px] font-medium text-[var(--musai-ink)]">
+                        Coach · Parsa
+                      </p>
+                    </div>
+                  ) : resolvedPhase === "analysing" ? (
+                    <div className="musai-glass-panel flex h-full min-h-0 items-center gap-2.5 px-3 py-2.5">
+                      <div
+                        className="h-5 w-5 shrink-0 rounded-full border-2 border-[var(--musai-border)] border-t-[var(--musai-accent)] motion-safe:animate-spin motion-reduce:animate-none"
+                        aria-hidden
+                      />
+                      <p className="text-[14px] font-medium text-[var(--musai-ink)]">
+                        Listening…
+                      </p>
+                    </div>
+                  ) : (
+                    <DraftTipsFrame className="musai-glass-panel h-full min-h-0" />
+                  )}
+                </aside>
+              ) : null}
+
+              <StudioCoachLauncher
+                open={coachOpen}
+                controlsId="scale-studio-coach"
+                onToggle={() => setCoachOpen((open) => !open)}
+              />
             </section>
             {embedded && capture ? (
               <div className="musai-studio-stage__capture shrink-0">
@@ -399,43 +474,7 @@ export function ScalePracticeResultsView({
             ) : null}
             </div>
           }
-          right={
-            <aside
-              className={`flex h-full min-h-0 flex-col overflow-hidden ${
-                embedded ? "px-1.5 py-1 sm:px-2 sm:py-1.5" : "px-3 py-4 sm:px-4 sm:py-5"
-              }`}
-              aria-label="Coach feedback"
-            >
-              {session && chatStart ? (
-                <ScaleInlineFeedback
-                  session={session}
-                  loopAttempts={attempts}
-                />
-              ) : session ? (
-                <div className="musai-glass-panel flex items-center gap-2.5 px-3 py-2.5">
-                  <div
-                    className="h-5 w-5 shrink-0 rounded-full border-2 border-[var(--musai-border)] border-t-[var(--musai-accent)] motion-safe:animate-spin motion-reduce:animate-none"
-                    aria-hidden
-                  />
-                  <p className="text-[14px] font-medium text-[var(--musai-ink)]">
-                    Coach · Parsa
-                  </p>
-                </div>
-              ) : resolvedPhase === "analysing" ? (
-                <div className="musai-glass-panel flex items-center gap-2.5 px-3 py-2.5">
-                  <div
-                    className="h-5 w-5 shrink-0 rounded-full border-2 border-[var(--musai-border)] border-t-[var(--musai-accent)] motion-safe:animate-spin motion-reduce:animate-none"
-                    aria-hidden
-                  />
-                  <p className="text-[14px] font-medium text-[var(--musai-ink)]">
-                    Analysing…
-                  </p>
-                </div>
-              ) : (
-                <DraftTipsFrame className="musai-glass-panel h-full min-h-0" />
-              )}
-            </aside>
-          }
+          right={null}
         />
       </div>
 

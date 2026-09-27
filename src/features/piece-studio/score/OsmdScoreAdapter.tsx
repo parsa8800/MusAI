@@ -1,15 +1,24 @@
 "use client";
 
+import { animate } from "animejs";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createDefaultScoreRenderer } from "@/features/piece-studio/score/createDefaultScoreRenderer";
-import { overlayRectsForRange } from "@/features/piece-studio/score/scoreOverlayGeometry";
 import {
-  interpolateCursorBand,
+  overlayNoteUnderlinesForRange,
+  overlayRectsForRange,
+  shapePassageUnderlay,
+} from "@/features/piece-studio/score/scoreOverlayGeometry";
+import {
+  applyPitchNoteheadTints,
+  clearPitchNoteheadTints,
+} from "@/features/piece-studio/score/pitchNoteheadTint";
+import type { PitchNoteMark } from "@/features/piece-studio/feedback/visual/piecePitchScoreMap";
+import { collectStaffBandsFromDom } from "@/features/piece-studio/score/staffBands";
+import { ScorePlaybackPlayhead } from "@/features/piece-studio/score/ScorePlaybackPlayhead";
+import {
   pickCursorTime,
-  type CursorBand,
   type CursorPose,
 } from "@/features/piece-studio/score/cursorTrack";
-import { shapeNotePlateRect } from "@/features/piece-studio/score/notePlate";
 import type { PiecePlaybackTimeListener } from "@/features/piece-studio/playback/playbackTime";
 import {
   readPieceOsmdTheme,
@@ -20,7 +29,6 @@ import { musicXmlRenderSource } from "@/features/piece-studio/score/scoreRenderS
 import {
   classifyScoreScrollDensity,
   clampScorePageIndex,
-  shouldOfferScoreViewModes,
   type PieceScoreViewMode,
   type ScoreLayoutMetrics,
   type ScoreScrollDensity,
@@ -30,7 +38,31 @@ import {
   musicXmlPreviewLog,
   waitForScoreViewport,
 } from "@/features/piece-studio/score/scoreViewport";
-import { tapFeedback } from "@/lib/motion";
+import { MUSAI_DUR, MUSAI_EASE, prefersReducedMotion } from "@/lib/motion";
+
+function errorLogDetail(err: unknown): { message: string; stack?: string } {
+  if (err instanceof Error) {
+    return { message: err.message || err.name, stack: err.stack };
+  }
+  if (err && typeof err === "object") {
+    const rec = err as { message?: unknown; stack?: unknown };
+    const message =
+      typeof rec.message === "string" && rec.message
+        ? rec.message
+        : (() => {
+            try {
+              return JSON.stringify(err);
+            } catch {
+              return String(err);
+            }
+          })();
+    return {
+      message,
+      stack: typeof rec.stack === "string" ? rec.stack : undefined,
+    };
+  }
+  return { message: String(err) };
+}
 
 export type PieceScoreHighlight = {
   id: string;
@@ -41,6 +73,13 @@ export type PieceScoreHighlight = {
   source?: "analysis" | "mock-preview";
   visualTone?: "pitch" | "rhythm" | "rushing" | "dragging" | "dynamics" | null;
   visualStyle?: "note" | "measure" | "heat" | null;
+  /** Focused issue vs other issues in the same category. */
+  emphasis?: "focus" | "related";
+  /**
+   * Pitch notehead tint — sharp / flat / missed.
+   * When set with pitch tone, heads are coloured in the SVG (no circle plate).
+   */
+  pitchKind?: "sharp" | "flat" | "missed" | null;
 };
 
 /** Import review / gated preview — parent enables confirm only after `ready`. */
@@ -126,28 +165,7 @@ function metricsLookEngraved(metrics: ScoreLayoutMetrics): boolean {
   return metrics.contentWidthPx >= 12 && metrics.contentHeightPx >= 12;
 }
 
-function shapeOverlayRect(
-  rect: { x: number; y: number; width: number; height: number },
-  style: PieceScoreHighlight["visualStyle"],
-) {
-  if (style === "note") {
-    return shapeNotePlateRect(rect);
-  }
-  if (style === "measure") {
-    return {
-      ...rect,
-      y: rect.y - 4,
-      height: rect.height + 10,
-    };
-  }
-  return rect;
-}
-
-const VIEW_MODE_OPTIONS: { value: PieceScoreViewMode; label: string }[] = [
-  { value: "continuous", label: "Continuous" },
-  { value: "page", label: "Page" },
-  { value: "overview", label: "Overview" },
-];
+export const PIECE_SCORE_ORIGINAL_SLOT_ID = "musai-piece-original-slot";
 
 /**
  * React shell over ScoreRenderer.
@@ -158,12 +176,21 @@ export function OsmdScoreAdapter({
   musicXml,
   title,
   followPlayback = false,
+  showPlayhead,
   subscribePlaybackTime,
   getPlaybackTime,
   wholeNotesToSeconds,
   onSeek,
+  onLoopMark,
+  loopSpan = null,
+  loopPicking = false,
+  onScrubPreview,
+  onScrubCommit,
+  getPlaying,
   playbackNotes,
   highlight = null,
+  highlights = null,
+  pitchMarks = null,
   onHighlightSelect,
   onPaintState,
   showInlineError = true,
@@ -173,14 +200,35 @@ export function OsmdScoreAdapter({
   musicXml: string;
   title: string;
   followPlayback?: boolean;
+  /**
+   * Shared vertical playhead. Defaults to `followPlayback`.
+   * Practise turns this on without Listen layout so heat overlays stay.
+   */
+  showPlayhead?: boolean;
   subscribePlaybackTime?: (listener: PiecePlaybackTimeListener) => () => void;
   getPlaybackTime?: () => number;
   wholeNotesToSeconds?: (wholeNotes: number) => number;
   onSeek?: (tSec: number) => void;
+  /** Score tap while a loop is being chosen — start bar, then end bar. */
+  onLoopMark?: (tSec: number) => void;
+  loopSpan?: { startSec: number; endSec: number } | null;
+  loopPicking?: boolean;
+  /** Listen playhead drag — silent preview while moving. */
+  onScrubPreview?: (tSec: number) => void;
+  /** Listen playhead drag — commit on pointer up (`resume` = was playing). */
+  onScrubCommit?: (tSec: number, resume: boolean) => void;
+  getPlaying?: () => boolean;
   /** MusaiScore note times — when set, playhead clock follows these, not OSMD units. */
   playbackNotes?: readonly { startSec: number; endSec: number }[];
-  /** One focused overlay at a time. Listen playback hides it. */
+  /** Single focused overlay. Prefer `highlights` when a category has several. */
   highlight?: PieceScoreHighlight | null;
+  /** Focused issue overlays. Listen playback hides them. */
+  highlights?: readonly PieceScoreHighlight[] | null;
+  /**
+   * Pitch notehead colour map — tints engraved heads (no circle plates).
+   * Cleared when empty / Listen follow mode.
+   */
+  pitchMarks?: readonly PitchNoteMark[] | null;
   onHighlightSelect?: (id: string) => void;
   /** Fires preparing → ready | failed. Import review gates confirm on `ready`. */
   onPaintState?: (state: ScorePaintState) => void;
@@ -192,10 +240,11 @@ export function OsmdScoreAdapter({
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
-  const cursorRef = useRef<HTMLSpanElement>(null);
-  const bandRef = useRef<HTMLSpanElement>(null);
   const rendererRef = useRef<ScoreRenderer | null>(null);
   const snapsRef = useRef<CursorPose[]>([]);
+  const staffBandsRef = useRef<ReturnType<typeof collectStaffBandsFromDom>>(
+    [],
+  );
   const convertRef = useRef(wholeNotesToSeconds);
   convertRef.current = wholeNotesToSeconds;
   const playbackNotesRef = useRef(playbackNotes);
@@ -204,6 +253,7 @@ export function OsmdScoreAdapter({
   onPaintStateRef.current = onPaintState;
   const paintPurposeRef = useRef(paintPurpose);
   paintPurposeRef.current = paintPurpose;
+  const playheadOn = showPlayhead ?? followPlayback;
   const themeRef = useRef<PieceOsmdTheme>(
     themeOverride ?? readPieceOsmdTheme(),
   );
@@ -211,34 +261,141 @@ export function OsmdScoreAdapter({
   const engravedModeRef = useRef<PieceScoreViewMode | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [snapVersion, setSnapVersion] = useState(0);
-  const [viewMode, setViewMode] = useState<PieceScoreViewMode>("continuous");
+  const viewMode: PieceScoreViewMode = "continuous";
   const [pageIndex, setPageIndex] = useState(0);
   const [metrics, setMetrics] = useState<ScoreLayoutMetrics | null>(null);
-  const [density, setDensity] = useState<ScoreScrollDensity>("scroll");
-  const [viewportHeight, setViewportHeight] = useState(0);
-  const lastScrollY = useRef<number | null>(null);
+  const [density, setDensity] = useState<ScoreScrollDensity>("compact");
   /** Re-apply Listen pose after layout snapshot refreshes (snapsRef only). */
   const syncPlaybackPoseRef = useRef<(() => void) | null>(null);
+  const suppressScoreClickRef = useRef(false);
   viewModeRef.current = followPlayback ? "continuous" : viewMode;
+  const scrubEnabled = Boolean(
+    followPlayback && onScrubPreview && onScrubCommit,
+  );
 
-  const heatRects = useMemo(() => {
-    if (followPlayback || !highlight) return [];
+  const activeHighlights = useMemo(() => {
+    if (highlights && highlights.length > 0) return highlights;
+    return highlight ? [highlight] : [];
+  }, [highlight, highlights]);
+
+  const heatOverlays = useMemo(() => {
+    if (followPlayback || activeHighlights.length === 0) return [];
     const convert =
       convertRef.current ?? ((wn: number) => wn * 4 * (60 / 100));
-    return overlayRectsForRange(
-      snapsRef.current,
-      convert(highlight.startWholeNotes),
-      convert(highlight.endWholeNotes),
-    );
+    const snaps = snapsRef.current;
+    const wrap = wrapRef.current;
+    const staffBands = wrap ? collectStaffBandsFromDom(wrap) : [];
+    type OverlayPaint = {
+      key: string;
+      highlight: PieceScoreHighlight;
+      style: NonNullable<PieceScoreHighlight["visualStyle"]>;
+      rect: { x: number; y: number; width: number; height: number };
+    };
+    const out: OverlayPaint[] = [];
+    for (const item of activeHighlights) {
+      const style = item.visualStyle ?? "note";
+      // Pitch notes are coloured on the engraved head — never a plate/circle.
+      if (item.visualTone === "pitch" && style === "note") continue;
+      const start = convert(item.startWholeNotes);
+      const end = convert(item.endWholeNotes);
+      const rects =
+        style === "note"
+          ? overlayNoteUnderlinesForRange(snaps, start, end)
+          : overlayRectsForRange(snaps, start, end, staffBands).map((rect) =>
+              shapePassageUnderlay(rect, style),
+            );
+      rects.forEach((rect, i) => {
+        out.push({
+          key: `${item.id}-${i}`,
+          highlight: item,
+          style,
+          rect,
+        });
+      });
+    }
+    // Focused issue paints above related category cues.
+    out.sort((a, b) => {
+      const ae = a.highlight.emphasis === "related" ? 0 : 1;
+      const be = b.highlight.emphasis === "related" ? 0 : 1;
+      return ae - be;
+    });
+    return out;
     // snapVersion refreshes after layout; highlight identity drives overlays.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     followPlayback,
-    highlight?.id,
-    highlight?.startWholeNotes,
-    highlight?.endWholeNotes,
+    activeHighlights,
     snapVersion,
   ]);
+
+  const loopWash = useMemo(() => {
+    if (!loopSpan) return [];
+    const snaps = snapsRef.current;
+    const wrap = wrapRef.current;
+    const staffBands = wrap ? collectStaffBandsFromDom(wrap) : [];
+    return overlayRectsForRange(
+      snaps,
+      loopSpan.startSec,
+      loopSpan.endSec,
+      staffBands,
+    );
+  }, [loopSpan, snapVersion]);
+
+  const focusHighlightId = useMemo(() => {
+    const focused = activeHighlights.find(
+      (item) => (item.emphasis ?? "focus") === "focus",
+    );
+    return focused?.id ?? activeHighlights[0]?.id ?? null;
+  }, [activeHighlights]);
+
+  useEffect(() => {
+    if (followPlayback || !focusHighlightId || heatOverlays.length === 0) return;
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    const els = [
+      ...wrap.querySelectorAll<HTMLElement>(
+        `[data-testid="piece-score-heat"][data-emphasis="focus"]`,
+      ),
+    ];
+    if (els.length === 0) return;
+    const reduce = prefersReducedMotion();
+    els[0]?.scrollIntoView({
+      behavior: reduce ? "auto" : "smooth",
+      block: "nearest",
+      inline: "nearest",
+    });
+    if (reduce) return;
+    const anim = animate(els, {
+      opacity: [0.35, 1],
+      duration: MUSAI_DUR.base,
+      ease: MUSAI_EASE.out,
+    });
+    return () => {
+      try {
+        (anim as { pause: () => void; revert?: () => void }).pause();
+        (anim as { revert?: () => void }).revert?.();
+      } catch {
+        /* cleanup */
+      }
+    };
+  }, [followPlayback, focusHighlightId, heatOverlays]);
+
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    if (followPlayback || !wrap) {
+      clearPitchNoteheadTints(wrap);
+      return;
+    }
+    const marks = pitchMarks ?? [];
+    const convert =
+      convertRef.current ?? ((wn: number) => wn * 4 * (60 / 100));
+    applyPitchNoteheadTints(wrap, snapsRef.current, marks, convert);
+    return () => {
+      clearPitchNoteheadTints(wrap);
+    };
+    // snapVersion refreshes after layout so heads exist to tint.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [followPlayback, pitchMarks, snapVersion]);
 
   const takeSnapshots = () => {
     const renderer = rendererRef.current;
@@ -252,6 +409,7 @@ export function OsmdScoreAdapter({
         playbackNotesRef.current,
       );
       snapsRef.current = next;
+      staffBandsRef.current = collectStaffBandsFromDom(wrap);
       if (process.env.NODE_ENV !== "production") {
         const svg = wrap.querySelector("svg");
         const wrapRect = wrap.getBoundingClientRect();
@@ -286,6 +444,7 @@ export function OsmdScoreAdapter({
       }
     } catch (err) {
       snapsRef.current = [];
+      staffBandsRef.current = [];
       if (process.env.NODE_ENV !== "production") {
         console.error("[piece-osmd] cursor snapshot walk failed", err);
       }
@@ -414,7 +573,6 @@ export function OsmdScoreAdapter({
         if (!cancelled) {
           engravedModeRef.current = viewModeRef.current;
           setMetrics(nextMetrics);
-          setViewportHeight(height);
           setDensity((prev) => {
             const next =
               paintPurposeRef.current === "import-preview"
@@ -450,10 +608,7 @@ export function OsmdScoreAdapter({
         }
         return true;
       } catch (err) {
-        musicXmlPreviewLog("PREVIEW_RENDER_FAIL", {
-          message: err instanceof Error ? err.message : String(err),
-          stack: err instanceof Error ? err.stack : undefined,
-        });
+        musicXmlPreviewLog("PREVIEW_RENDER_FAIL", errorLogDetail(err));
         if (!cancelled) {
           setError("Couldn’t display this score");
           reportPaint("failed");
@@ -523,10 +678,7 @@ export function OsmdScoreAdapter({
           scheduleSnapshot();
         });
       } catch (err) {
-        musicXmlPreviewLog("PREVIEW_RENDER_FAIL", {
-          message: err instanceof Error ? err.message : String(err),
-          stack: err instanceof Error ? err.stack : undefined,
-        });
+        musicXmlPreviewLog("PREVIEW_RENDER_FAIL", errorLogDetail(err));
         if (!cancelled) {
           setError("Couldn’t display this score");
           reportPaint("failed");
@@ -630,7 +782,6 @@ export function OsmdScoreAdapter({
       });
       engravedModeRef.current = mode;
       setMetrics(nextMetrics);
-      setViewportHeight(height);
       setDensity((prev) => {
         const next =
           paintPurposeRef.current === "import-preview"
@@ -638,11 +789,6 @@ export function OsmdScoreAdapter({
             : classifyScoreScrollDensity(nextMetrics, height || width);
         return prev === next ? prev : next;
       });
-      if (!followPlayback && mode === "page") {
-        const page = clampScorePageIndex(pageIndex, nextMetrics.pageCount);
-        setPageIndex(page);
-        renderer.setVisiblePage?.(page);
-      }
       return takeSnapshotsAfterLayout();
     } catch (err) {
       if (process.env.NODE_ENV !== "production") {
@@ -671,115 +817,32 @@ export function OsmdScoreAdapter({
   }, [density]);
 
   useEffect(() => {
-    if (viewMode !== "page" || followPlayback) return;
-    rendererRef.current?.setVisiblePage?.(pageIndex);
-  }, [pageIndex, viewMode, followPlayback]);
-
-  useEffect(() => {
-    const el = cursorRef.current;
-    const band = bandRef.current;
-    if (!followPlayback) {
-      if (el) el.style.visibility = "hidden";
-      if (band) band.style.visibility = "hidden";
-      lastScrollY.current = null;
-      return;
-    }
-    if (!subscribePlaybackTime) return;
-
-    // Listen armed — re-collect once. snaps live in snapsRef; do not depend on
-    // snapVersion here or takeSnapshots → setSnapVersion loops forever.
+    if (!playheadOn) return;
+    // Playhead armed (Listen or Practise replay) — re-collect once.
     takeSnapshots();
-
-    const applyPose = (next: CursorBand | null) => {
-      if (!band) return;
-      if (!next) {
-        if (el) el.style.visibility = "hidden";
-        band.style.visibility = "hidden";
-        return;
-      }
-      if (el) el.style.visibility = "visible";
-      band.style.visibility = "visible";
-      band.style.width = `${next.width}px`;
-      band.style.height = `${next.height}px`;
-      band.style.transform = `translate3d(${next.x}px, ${next.y}px, 0)`;
-
-      const wrap = wrapRef.current;
-      if (!wrap) return;
-      const viewTop = wrap.scrollTop + wrap.clientHeight * 0.14;
-      const viewBottom = wrap.scrollTop + wrap.clientHeight * 0.82;
-      const cursorMid = next.y + next.height / 2;
-      if (cursorMid >= viewTop && cursorMid <= viewBottom) return;
-      if (
-        lastScrollY.current != null &&
-        Math.abs(lastScrollY.current - next.y) < 6
-      ) {
-        return;
-      }
-      const top = Math.max(0, next.y - wrap.clientHeight * 0.3);
-      lastScrollY.current = next.y;
-      wrap.scrollTo({
-        top,
-        behavior: "auto",
-      });
-    };
-
-    const onTime = (tSec: number) => {
-      applyPose(interpolateCursorBand(snapsRef.current, tSec));
-    };
-
-    syncPlaybackPoseRef.current = () => {
-      onTime(getPlaybackTime?.() ?? 0);
-    };
-    onTime(getPlaybackTime?.() ?? 0);
-    const unsubscribe = subscribePlaybackTime(onTime);
-    return () => {
-      syncPlaybackPoseRef.current = null;
-      unsubscribe();
-    };
-    // snapVersion intentionally omitted — snapsRef is updated in place.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [followPlayback, subscribePlaybackTime, getPlaybackTime]);
+  }, [playheadOn, followPlayback, subscribePlaybackTime, getPlaybackTime]);
 
   const onClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    // Overview: tap a page thumbnail → open that page.
-    if (!followPlayback && viewMode === "overview") {
-      const host = hostRef.current;
-      const target = event.target;
-      if (host && target instanceof Element) {
-        const svg = target.closest("svg");
-        if (svg && host.contains(svg)) {
-          const index = [...host.querySelectorAll(":scope > svg")].indexOf(
-            svg as SVGSVGElement,
-          );
-          if (index >= 0) {
-            tapFeedback("light");
-            setPageIndex(index);
-            setViewMode("page");
-            return;
-          }
-        }
-      }
+    const markScore = onLoopMark ?? onSeek;
+    if (!followPlayback || !markScore || activeHighlights.length > 0) return;
+    if (suppressScoreClickRef.current) {
+      suppressScoreClickRef.current = false;
+      return;
     }
-
-    if (!followPlayback || !onSeek || highlight) return;
     const wrap = wrapRef.current;
     if (!wrap) return;
     const rect = wrap.getBoundingClientRect();
     const x = event.clientX - rect.left + wrap.scrollLeft;
     const y = event.clientY - rect.top + wrap.scrollTop;
     const t = pickCursorTime(snapsRef.current, x, y);
-    if (t != null) onSeek(t);
+    if (t != null) markScore(t);
   };
 
-  const offerModes =
-    !followPlayback &&
-    metrics != null &&
-    shouldOfferScoreViewModes(metrics, viewportHeight || 640);
   // Same compact/scroll card on Score, Listen, and Practise — do not force
   // Listen into full-bleed scroll paper for short pieces.
   const effectiveDensity = density;
-  const activeMode = followPlayback ? "continuous" : viewMode;
-  const pageCount = metrics?.pageCount ?? 0;
+  const activeMode = "continuous";
 
   const wrapClass = [
     "musai-piece-osmd-wrap",
@@ -792,146 +855,94 @@ export function OsmdScoreAdapter({
 
   return (
     <div className="musai-piece-score-viewer" data-testid="piece-score-viewer">
-      {offerModes ? (
-        <div
-          className="musai-piece-score-viewer__modes"
-          role="tablist"
-          aria-label="Score view"
-        >
-          {VIEW_MODE_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              role="tab"
-              aria-selected={viewMode === opt.value}
-              className={
-                viewMode === opt.value
-                  ? "musai-piece-score-viewer__mode is-active"
-                  : "musai-piece-score-viewer__mode"
-              }
-              onClick={() => {
-                if (opt.value === viewMode) return;
-                tapFeedback("light");
-                setViewMode(opt.value);
-              }}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      ) : null}
-
-      <div ref={wrapRef} className={wrapClass} onClick={onClick}>
+      <div
+        ref={wrapRef}
+        className={wrapClass}
+        data-playhead={playheadOn ? "true" : "false"}
+        data-scrub={scrubEnabled ? "true" : "false"}
+        data-loop-pick={loopPicking ? "true" : "false"}
+        onClick={onClick}
+      >
         <div
           ref={hostRef}
-          className={
-            activeMode === "overview"
-              ? "musai-piece-osmd musai-piece-osmd--overview"
-              : "musai-piece-osmd"
-          }
+          className="musai-piece-osmd"
           data-testid="piece-osmd"
           data-theme-ink={themeRef.current}
           data-density={effectiveDensity}
           data-view={activeMode}
           aria-label={`${title} score`}
         />
-        {!followPlayback && highlight
-          ? heatRects.map((rect, i) => {
-              const style = highlight.visualStyle ?? "note";
-              const isNote = style === "note";
-              const shaped = shapeOverlayRect(rect, isNote ? "note" : style);
-              const mock = highlight.source !== "analysis";
+        {loopWash.map((rect, index) => (
+          <div
+            key={`loop-${index}`}
+            className="musai-piece-loop-wash"
+            data-testid="piece-loop-wash"
+            style={{
+              left: rect.x,
+              top: rect.y,
+              width: rect.width,
+              height: rect.height,
+            }}
+          />
+        ))}
+        {!followPlayback && heatOverlays.length > 0
+          ? heatOverlays.map(({ key, highlight: item, style, rect }) => {
+              const mock = item.source !== "analysis";
+              const emphasis = item.emphasis ?? "focus";
               return (
                 <button
-                  key={`${highlight.id}-${i}`}
+                  key={key}
                   type="button"
                   className={
-                    isNote
-                      ? "musai-piece-note-plate musai-piece-heat"
+                    style === "note"
+                      ? "musai-piece-heat musai-piece-note-plate"
                       : "musai-piece-heat"
                   }
                   data-testid="piece-score-heat"
                   data-mock={mock ? "true" : "false"}
-                  data-source={highlight.source ?? "mock-preview"}
-                  data-tone={highlight.visualTone ?? undefined}
-                  data-style={style}
-                  data-role={isNote ? "focus" : undefined}
-                  aria-label={`${highlight.label} on the score. Ask Parsa about this.`}
+                  data-source={item.source ?? "mock-preview"}
+                  data-tone={item.visualTone ?? undefined}
+                  data-style={style ?? "note"}
+                  data-role={style === "note" ? "focus" : undefined}
+                  data-emphasis={emphasis}
+                  data-pitch-kind={item.pitchKind ?? undefined}
+                  aria-label={`${item.label} on the score`}
                   style={{
-                    left: shaped.x,
-                    top: shaped.y,
-                    width: shaped.width,
-                    height: shaped.height,
+                    left: rect.x,
+                    top: rect.y,
+                    width: rect.width,
+                    height: rect.height,
                   }}
                   onClick={(event) => {
                     event.stopPropagation();
-                    onHighlightSelect?.(highlight.id);
+                    onHighlightSelect?.(item.id);
                   }}
-                >
-                  <span
-                    className={
-                      isNote
-                        ? "musai-piece-note-plate__marker"
-                        : "musai-piece-heat__marker"
-                    }
-                    aria-hidden
-                  />
-                </button>
+                />
               );
             })
           : null}
-        <span
-          ref={bandRef}
-          className="musai-piece-note-plate"
-          data-testid="piece-score-cursor-band"
-          data-style="note"
-          data-role="now"
-          aria-hidden
-          style={{ visibility: "hidden" }}
-        >
-          <span
-            ref={cursorRef}
-            className="musai-piece-note-plate__marker"
-            data-testid="piece-score-cursor"
-            aria-hidden
-          />
-        </span>
+        <ScorePlaybackPlayhead
+          active={Boolean(playheadOn && subscribePlaybackTime)}
+          snapsRef={snapsRef}
+          staffBandsRef={staffBandsRef}
+          scrollParentRef={wrapRef}
+          getPlaybackTime={getPlaybackTime}
+          subscribePlaybackTime={subscribePlaybackTime}
+          syncRef={syncPlaybackPoseRef}
+          scrubEnabled={scrubEnabled}
+          onScrubPreview={onScrubPreview}
+          onScrubCommit={onScrubCommit}
+          getPlaying={getPlaying}
+          onScrubGesture={() => {
+            suppressScoreClickRef.current = true;
+          }}
+        />
         {showInlineError && error ? (
           <p className="musai-piece-osmd-error" role="status">
             {error}
           </p>
         ) : null}
       </div>
-
-      {!followPlayback && viewMode === "page" && pageCount > 1 ? (
-        <div className="musai-piece-score-viewer__pager">
-          <button
-            type="button"
-            className="musai-piece-score-viewer__page-btn"
-            disabled={pageIndex <= 0}
-            onClick={() => {
-              tapFeedback("light");
-              setPageIndex((i) => clampScorePageIndex(i - 1, pageCount));
-            }}
-          >
-            Previous
-          </button>
-          <p className="musai-piece-score-viewer__page-label">
-            Page {pageIndex + 1} of {pageCount}
-          </p>
-          <button
-            type="button"
-            className="musai-piece-score-viewer__page-btn"
-            disabled={pageIndex >= pageCount - 1}
-            onClick={() => {
-              tapFeedback("light");
-              setPageIndex((i) => clampScorePageIndex(i + 1, pageCount));
-            }}
-          >
-            Next
-          </button>
-        </div>
-      ) : null}
     </div>
   );
 }

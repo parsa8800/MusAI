@@ -5,6 +5,9 @@ import { useEffect, useRef } from "react";
 import { InfoPopover, InfoPopoverScanLines } from "@/components/InfoPopover";
 import { ScalePitchCueKey } from "@/components/ScalePitchCueKey";
 import { useScalePracticeInfo } from "@/components/scalePracticeInfoContext";
+import { useInstrument } from "@/components/InstrumentProvider";
+import { ScaleFingeringToggle, useScaleFingeringEnabled } from "@/components/ScaleFingeringToggle";
+import { hasStringFingering } from "@/lib/instrument";
 import { ScaleTrebleStaff } from "@/components/ScaleTrebleStaff";
 import {
   scaleRecordingTips,
@@ -46,6 +49,9 @@ export function ScaleGuidePanel({
   const ascendingMidis = exerciseMidis.slice(0, guide.ascendingCount);
   const descendingMidis = exerciseMidis.slice(guide.ascendingCount);
   const { openOrToggle, isOpen, close } = useScalePracticeInfo();
+  const { instrument } = useInstrument();
+  const showFingerings =
+    useScaleFingeringEnabled() && hasStringFingering(instrument);
   const infoOpen = isOpen(INFO_ID);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const prevLabel = useRef(guide.scaleLabel);
@@ -99,6 +105,9 @@ export function ScaleGuidePanel({
           pad ? "px-2" : compact ? "px-2 sm:px-3" : "px-4 sm:px-6"
         }`}
       >
+        {hasStringFingering(instrument) ? (
+          <ScaleFingeringToggle className="musai-finger-toggle--guide" />
+        ) : null}
         <div className="min-w-0 text-center">
           <h2
             ref={titleRef}
@@ -153,6 +162,7 @@ export function ScaleGuidePanel({
           scaleKind={scaleKind}
           density={pad ? "pad" : "default"}
           showSectionLabels={showSectionLabels}
+          showFingerings={showFingerings}
         />
       </div>
 

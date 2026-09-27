@@ -110,6 +110,8 @@ export type PieceLibraryCardState = "check" | "ready" | "practised";
 export type PieceLibraryCardModel = {
   title: string;
   composer: string | null;
+  keySignature: string | null;
+  timeSignature: string | null;
   state: PieceLibraryCardState;
   /** Quiet status chip (e.g. Review) — null when progress carries the cue. */
   statusLabel: string | null;
@@ -139,10 +141,16 @@ export function pieceLibraryCardModel(
   const whenIso = piece.lastPractisedAt ?? piece.lastOpenedAt;
   const whenLabel = whenIso ? formatPieceOpened(whenIso) : null;
 
+  const signature = {
+    keySignature: piece.score.keySignature,
+    timeSignature: piece.score.timeSignature,
+  };
+
   if (options.needsCheck) {
     return {
       title: piece.title,
       composer: piece.composer,
+      ...signature,
       state: "check",
       statusLabel: "Review",
       metaLine: "Review",
@@ -158,6 +166,7 @@ export function pieceLibraryCardModel(
     return {
       title: piece.title,
       composer: piece.composer,
+      ...signature,
       state: "ready",
       statusLabel: null,
       metaLine: null,
@@ -170,10 +179,11 @@ export function pieceLibraryCardModel(
   }
 
   const fill = Math.max(0, Math.min(100, best ?? piece.progressPercent ?? 0));
-  const bestLine = best != null ? `Best ${best}%` : null;
+  const bestLine = best != null ? `${best}%` : null;
   return {
     title: piece.title,
     composer: piece.composer,
+    ...signature,
     state: "practised",
     statusLabel: null,
     metaLine: bestLine,

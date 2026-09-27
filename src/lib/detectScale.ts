@@ -6,16 +6,26 @@ import {
   type PitchFrame,
 } from "@/lib/analyzePitch";
 import { alignAnalysisToDetectedOctave } from "@/lib/alignScaleOctave";
+import { SCALE_IDENTIFY } from "@/lib/scaleIdentifyConfig";
+import { detectScaleDescentIntent } from "@/lib/scaleDescentIntent";
 import {
   buildAscendingScaleMidis,
   buildExerciseScaleMidis,
   scaleDisplayLabel,
   type ScaleKind,
-  violinRootsForTonic,
 } from "@/lib/scales";
+import { rootsForTonic, validateScaleMidisInRange } from "@/lib/instrument/scale";
+import { getActiveInstrument } from "@/lib/instrument/storage";
+import type { InstrumentProfile } from "@/lib/instrument/types";
 import type { ScaleAnalysisResult } from "@/lib/analyzeScalePerformance";
 
 export type ScalePattern = "round_trip" | "ascending";
+
+export type ScaleIdentityHint = {
+  tonicPitchClass: number;
+  scaleKind: ScaleKind;
+  octaveSpan: 1 | 2;
+};
 
 export type ScaleCandidate = {
   tonicPitchClass: number;
@@ -35,8 +45,44 @@ export type DetectScaleResult =
       best: ScaleCandidate;
       alternatives: ScaleCandidate[];
       ambiguous: boolean;
+      /** Best ranked candidate matching a locked practice hint, if any. */
+      hinted: ScaleCandidate | null;
     }
   | { ok: false; reason: "no_pitch" | "no_match" };
+
+export function candidateMatchesHint(
+  candidate: Pick<
+    ScaleCandidate,
+    "tonicPitchClass" | "scaleKind" | "octaveSpan"
+  >,
+  hint: ScaleIdentityHint,
+): boolean {
+  return (
+    candidate.tonicPitchClass === hint.tonicPitchClass &&
+    candidate.scaleKind === hint.scaleKind &&
+    candidate.octaveSpan === hint.octaveSpan
+  );
+}
+
+export function hintFromCandidate(
+  candidate: Pick<
+    ScaleCandidate,
+    "tonicPitchClass" | "scaleKind" | "octaveSpan"
+  >,
+): ScaleIdentityHint {
+  return {
+    tonicPitchClass: candidate.tonicPitchClass,
+    scaleKind: candidate.scaleKind,
+    octaveSpan: candidate.octaveSpan,
+  };
+}
+
+function findHintedCandidate(
+  ranked: readonly ScaleCandidate[],
+  hint: ScaleIdentityHint,
+): ScaleCandidate | undefined {
+  return ranked.find((c) => candidateMatchesHint(c, hint));
+}
 
 type RunHint = { midiCenter: number };
 
@@ -177,12 +223,12 @@ function sameScaleFamily(a: ScaleCandidate, b: ScaleCandidate): boolean {
  */
 function preferHonestExerciseCandidate(
   ranked: ScaleCandidate[],
+  runs: RunHint[],
 ): ScaleCandidate | undefined {
   const best = ranked[0];
   if (!best) return undefined;
-  if (best.pattern !== "ascending") return best;
 
-  const roundTrip = ranked.find(
+  const roundTripSibling = ranked.find(
     (c) =>
       c.pattern === "round_trip" &&
       c.tonicPitchClass === best.tonicPitchClass &&
@@ -191,7 +237,27 @@ function preferHonestExerciseCandidate(
       Math.abs(c.rootMidi - best.rootMidi) <= 1 &&
       c.analysis.summary.notesAnalyzed >= 4,
   );
-  if (!roundTrip) return best;
+
+  const ascendingMidis =
+    best.pattern === "ascending"
+      ? best.expectedMidis
+      : buildAscendingScaleMidis(
+          best.rootMidi,
+          best.scaleKind,
+          best.octaveSpan,
+        );
+
+  if (
+    best.pattern === "ascending" &&
+    detectScaleDescentIntent(runs, ascendingMidis) &&
+    roundTripSibling
+  ) {
+    return roundTripSibling;
+  }
+
+  if (best.pattern !== "ascending") return best;
+  if (!roundTripSibling) return best;
+  const roundTrip = roundTripSibling;
 
   const ascAnalyzed = best.analysis.summary.notesAnalyzed;
   const rtAnalyzed = roundTrip.analysis.summary.notesAnalyzed;
@@ -215,6 +281,8 @@ function preferHonestExerciseCandidate(
 
 export function detectScaleFromFrames(
   frames: PitchFrame[],
+  instrument: InstrumentProfile = getActiveInstrument(),
+  opts?: { hint?: ScaleIdentityHint },
 ): DetectScaleResult {
   if (frames.length < 4) return { ok: false, reason: "no_pitch" };
 
@@ -235,7 +303,7 @@ export function detectScaleFromFrames(
     for (const octaveSpan of spans) {
       for (const pattern of patterns) {
         for (let tonicPitchClass = 0; tonicPitchClass < 12; tonicPitchClass++) {
-          const allRoots = violinRootsForTonic(tonicPitchClass);
+          const allRoots = rootsForTonic(tonicPitchClass, instrument);
           const near = allRoots
             .filter((r) => Math.abs(r - anchorMidi) <= 18)
             .sort(
@@ -259,6 +327,7 @@ export function detectScaleFromFrames(
               pattern,
             );
             if (expectedMidis.length < 4) continue;
+            if (!validateScaleMidisInRange(expectedMidis, instrument)) continue;
             const analysis = analyzeScaleFromFrames(frames, expectedMidis);
             const score = rankScore(
               analysis,
@@ -287,7 +356,7 @@ export function detectScaleFromFrames(
   }
 
   ranked.sort((a, b) => b.rankScore - a.rankScore);
-  const rawBest = preferHonestExerciseCandidate(ranked);
+  const rawBest = preferHonestExerciseCandidate(ranked, runs);
   if (
     !rawBest ||
     rawBest.analysis.summary.notesAnalyzed < 4 ||
@@ -309,6 +378,7 @@ export function detectScaleFromFrames(
     rawBest.expectedMidis,
     rawBest.rootMidi,
     rawBest.analysis,
+    instrument,
   );
   const best: ScaleCandidate = {
     ...rawBest,
@@ -316,6 +386,42 @@ export function detectScaleFromFrames(
     expectedMidis: aligned.expectedMidis,
     analysis: aligned.analysis,
   };
+
+  let resolved = best;
+  if (resolved.pattern === "ascending") {
+    const ascendingMidis = resolved.expectedMidis;
+    if (detectScaleDescentIntent(runs, ascendingMidis)) {
+      const expectedMidis = buildExerciseScaleMidis(
+        resolved.rootMidi,
+        resolved.scaleKind,
+        resolved.octaveSpan,
+      );
+      if (validateScaleMidisInRange(expectedMidis, instrument)) {
+        const analysis = analyzeScaleFromFrames(frames, expectedMidis);
+        const realigned = alignAnalysisToDetectedOctave(
+          expectedMidis,
+          resolved.rootMidi,
+          analysis,
+          instrument,
+        );
+        resolved = {
+          ...resolved,
+          pattern: "round_trip",
+          rootMidi: realigned.rootMidi,
+          expectedMidis: realigned.expectedMidis,
+          analysis: realigned.analysis,
+          rankScore: rankScore(
+            realigned.analysis,
+            realigned.expectedMidis,
+            runs.length,
+            resolved.tonicPitchClass,
+            runs,
+            frames,
+          ),
+        };
+      }
+    }
+  }
 
   const uniqueFamilies: ScaleCandidate[] = [];
   for (const c of ranked) {
@@ -325,24 +431,42 @@ export function detectScaleFromFrames(
   }
 
   const second = uniqueFamilies[1];
-  const ambiguous =
+  const differentFamily =
     !!second &&
-    second.rankScore > best.rankScore - 10 &&
-    (second.tonicPitchClass !== best.tonicPitchClass ||
-      second.scaleKind !== best.scaleKind);
+    (second.tonicPitchClass !== resolved.tonicPitchClass ||
+      second.scaleKind !== resolved.scaleKind);
+  const close =
+    !!second &&
+    second.rankScore > resolved.rankScore - SCALE_IDENTIFY.firstTakeCloseGap;
+  const bothStrong =
+    resolved.rankScore >= SCALE_IDENTIFY.firstTakeMinRank &&
+    (second?.rankScore ?? Number.NEGATIVE_INFINITY) >=
+      SCALE_IDENTIFY.firstTakeMinRank;
+  const ambiguous = Boolean(differentFamily && close && bothStrong);
+
+  const hinted = opts?.hint
+    ? (findHintedCandidate(ranked, opts.hint) ?? null)
+    : null;
 
   return {
     ok: true,
-    best,
+    best: resolved,
     alternatives: uniqueFamilies.slice(0, 3),
     ambiguous,
+    hinted,
   };
 }
 
 export function detectScaleFromAudio(
   mono: Float32Array,
   sampleRateHz: number,
+  instrument: InstrumentProfile = getActiveInstrument(),
+  opts?: { hint?: ScaleIdentityHint },
 ): DetectScaleResult {
-  const frames = collectPitchFrames(mono, sampleRateHz);
-  return detectScaleFromFrames(frames);
+  const frames = collectPitchFrames(mono, sampleRateHz, {
+    mode: "scale",
+    minHz: instrument.pitch.minHz,
+    maxHz: instrument.pitch.practiceMaxHz,
+  });
+  return detectScaleFromFrames(frames, instrument, opts);
 }

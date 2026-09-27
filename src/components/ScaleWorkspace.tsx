@@ -16,18 +16,30 @@ import { analyzeScalePerformance } from "@/lib/analyzeScalePerformance";
 import { bufferToMono } from "@/lib/analyzePitch";
 import { alignAnalysisToDetectedOctave } from "@/lib/alignScaleOctave";
 import { createAudioContext } from "@/lib/audioContext";
-import { buildScalePracticeSession } from "@/lib/buildScalePracticeSession";
 import {
   detectScaleFromAudio,
   type ScaleCandidate,
 } from "@/lib/detectScale";
-import { createMediaRecorder, startMediaRecorder } from "@/lib/mediaRecorderMime";
+import {
+  awaitRecorderChunks,
+  blobFromRecorderChunks,
+  createMediaRecorder,
+  startMediaRecorder,
+} from "@/lib/mediaRecorderMime";
 import { describeMicOpenError, getMicStream } from "@/lib/micStream";
 import {
   candidateMatchesIdentity,
+  sessionFromActiveIdentity,
   sessionFromDetectedCandidate,
   workspaceHrefForCandidate,
 } from "@/lib/scaleDetectSession";
+import {
+  decideScaleIdentify,
+  hintFromWorkspace,
+  nextRivalStreak,
+  resolveShownScaleTake,
+  type RivalStreak,
+} from "@/lib/scaleIdentifyPolicy";
 import type { ScaleProgressJourneyV1 } from "@/lib/scaleProgressHistory";
 import { listScaleProgressJourneys } from "@/lib/scaleProgressHistory";
 import {
@@ -36,17 +48,29 @@ import {
 } from "@/lib/scalePracticeSession";
 import { nextScaleTakeCopy, deriveScaleStudioPhase } from "@/lib/scaleTakeLoop";
 import {
+  messageForQuietTake,
+  messageForUnheardScaleTake,
+  SCALE_TAKE_FAILED,
+  SCALE_TAKE_NO_SCALE,
+  SCALE_TAKE_UNREADABLE,
+  scaleTakeStatusText,
+} from "@/lib/scaleTakeCapture";
+import {
   appendAttemptForExercise,
   filterAttemptsForExercise,
 } from "@/lib/scaleTakeHistory";
 import type { ScalePracticeSessionV1 } from "@/lib/scalePracticeTypes";
+import { useInstrument } from "@/components/InstrumentProvider";
+import {
+  scaleOutOfRangeMessage,
+  validateScaleMidisInRange,
+} from "@/lib/instrument";
 import {
   buildExerciseScaleMidis,
   defaultRootMidiForTonic,
-  validateScaleMidisInViolinRange,
 } from "@/lib/scales";
 import type { ScaleWorkspaceIdentity } from "@/lib/scaleWorkspace";
-import { scaleWorkspaceHref } from "@/lib/scaleWorkspace";
+import { progressKeyFor, scaleWorkspaceHref } from "@/lib/scaleWorkspace";
 
 type CaptureMode = "record" | "upload";
 
@@ -60,9 +84,15 @@ export function ScaleWorkspace({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { instrument } = useInstrument();
+  const progressKey = progressKeyFor(
+    identity.scaleId,
+    identity.octaveSpan,
+    instrument.id,
+  );
   const rootMidi = useMemo(
-    () => defaultRootMidiForTonic(identity.tonicPitchClass),
-    [identity.tonicPitchClass],
+    () => defaultRootMidiForTonic(identity.tonicPitchClass, instrument),
+    [identity.tonicPitchClass, instrument],
   );
   const [loopAttempts, setLoopAttempts] = useState<ScalePracticeSessionV1[]>(
     [],
@@ -87,7 +117,7 @@ export function ScaleWorkspace({
 
   useEffect(() => {
     void searchParams;
-    const journey = getScaleProgressJourney(identity.progressKey);
+    const journey = getScaleProgressJourney(progressKey);
     if (journey) {
       setLoopAttempts(
         filterAttemptsForExercise(journey.attempts, {
@@ -100,15 +130,15 @@ export function ScaleWorkspace({
     } else {
       setLoopAttempts([]);
     }
-    setScaleCount(listScaleProgressJourneys().length);
+    setScaleCount(listScaleProgressJourneys(instrument.id).length);
   }, [
     expectedMidis,
     identity.octaveSpan,
-    identity.progressKey,
+    progressKey,
     identity.scaleId,
     identity.scaleKind,
+    instrument.id,
     searchParams,
-    changeScaleOpen,
   ]);
 
   const [captureMode, setCaptureModeState] = useState<CaptureMode>("record");
@@ -123,6 +153,7 @@ export function ScaleWorkspace({
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
   const autoAnalyzeToken = useRef(0);
+  const rivalStreakRef = useRef<RivalStreak | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -214,6 +245,7 @@ export function ScaleWorkspace({
         sampleRateHz,
         audioSourceType,
         waveformRef.current,
+        instrument.id,
       );
       if (candidateMatchesIdentity(candidate, identity)) {
         completeAttempt(session);
@@ -227,7 +259,7 @@ export function ScaleWorkspace({
       setFile(null);
       router.push(workspaceHrefForCandidate(candidate));
     },
-    [completeAttempt, identity, router, waveformRef],
+    [completeAttempt, identity, instrument.id, router, waveformRef],
   );
 
   const runAnalyze = useCallback(
@@ -246,10 +278,8 @@ export function ScaleWorkspace({
         return;
       }
 
-      if (!validateScaleMidisInViolinRange(expectedMidis)) {
-        setMessage(
-          "This range leaves the violin span. Try one octave on this scale.",
-        );
+      if (!validateScaleMidisInRange(expectedMidis, instrument)) {
+        setMessage(scaleOutOfRangeMessage(instrument));
         setStatus("error");
         return;
       }
@@ -279,50 +309,53 @@ export function ScaleWorkspace({
         const audioSourceType =
           captureMode === "record" ? "recorded" : "uploaded";
 
-        const detected = detectScaleFromAudio(mono, sampleRateHz);
+        const hint = hintFromWorkspace(identity);
+        const detected = detectScaleFromAudio(mono, sampleRateHz, instrument, {
+          hint,
+        });
         if (token !== autoAnalyzeToken.current) return;
 
-        if (detected.ok && detected.ambiguous) {
-          setPendingDetect({
-            alternatives: detected.alternatives,
-            sampleRateHz,
-            audioSourceType,
-          });
-          setStatus("idle");
-          return;
+        const resolved = resolveShownScaleTake(
+          decideScaleIdentify(detected, {
+            active: hint,
+            established: true,
+            rivalStreak: rivalStreakRef.current,
+          }),
+        );
+        if (resolved.action === "score_active") {
+          rivalStreakRef.current = nextRivalStreak(
+            rivalStreakRef.current,
+            resolved.rivalVote,
+          );
         }
 
-        if (detected.ok) {
-          acceptDetected(detected.best, sampleRateHz, audioSourceType);
-          return;
-        }
-
-        // Fallback: score against this page’s written scale.
         const analysis = analyzeScalePerformance({
           mono,
           sampleRateHz,
           expectedMidis,
+          instrument,
         });
 
         if (token !== autoAnalyzeToken.current) return;
 
-        if (analysis.summary.notesAnalyzed > 0) {
+        if (
+          resolved.action === "score_active" &&
+          analysis.summary.notesAnalyzed > 0
+        ) {
           const aligned = alignAnalysisToDetectedOctave(
             expectedMidis,
             rootMidi,
             analysis,
+            instrument,
           );
-          const session = buildScalePracticeSession({
-            tonicPitchClass: identity.tonicPitchClass,
-            scaleKind: identity.scaleKind,
+          const session = sessionFromActiveIdentity(identity, {
             rootMidi: aligned.rootMidi,
-            octaveSpan: identity.octaveSpan,
-            audioSourceType,
-            sampleRateHz,
+            expectedMidis: aligned.expectedMidis,
             analysis: aligned.analysis,
-            expectedNotesMidi: aligned.expectedMidis,
-            scaleSource: "selected",
+            sampleRateHz,
+            audioSourceType,
             waveformAmplitudes: waveformRef.current,
+            instrumentId: instrument.id,
           });
           completeAttempt(session);
           return;
@@ -330,29 +363,26 @@ export function ScaleWorkspace({
 
         setStatus("error");
         setMessage(
-          detected.reason === "no_pitch"
-            ? "Couldn’t detect clear pitches. Re-record slower, one note per bow."
-            : "Couldn’t hear a full scale. Play every note slowly, then try again.",
+          scaleTakeStatusText(
+            messageForUnheardScaleTake({
+              notesAnalyzed: analysis.summary.notesAnalyzed,
+              heardPitch: detected.ok || detected.reason !== "no_pitch",
+            }) ?? SCALE_TAKE_NO_SCALE,
+          ),
         );
-      } catch (e) {
+      } catch {
         if (token !== autoAnalyzeToken.current) return;
         setStatus("error");
-        setMessage(
-          e instanceof Error
-            ? e.message
-            : "Could not analyse that take. Try a clearer recording.",
-        );
+        setMessage(scaleTakeStatusText(SCALE_TAKE_UNREADABLE));
       }
     },
     [
-      acceptDetected,
       captureMode,
       completeAttempt,
       expectedMidis,
       file,
-      identity.octaveSpan,
-      identity.scaleKind,
-      identity.tonicPitchClass,
+      identity,
+      instrument,
       recordedBlob,
       rootMidi,
       waveformRef,
@@ -387,13 +417,7 @@ export function ScaleWorkspace({
   );
 
   const handleFileChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const f = e.target.files?.[0] ?? null;
-      if (!f) {
-        setFile(null);
-        setUploadProcessing(false);
-        return;
-      }
+    (f: File) => {
       const token = ++uploadTokenRef.current;
       setFile(f);
       setUploadProcessing(true);
@@ -438,32 +462,22 @@ export function ScaleWorkspace({
         if (ev.data.size > 0) chunksRef.current.push(ev.data);
       };
       recorder.onerror = () => {
-        setMessage("Recording failed. Try again or import a file.");
+        setIsRecording(false);
+        stopStream();
+        setMessage(scaleTakeStatusText(SCALE_TAKE_FAILED));
         setStatus("error");
       };
       recorder.onstop = () => {
         setIsRecording(false);
-        stopStream();
         mediaRecorderRef.current = null;
         if (discardRecordingRef.current) {
           discardRecordingRef.current = false;
+          stopStream();
           resetTakeUi();
           chunksRef.current = [];
           setRecordedBlob(null);
           resetCaptureSession();
-          return;
         }
-        const blob = new Blob(chunksRef.current, {
-          type: recorder.mimeType || "audio/webm",
-        });
-        chunksRef.current = [];
-        if (blob.size < 256) {
-          setMessage("Almost no audio captured. Check the mic input.");
-          setStatus("error");
-          return;
-        }
-        setRecordedBlob(blob);
-        void runAnalyze(blob, null);
       };
 
       startMediaRecorder(recorder);
@@ -473,23 +487,57 @@ export function ScaleWorkspace({
       setMessage(describeMicOpenError(err));
       setStatus("error");
     }
-  }, [refreshMicDevices, resetCaptureSession, resetTakeUi, runAnalyze, selectedMicId, stopStream]);
+  }, [refreshMicDevices, resetCaptureSession, resetTakeUi, selectedMicId, stopStream]);
 
   const stopRecording = useCallback(() => {
     const rec = mediaRecorderRef.current;
-    if (rec && rec.state !== "inactive") {
-      try {
-        if (rec.state === "recording") rec.requestData();
-      } catch {
-        /* ignore */
+    if (discardRecordingRef.current) {
+      if (rec && rec.state !== "inactive") {
+        try {
+          rec.stop();
+        } catch {
+          /* onstop still resets */
+        }
       }
-      try {
-        rec.stop();
-      } catch {
-        /* ignore */
-      }
+      return;
     }
-  }, []);
+    if (!rec || rec.state === "inactive") {
+      setIsRecording(false);
+      stopStream();
+      setStatus("error");
+      setMessage(scaleTakeStatusText(SCALE_TAKE_FAILED));
+      return;
+    }
+    setIsRecording(false);
+    setStatus("loading");
+    setMessage(null);
+    const chunks = chunksRef.current;
+    void (async () => {
+      const outcome = await awaitRecorderChunks(rec, chunks);
+      stopStream();
+      if (discardRecordingRef.current) {
+        discardRecordingRef.current = false;
+        resetTakeUi();
+        chunksRef.current = [];
+        setRecordedBlob(null);
+        resetCaptureSession();
+        return;
+      }
+      const blob = blobFromRecorderChunks(rec, chunks);
+      chunksRef.current = [];
+      const quiet = messageForQuietTake(blob.size);
+      if (quiet) {
+        setRecordedBlob(null);
+        setStatus("error");
+        setMessage(
+          scaleTakeStatusText(outcome === "failed" ? SCALE_TAKE_FAILED : quiet),
+        );
+        return;
+      }
+      setRecordedBlob(blob);
+      void runAnalyze(blob, null);
+    })();
+  }, [resetCaptureSession, resetTakeUi, runAnalyze, stopStream]);
 
   const discardRecording = useCallback(() => {
     if (!isRecording) return;
@@ -529,12 +577,12 @@ export function ScaleWorkspace({
 
   const handleJourneyReset = useCallback(
     (journey: ScaleProgressJourneyV1) => {
-      setScaleCount(listScaleProgressJourneys().length);
-      if (journey.progressKey === identity.progressKey) {
+      setScaleCount(listScaleProgressJourneys(instrument.id).length);
+      if (journey.progressKey === progressKey) {
         setLoopAttempts([]);
       }
     },
-    [identity.progressKey],
+    [instrument.id, progressKey],
   );
 
   const captureDock = (
@@ -547,7 +595,7 @@ export function ScaleWorkspace({
       file={file}
       uploadProcessing={uploadProcessing}
       fileInputRef={fileInputRef}
-      onFileChange={handleFileChange}
+      onFileSelected={handleFileChange}
       mainRecorderRef={mainRecorderRef}
       micDevices={micDevices}
       selectedMicId={selectedMicId}
@@ -627,8 +675,7 @@ export function ScaleWorkspace({
             onClose={() => setChangeScaleOpen(false)}
             id="scale-workspace-switcher"
             title="Switch scale"
-            subtitle="Scales you’ve already practised. Tap one to keep going."
-            currentProgressKey={identity.progressKey}
+            currentProgressKey={progressKey}
             onContinue={switchToJourney}
             onJourneyReset={handleJourneyReset}
             newScaleHref="/practice/scale"

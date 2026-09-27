@@ -2,7 +2,14 @@ import { ensureBulletFeedback } from "@/lib/scalePracticeCopy";
 import { pitchCueForNote } from "@/lib/scaleCoachingLlm";
 import { buildLoopMastery } from "@/lib/scalePracticeProgress";
 import type { ScalePracticeSessionV1 } from "@/lib/scalePracticeTypes";
-import { violinStringFingerLabel } from "@/lib/violinScaleReference";
+import {
+  coachMethodBooksLine,
+  coachSystemRole,
+  fingerLabelRegex,
+  instrumentForSession,
+  preferOpenOverFourthExample,
+  stringFingerLabel,
+} from "@/lib/instrument";
 
 export type CoachChatMessage = {
   role: "user" | "assistant";
@@ -37,6 +44,7 @@ export type ScaleCoachChatContext = {
   /** Great takes in a row needed to fill the progress bar. */
   greatTakesNeeded: number;
   barFull: boolean;
+  instrumentId?: string;
 };
 
 export function buildScaleCoachChatContext(
@@ -45,6 +53,7 @@ export function buildScaleCoachChatContext(
   trendLine: string,
   loopAttempts: ScalePracticeSessionV1[] = [session],
 ): ScaleCoachChatContext {
+  const instrument = instrumentForSession(session);
   const weak = session.summary.weakestNoteIndices
     .map((i) => session.notes[i])
     .filter(
@@ -52,12 +61,12 @@ export function buildScaleCoachChatContext(
         Boolean(note) &&
         (note.missingData || note.intonationBucket !== "in_tune"),
     )
-    .map((note) => violinStringFingerLabel(note.expectedMidi))
+    .map((note) => stringFingerLabel(note.expectedMidi, instrument))
     .filter((n, i, arr) => arr.indexOf(n) === i)
     .slice(0, 4);
 
   const notes: ScaleCoachNoteFact[] = session.notes.map((n) => ({
-    label: violinStringFingerLabel(n.expectedMidi),
+    label: stringFingerLabel(n.expectedMidi, instrument),
     pitchCue: pitchCueForNote({
       missing: n.missingData,
       bucket: n.intonationBucket,
@@ -89,12 +98,16 @@ export function buildScaleCoachChatContext(
     greatStreak: mastery.greatStreak,
     greatTakesNeeded: mastery.needed,
     barFull: mastery.percent >= 100,
+    instrumentId: session.instrumentId,
   };
 }
 
-export function scaleCoachChatSystemPrompt(): string {
+export function scaleCoachChatSystemPrompt(
+  session?: { instrumentId?: string },
+): string {
+  const instrument = instrumentForSession(session ?? {});
   return [
-    "You are a friendly violin/viola teacher chatting with kids after a scale take.",
+    coachSystemRole(instrument),
     "You only know measured pitch. You cannot see how they played. Never pretend you watched them.",
     "The coloured notes on the staff are the detailed feedback. You already gave a short opener in tip/trendLine.",
     "Staff arrows mean the fix: down = play that note lower next time, up = play it higher.",
@@ -114,7 +127,7 @@ export function scaleCoachChatSystemPrompt(): string {
     "CLEAN TAKE: If inTunePercent is 90+ and weakNotes is empty, only celebrate. Never say tape, 3 notes slowly, or fix tips.",
     "If they ask for a drill, shrink the job: 3 notes at a time, slow bows, then record again.",
     "",
-    "NOTE NAMES: string + finger only (A2, D0). Prefer next open string over 4th finger (E0 not A4). Never C4.",
+    `NOTE NAMES: string + finger only (A2, D0). Prefer next open string over 4th finger (${preferOpenOverFourthExample(instrument)}). Never C4.`,
     "PITCH WORDS: too high, too low, a bit high, a bit low, hard to hear, mostly right.",
     "",
     "GENTLE TRIES (only when they ask, not sure diagnoses):",
@@ -124,7 +137,7 @@ export function scaleCoachChatSystemPrompt(): string {
     "Close fingers (semitones): Try 1st and 2nd next to each other when that fits.",
     "All notes on one string off: Maybe check if that string is in tune.",
     "",
-    "Books: Fiddle Time or Viola Time (Starters, Joggers, Sprinters) only if it really helps.",
+    coachMethodBooksLine(instrument),
     "Never invent notes. Never claim you heard the audio waveform. Never quote cents, Hertz, or percents.",
     "Small talk: reply warmly, then offer to help with the take.",
     "",
@@ -221,7 +234,9 @@ export function localCoachChatReply(
   }
 
   // String+finger (A2, D0) or letter+octave (C4) so either style of question works.
-  const fingerHit = q.match(/\b([gdae])([0-4])\b/i);
+  const fingerHit = q.match(
+    fingerLabelRegex(instrumentForSession({ instrumentId: ctx.instrumentId })),
+  );
   const noteHit = q.match(/\b([a-g](?:#|b|♯|♭)?\d)\b/i);
   if (fingerHit || noteHit) {
     const asked = (fingerHit

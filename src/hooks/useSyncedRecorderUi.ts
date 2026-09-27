@@ -15,18 +15,26 @@ function formatElapsedLabel(ms: number): string {
 /**
  * Shared recorder UI values (timer + live input levels) for keeping
  * main + floating recorders perfectly in sync without duplicating logic.
+ *
+ * Pass `levels: false` when only the tape waveform is shown (avoids a second
+ * analyser on the same mic stream).
  */
 export function useSyncedRecorderUi(
   isRecording: boolean,
   streamRef: RefObject<MediaStream | null>,
+  options?: { levels?: boolean },
 ) {
+  const wantLevels = options?.levels !== false;
   const [elapsedLabel, setElapsedLabel] = useState("00:00.00");
   const [lastTakeLabel, setLastTakeLabel] = useState<string | null>(null);
   const startPerfRef = useRef<number | null>(null);
   const elapsedRef = useRef("00:00.00");
   const prevRecordingRef = useRef(false);
   const skipLastTakeRef = useRef(false);
-  const levelBars = useRecordingLevelBars(isRecording, streamRef);
+  const levelBars = useRecordingLevelBars(
+    wantLevels && isRecording,
+    streamRef,
+  );
   const {
     samples: waveformSamples,
     samplesRef: waveformRef,

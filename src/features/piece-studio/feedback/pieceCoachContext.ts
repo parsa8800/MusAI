@@ -48,9 +48,6 @@ export type PieceCoachContextV1 = {
 };
 
 function whereFromEvent(event: PieceFeedbackEventV1): string {
-  if (event.measure && event.beat != null) {
-    return `Bar ${event.measure}, beat ${event.beat}`;
-  }
   if (event.measure) return `Bar ${event.measure}`;
   return "In this take";
 }
@@ -92,27 +89,27 @@ function whatFromKind(
 ): string {
   switch (kind) {
     case "sharp":
-      return "A few notes are running sharp";
+      return "Running slightly sharp";
     case "flat":
-      return "A few notes are sitting flat";
+      return "Running slightly flat";
     case "missed":
       return "Some written notes weren’t heard clearly";
     case "unstable":
-      return "The pitch wavered on a held note";
+      return "Pitch wavered on a held note";
     case "early":
-      return "A note arrived ahead of the beat";
+      return "Arrived a little early";
     case "late":
-      return "A note arrived after the beat";
+      return "Arrived a little late";
     case "duration":
-      return "Some notes were cut short";
+      return "Notes were cut short";
     case "rushing":
-      return "This stretch ran ahead of the pulse";
+      return "Getting ahead of the beat";
     case "slowing":
-      return "This stretch dragged behind the pulse";
+      return "Falling behind the beat";
     case "too_loud":
-      return "A few spots were louder than written";
+      return "Louder than written";
     case "too_soft":
-      return "A few spots were quieter than written";
+      return "Quieter than written";
     case "weak_section":
       return "This section needs another slow pass";
     default: {
@@ -128,20 +125,23 @@ function practiseFromKind(kind: PieceFeedbackKind): string {
   switch (kind) {
     case "sharp":
     case "flat":
-      return "Play the phrase slowly and relax into each note";
+      return "Relax the left hand and play this phrase slowly.";
     case "missed":
-      return "Air-bow the missing notes, then play the bar again";
+      return "Air-bow the missing notes, then play the bar again.";
     case "unstable":
-      return "Hold the note quietly until it sits still";
+      return "Hold the note quietly until it sits still.";
     case "early":
     case "late":
     case "duration":
-      return "Tap the beat, then play just this bar";
+      return "Tap the beat, then play just this bar.";
     case "rushing":
     case "slowing":
-      return "Play under tempo, then bring it back up";
+      return "Play under tempo, then bring it back up.";
+    case "too_loud":
+    case "too_soft":
+      return "Play once quietly, then as written.";
     default:
-      return "Loop this spot slowly a few times, then try the phrase again";
+      return "Loop this spot slowly a few times, then try the phrase again.";
   }
 }
 

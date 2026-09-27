@@ -3,10 +3,19 @@
  * Used for Listen playhead when the OSMD cursor walk is incomplete.
  */
 
+import {
+  collectStaffBandsFromDom,
+  engravedScoreSvgs,
+  type StaffBand,
+} from "@/features/piece-studio/score/staffBands";
+
 export type DomNotePose = {
+  /** Centre x in wrap coordinates. */
   x: number;
   y: number;
   height: number;
+  /** Engraved oval width — keeps Practise washes flush to the heads. */
+  width: number;
 };
 
 const NOTEHEAD_SELECTORS = [
@@ -19,54 +28,150 @@ const NOTEHEAD_SELECTORS = [
 
 const STAVENOTE_FALLBACK = "g.vf-stavenote, g.vf-note";
 
-/**
- * Collect left-to-right (then system-top-to-bottom) notehead centres in wrap space.
- * Chord noteheads at the same attack are deduped to one pose.
- */
-export function collectNoteheadPosesFromDom(wrap: HTMLElement): DomNotePose[] {
-  const host =
-    wrap.querySelector<HTMLElement>(".musai-piece-osmd") ?? wrap;
-  const svg = host.querySelector("svg");
-  if (!svg) return [];
-
-  const wrapRect = wrap.getBoundingClientRect();
-  let nodes = [...svg.querySelectorAll(NOTEHEAD_SELECTORS)];
-  if (nodes.length < 2) {
-    nodes = [...svg.querySelectorAll(STAVENOTE_FALLBACK)];
+function isGraceOrCueHead(node: Element): boolean {
+  let el: Element | null = node;
+  for (let i = 0; i < 8 && el; i += 1) {
+    const cls = el.getAttribute("class") ?? "";
+    if (/(^|\s)vf-grace|gracenote|cuehead|cue-note/i.test(cls)) return true;
+    el = el.parentElement;
   }
-  if (nodes.length === 0) return [];
+  return false;
+}
 
-  const raw: Array<DomNotePose & { sortY: number; sortX: number }> = [];
-  for (const node of nodes) {
-    const r = node.getBoundingClientRect();
-    if (r.width < 1 && r.height < 1) continue;
-    const x =
-      r.left - wrapRect.left + wrap.scrollLeft + Math.max(r.width, 1) * 0.5;
-    const y = r.top - wrapRect.top + wrap.scrollTop;
-    const height = Math.max(r.height, 20);
-    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
-    raw.push({ x, y, height, sortY: y, sortX: x });
+function staffIndexForHead(
+  pose: { x: number; y: number; height: number },
+  bands: readonly StaffBand[],
+): number {
+  if (bands.length === 0) return 0;
+  const mid = pose.y + pose.height * 0.5;
+  let best = 0;
+  let bestScore = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < bands.length; i += 1) {
+    const band = bands[i]!;
+    const bandMid = band.y + band.height * 0.5;
+    const dy = Math.abs(mid - bandMid);
+    const overlapsX =
+      pose.x >= band.x - 32 && pose.x <= band.x + band.width + 32;
+    const score = dy + (overlapsX ? 0 : 160);
+    if (score < bestScore) {
+      bestScore = score;
+      best = i;
+    }
   }
+  return best;
+}
 
-  raw.sort((a, b) => {
-    const dy = a.sortY - b.sortY;
-    // New system when y jumps by more than a staff.
-    if (Math.abs(dy) > 28) return dy;
-    return a.sortX - b.sortX;
+/** Group notes onto staves when engraved staff lines were not found. */
+function clusterSystemIds(poses: readonly DomNotePose[]): number[] {
+  if (poses.length === 0) return [];
+  const mids = poses.map((p) => p.y + p.height * 0.5);
+  const cores: number[] = [];
+  for (let i = 0; i < poses.length; i += 1) {
+    let neighbors = 0;
+    for (let j = 0; j < poses.length; j += 1) {
+      if (Math.abs(mids[i]! - mids[j]!) < 22) neighbors += 1;
+    }
+    if (neighbors < 2) continue;
+    if (!cores.some((c) => Math.abs(c - mids[i]!) < 28)) {
+      cores.push(mids[i]!);
+    }
+  }
+  if (cores.length === 0) return poses.map(() => 0);
+  cores.sort((a, b) => a - b);
+  return mids.map((m) => {
+    let best = 0;
+    let bestD = Number.POSITIVE_INFINITY;
+    for (let i = 0; i < cores.length; i += 1) {
+      const d = Math.abs(m - cores[i]!);
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    }
+    return best;
   });
+}
 
-  const out: DomNotePose[] = [];
-  for (const p of raw) {
+/**
+ * Reading order: staff top-to-bottom, then left-to-right.
+ * Ledger-line notes join the nearest staff so a high E is not sorted as
+ * a previous system.
+ */
+export function sortNoteheadsInReadingOrder<T extends DomNotePose>(
+  poses: readonly T[],
+  staffBands: readonly StaffBand[] = [],
+): T[] {
+  if (poses.length < 2) return [...poses];
+  const systems =
+    staffBands.length > 0
+      ? poses.map((p) => staffIndexForHead(p, staffBands))
+      : clusterSystemIds(poses);
+  const keyed = poses.map((p, i) => ({ p, i, sys: systems[i] ?? 0 }));
+  keyed.sort((a, b) => a.sys - b.sys || a.p.x - b.p.x || a.p.y - b.p.y || a.i - b.i);
+  return keyed.map((k) => k.p);
+}
+
+function collapseChordHeads<T extends DomNotePose>(sorted: readonly T[]): T[] {
+  const out: T[] = [];
+  for (const p of sorted) {
     const prev = out[out.length - 1];
-    // Same attack / chord: keep the first (usually upper) head.
-    if (
-      prev &&
-      Math.abs(prev.x - p.x) < 8 &&
-      Math.abs(prev.y - p.y) < 36
-    ) {
+    // Same attack: stacked chord tones or a duplicate head at this x.
+    const chordDx = Math.max(7, Math.min(p.width, prev?.width ?? p.width) * 0.7);
+    if (prev && Math.abs(prev.x - p.x) < chordDx) {
       continue;
     }
-    out.push({ x: p.x, y: p.y, height: p.height });
+    out.push(p);
   }
   return out;
+}
+
+export type DomNoteTarget = DomNotePose & { el: Element };
+
+/** Engraved heads in score order, with the SVG node to recolour. */
+export function collectNoteheadTargets(wrap: HTMLElement): DomNoteTarget[] {
+  const host =
+    wrap.querySelector<HTMLElement>(".musai-piece-osmd") ?? wrap;
+  const svgs = engravedScoreSvgs(host);
+  if (svgs.length === 0) return [];
+
+  const wrapRect = wrap.getBoundingClientRect();
+  const raw: DomNoteTarget[] = [];
+  for (const svg of svgs) {
+    let nodes = [...svg.querySelectorAll(NOTEHEAD_SELECTORS)];
+    if (nodes.length < 2) {
+      nodes = [...svg.querySelectorAll(STAVENOTE_FALLBACK)];
+    }
+    for (const node of nodes) {
+      if (isGraceOrCueHead(node)) continue;
+      const r = node.getBoundingClientRect();
+      if (r.width < 1 && r.height < 1) continue;
+      // OSMD paints some rests with the notehead class. They are tall and
+      // narrow; real heads are oval. Leaving them in shifts the playhead
+      // onto the rest instead of the note that was played.
+      if (r.height > r.width * 1.6) continue;
+      const width = Math.max(r.width, 1);
+      const height = Math.max(r.height, 1);
+      const x = r.left - wrapRect.left + wrap.scrollLeft + width * 0.5;
+      const y = r.top - wrapRect.top + wrap.scrollTop;
+      if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+      raw.push({ el: node, x, y, height, width });
+    }
+  }
+  if (raw.length === 0) return [];
+  const bands = collectStaffBandsFromDom(wrap);
+  return collapseChordHeads(sortNoteheadsInReadingOrder(raw, bands));
+}
+
+/**
+ * Collect left-to-right (then system-top-to-bottom) notehead centres in wrap space.
+ * Chord noteheads at the same attack are deduped to one pose. Grace / cue heads
+ * are skipped so the playhead zips 1:1 with sounding attacks.
+ */
+export function collectNoteheadPosesFromDom(wrap: HTMLElement): DomNotePose[] {
+  return collectNoteheadTargets(wrap).map(({ x, y, height, width }) => ({
+    x,
+    y,
+    height,
+    width,
+  }));
 }

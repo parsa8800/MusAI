@@ -12,7 +12,7 @@ import {
   isOmrProviderConfigured,
   resolveOmrProvider,
 } from "@/features/piece-studio/omr/resolveOmrProvider";
-import { validateRecognizedMusicXml } from "@/features/piece-studio/omr/validateRecognizedMusicXml";
+import { musicXmlLooksReadable } from "@/features/piece-studio/score/musicXmlLooksReadable";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -47,7 +47,8 @@ export async function GET(_req: Request, context: RouteContext) {
     });
 
     if (snap.status === "completed") {
-      if (!snap.musicXml?.trim()) {
+      // Full DOM parse runs in the browser — Node has no DOMParser here.
+      if (!snap.musicXml?.trim() || !musicXmlLooksReadable(snap.musicXml)) {
         return NextResponse.json(
           {
             jobId,
@@ -57,14 +58,14 @@ export async function GET(_req: Request, context: RouteContext) {
           { status: 422 },
         );
       }
-      pieceImportLog("PARSE", "start", { where: "job completed validate" });
-      const { musicXml } = validateRecognizedMusicXml(snap.musicXml);
-      pieceImportLog("PARSE", "ok", { chars: musicXml.length });
-      pieceImportLog("NORMALISE", "ok", { where: "job completed" });
+      pieceImportLog("PARSE", "ok", {
+        where: "job completed shape check (browser parses)",
+        chars: snap.musicXml.length,
+      });
       return NextResponse.json({
         jobId,
         status: "completed" as const,
-        musicXml,
+        musicXml: snap.musicXml,
       });
     }
 

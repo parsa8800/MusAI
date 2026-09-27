@@ -28,7 +28,7 @@ export type ScorePaintOptions = {
   viewportWidthPx: number;
   viewportHeightPx: number;
   /** Import review: larger staff, fill the card, no sparse “postage stamp” look. */
-  purpose?: "workspace" | "import-preview";
+  purpose?: "workspace" | "import-preview" | "library-snippet";
 };
 
 export function isPieceScoreViewMode(v: string): v is PieceScoreViewMode {
@@ -75,15 +75,20 @@ export function pieceOsmdZoomForPresentation(
   if (mode === "page") {
     return Math.min(zoom, 1.32);
   }
+  if (purpose === "library-snippet") {
+    // Slightly under 1 so the opening motive shares the first line with a
+    // leading rest, while the staff still reads at card size.
+    return 0.86;
+  }
   if (purpose === "import-preview") {
     // Pack measures across the full staff width. Higher OSMD zoom wraps short
     // pieces into ragged 2–3 system stubs; display size comes from SVG scale.
     return Math.min(1.0, zoom);
   }
-  // Workspace Continuous: keep OSMD zoom modest so short pieces stay on one
-  // system; readable size comes from display scale after paint.
+  // Workspace Continuous: staff size follows the stage. Busy music wraps onto
+  // more systems instead of shrinking the notes to stay on one line.
   if (mode === "continuous") {
-    return Math.min(1.08, zoom);
+    return zoom;
   }
   if (w >= 1100) return Math.min(zoom, 1.56);
   return zoom;
@@ -103,7 +108,13 @@ export function continuousZoomBoost(
 ): number | null {
   // Import review + workspace Continuous: SVG display scale handles presence.
   // OSMD zoom boosts wrap short pieces into uneven systems.
-  if (purpose === "import-preview" || purpose === "workspace") return null;
+  if (
+    purpose === "import-preview" ||
+    purpose === "workspace" ||
+    purpose === "library-snippet"
+  ) {
+    return null;
+  }
 
   const vw = Math.max(1, viewportWidthPx);
   const vh = Math.max(1, viewportHeightPx);
@@ -127,8 +138,8 @@ export function continuousZoomBoost(
 }
 
 /**
- * Compact = short score that should sit centred in the stage.
- * Scroll = multi-system / multi-page music that reads top-down with natural wrapping.
+ * Compact = score fits in the stage as a content-sized card.
+ * Scroll = content taller than the stage (or multi-page) — fill and scroll inside.
  */
 export function classifyScoreScrollDensity(
   metrics: Pick<ScoreLayoutMetrics, "pageCount" | "systemCount" | "contentHeightPx">,
@@ -136,11 +147,8 @@ export function classifyScoreScrollDensity(
 ): ScoreScrollDensity {
   const vh = Math.max(1, viewportHeightPx);
   if (metrics.pageCount > 1) return "scroll";
-  if (metrics.systemCount >= 4) return "scroll";
-  if (metrics.systemCount >= 3 && metrics.contentHeightPx > vh * 0.55) {
-    return "scroll";
-  }
-  if (metrics.contentHeightPx > vh * 0.78) return "scroll";
+  // Prefer a fitted card whenever the engraved height still fits the stage.
+  if (metrics.contentHeightPx > vh * 0.94) return "scroll";
   return "compact";
 }
 
@@ -351,7 +359,7 @@ export function scaleOsmdHostToImportPreview(
   const maxW = Math.max(1, viewportWidthPx * (wideLine ? 0.96 : 0.88));
   const maxH = Math.max(
     1,
-    viewportHeightPx * (wideLine ? 0.36 : 0.62),
+    viewportHeightPx * (wideLine ? 0.4 : 0.78),
     wideLine ? 168 : 0,
   );
   const scale = Math.min(maxW / contentW, maxH / contentH, 1.85);
@@ -493,6 +501,7 @@ export type PieceOsmdMarginRules = {
   PageBottomMargin?: number;
   PageTopMarginNarrow?: number;
   StretchLastSystemLine?: boolean;
+  RenderFirstTempoExpression?: boolean;
 };
 
 export function applyPieceOsmdPageMargins(
@@ -501,10 +510,16 @@ export function applyPieceOsmdPageMargins(
   purpose: ScorePaintOptions["purpose"] = "workspace",
 ): void {
   if (!rules) return;
-  if (purpose === "import-preview" && mode === "continuous") {
+  if (
+    (purpose === "import-preview" || purpose === "library-snippet") &&
+    mode === "continuous"
+  ) {
     // Keep OSMD default Page*Margin (~5). Smaller values shrink Endless staff
     // height dramatically. Card CSS padding supplies visual inset instead.
     rules.StretchLastSystemLine = false;
+    if (purpose === "library-snippet") {
+      rules.RenderFirstTempoExpression = false;
+    }
     return;
   }
   if (mode === "continuous") {

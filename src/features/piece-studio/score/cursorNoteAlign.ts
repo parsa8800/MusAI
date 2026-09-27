@@ -7,12 +7,35 @@ export type CursorWalkSample = {
   x: number;
   y: number;
   height: number;
+  width?: number;
 };
 
 export type PlaybackNoteTime = {
   startSec: number;
   endSec: number;
 };
+
+/**
+ * One playhead stop per attack. Chords (same startSec, several MIDI notes)
+ * collapse to a single time so DOM noteheads (also one pose per attack) zip
+ * 1:1 — otherwise the bar maps many events onto early heads and lags the audio.
+ */
+export function collapsePlaybackNoteAttacks(
+  notes: readonly PlaybackNoteTime[],
+): PlaybackNoteTime[] {
+  if (notes.length === 0) return [];
+  /** @type {PlaybackNoteTime[]} */
+  const out: PlaybackNoteTime[] = [];
+  for (const note of notes) {
+    const prev = out[out.length - 1];
+    if (prev && Math.abs(prev.startSec - note.startSec) < 1e-4) {
+      prev.endSec = Math.max(prev.endSec, note.endSec);
+      continue;
+    }
+    out.push({ startSec: note.startSec, endSec: note.endSec });
+  }
+  return out;
+}
 
 /**
  * Infer whether OSMD RealValue is whole notes or quarter notes by how the
@@ -35,6 +58,7 @@ export function inferOsmdRealValueUnit(
 /**
  * Drop leading clef / time-signature stops so remaining samples can zip 1:1
  * with sounding notes (extras are almost always a prefix, not a suffix).
+ * Use for OSMD cursor walks — not for DOM noteheads.
  */
 export function trimLeadingCursorSamples(
   samples: readonly CursorWalkSample[],
@@ -46,21 +70,61 @@ export function trimLeadingCursorSamples(
   return samples.slice(samples.length - noteCount);
 }
 
-function lerpPose(
-  a: CursorWalkSample,
-  b: CursorWalkSample,
-  t: number,
-): Pick<CursorWalkSample, "x" | "y" | "height"> {
-  const u = Math.max(0, Math.min(1, t));
+/**
+ * Drop trailing extras so remaining samples keep the start of the piece.
+ * Use for DOM noteheads (already note-only; extras are usually ornaments /
+ * double-engravings later in the score — never drop the opening heads).
+ */
+export function trimTrailingCursorSamples(
+  samples: readonly CursorWalkSample[],
+  noteCount: number,
+): CursorWalkSample[] {
+  if (samples.length <= noteCount || noteCount <= 0) {
+    return [...samples];
+  }
+  return samples.slice(0, noteCount);
+}
+
+function poseFromSample(
+  sample: CursorWalkSample,
+  note: PlaybackNoteTime,
+): CursorPose {
   return {
-    x: a.x + (b.x - a.x) * u,
-    y: a.y + (b.y - a.y) * u,
-    height: a.height + (b.height - a.height) * u,
+    tSec: note.startSec,
+    endSec: note.endSec,
+    x: sample.x,
+    y: sample.y,
+    height: sample.height,
+    width: sample.width,
   };
 }
 
+function zipOrSpreadSamples(
+  samples: readonly CursorWalkSample[],
+  notes: readonly PlaybackNoteTime[],
+): CursorPose[] {
+  if (samples.length === 0 || notes.length === 0) return [];
+
+  if (samples.length === notes.length) {
+    return notes.map((note, i) => poseFromSample(samples[i]!, note));
+  }
+
+  // Count mismatch: snap each attack onto a real engraved head. Never
+  // invent an x between heads — that parked the playhead in empty gaps.
+  if (samples.length === 1) {
+    const only = samples[0]!;
+    return notes.map((note) => poseFromSample(only, note));
+  }
+
+  return notes.map((note, i) => {
+    const u = i / Math.max(1, notes.length - 1);
+    const idx = Math.round(u * (samples.length - 1));
+    return poseFromSample(samples[idx]!, note);
+  });
+}
+
 /**
- * Map OSMD walk positions onto MusaiScore note times.
+ * Map OSMD cursor-walk positions onto MusaiScore note times.
  *
  * Audio / Listen clock comes only from `notes` (startSec). OSMD supplies x/y.
  * - More samples than notes → drop leading (clef / meter).
@@ -75,42 +139,95 @@ export function alignCursorSamplesToNotes(
   void _realValueToSecAssumingWhole;
   if (samples.length === 0 || notes.length === 0) return [];
 
-  const trimmed = trimLeadingCursorSamples(samples, notes.length);
+  const attacks = collapsePlaybackNoteAttacks(notes);
+  const trimmed = trimLeadingCursorSamples(samples, attacks.length);
+  return zipOrSpreadSamples(trimmed, attacks);
+}
 
-  if (trimmed.length >= notes.length) {
-    return notes.map((note, i) => {
-      const s = trimmed[i]!;
-      return {
-        tSec: note.startSec,
-        x: s.x,
-        y: s.y,
-        height: s.height,
-      };
+/**
+ * Map engraved DOM noteheads onto MusaiScore note times.
+ *
+ * Chord attacks are collapsed first. Equal head/attack counts zip 1:1.
+ * When counts differ (OMR grace heads, double engraving), snap each attack
+ * onto a real head so the pointer never sits in empty space.
+ */
+export function alignNoteheadPosesToNotes(
+  samples: readonly CursorWalkSample[],
+  notes: readonly PlaybackNoteTime[],
+): CursorPose[] {
+  if (samples.length === 0 || notes.length === 0) return [];
+  const attacks = collapsePlaybackNoteAttacks(notes);
+  const heads = trimExtraHeads(
+    dropCueHeads(samples, attacks.length),
+    attacks.length,
+  );
+  return zipOrSpreadSamples(heads, attacks);
+}
+
+/**
+ * Grace / cue heads are smaller than principals and are not in the playback
+ * attack list. Drop the smallest extras so remaining heads zip 1:1.
+ */
+export function dropCueHeads(
+  samples: readonly CursorWalkSample[],
+  attackCount: number,
+): CursorWalkSample[] {
+  if (samples.length <= attackCount || attackCount <= 0) {
+    return [...samples];
+  }
+  const areas = samples.map((s) => (s.width ?? s.height) * s.height);
+  const sorted = [...areas].sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)] ?? 0;
+  if (!(median > 0)) return [...samples];
+  const principals = samples.filter(
+    (_, i) => (areas[i] ?? 0) >= median * 0.62,
+  );
+  if (
+    principals.length >= attackCount &&
+    principals.length < samples.length
+  ) {
+    return principals;
+  }
+  return [...samples];
+}
+
+/**
+ * Extra heads that sit immediately left of a principal (same-size OMR
+ * acciaccaturas) are not in the sounding attack list. Drop the most
+ * grace-like extras until counts match.
+ */
+export function trimExtraHeads(
+  samples: readonly CursorWalkSample[],
+  attackCount: number,
+): CursorWalkSample[] {
+  if (samples.length <= attackCount || attackCount <= 0) {
+    return [...samples];
+  }
+  const extras = samples.length - attackCount;
+  const areas = samples.map((s) => (s.width ?? s.height) * s.height);
+  const scored: Array<{ i: number; score: number }> = [];
+  for (let i = 0; i < samples.length; i += 1) {
+    const next = samples[i + 1];
+    const dx = next ? next.x - samples[i]!.x : 80;
+    const dy = next ? Math.abs(next.y - samples[i]!.y) : 0;
+    const tucked = Boolean(next && dx > 2 && dx < 20 && dy < 48);
+    const small = (areas[i] ?? 0) < (areas[i + 1] ?? areas[i] ?? 1) * 0.9;
+    if (!tucked && !small) continue;
+    scored.push({
+      i,
+      score: (tucked ? dx : 40) + (small ? 0 : 12),
     });
   }
-
-  // Incomplete OSMD walk: keep the playhead moving through every note.
-  if (trimmed.length === 1) {
-    const only = trimmed[0]!;
-    return notes.map((note) => ({
-      tSec: note.startSec,
-      x: only.x,
-      y: only.y,
-      height: only.height,
-    }));
+  const denseRun = scored.length > Math.max(extras * 2, samples.length * 0.45);
+  if (!denseRun && scored.length >= extras) {
+    scored.sort((a, b) => a.score - b.score || a.i - b.i);
+    const drop = new Set(scored.slice(0, extras).map((s) => s.i));
+    const kept = samples.filter((_, i) => !drop.has(i));
+    if (kept.length === attackCount) return kept;
+    if (kept.length > attackCount) {
+      return trimTrailingCursorSamples(kept, attackCount);
+    }
   }
-
-  return notes.map((note, i) => {
-    const u = i / Math.max(1, notes.length - 1);
-    const f = u * (trimmed.length - 1);
-    const i0 = Math.floor(f);
-    const i1 = Math.min(trimmed.length - 1, i0 + 1);
-    const pose = lerpPose(trimmed[i0]!, trimmed[i1]!, f - i0);
-    return {
-      tSec: note.startSec,
-      x: pose.x,
-      y: pose.y,
-      height: pose.height,
-    };
-  });
+  if (extras <= 2) return trimTrailingCursorSamples(samples, attackCount);
+  return [...samples];
 }

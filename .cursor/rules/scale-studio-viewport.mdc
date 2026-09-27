@@ -13,7 +13,7 @@ Core practice functionality must always fit inside **one viewport** (`100dvh` / 
 - Just play / Pick notes mode switch
 - Pick notes controls (key, Major/Minor, octave, direction) when active
 - Scale title and notation area
-- Recording controls (Record/Import, mic, record button / timer)
+- Recording controls (Record/Import, mic, record button; timer while recording)
 - Progress bar
 
 ## Layout rules

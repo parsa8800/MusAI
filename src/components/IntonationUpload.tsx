@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AudioActivityVisualizer } from "@/components/AudioActivityVisualizer";
+import { useInstrument } from "@/components/InstrumentProvider";
+import { MusaiLoadingMark } from "@/components/MusaiLoadingMark";
 import { NoteRing } from "@/components/NoteRing";
 import { MusaiCaptureDock } from "@/components/MusaiCaptureDock";
 import { MusaiFloatingMiniRecorder } from "@/components/MusaiFloatingMiniRecorder";
@@ -30,8 +31,9 @@ const UPLOAD_PROCESSING_MIN_MS_REDUCED = 0;
 
 export function IntonationUpload() {
   const router = useRouter();
+  const { instrument } = useInstrument();
   const [inputMode, setInputMode] = useState<InputMode>("record");
-  const [midi, setMidi] = useState(69);
+  const [midi, setMidi] = useState(instrument.defaultTargetMidi);
   const [file, setFile] = useState<File | null>(null);
   /** Brief “processing” phase after pick so the card feels alive (not instant/static). */
   const [uploadProcessing, setUploadProcessing] = useState(false);
@@ -105,15 +107,8 @@ export function IntonationUpload() {
     miniEnabled,
   );
 
-  const handleAudioFileChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const f = e.target.files?.[0] ?? null;
-      if (!f) {
-        setFile(null);
-        setUploadProcessing(false);
-        resetSession();
-        return;
-      }
+  const handleAudioFileSelected = useCallback(
+    (f: File) => {
       const token = ++uploadTokenRef.current;
       setFile(f);
       resetSession();
@@ -346,7 +341,7 @@ export function IntonationUpload() {
             aria-live="polite"
             aria-label="Analyzing audio"
           >
-            <AudioActivityVisualizer variant="prominent" />
+            <MusaiLoadingMark />
             <p className="mt-7 text-sm font-medium text-[var(--musai-ink)]">
               Analyzing…
             </p>
@@ -415,7 +410,7 @@ export function IntonationUpload() {
                 file={file}
                 uploadProcessing={uploadProcessing}
                 fileInputRef={fileInputRef}
-                onFileChange={handleAudioFileChange}
+                onFileSelected={handleAudioFileSelected}
                 mainRecorderRef={mainRecorderRef}
                 micDevices={micDevices}
                 selectedMicId={selectedMicId}

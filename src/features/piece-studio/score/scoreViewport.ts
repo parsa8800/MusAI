@@ -128,7 +128,11 @@ export function musicXmlPreviewLog(
       console.info(line, detail);
       return;
     }
-    console.error(line, detail ?? {});
+    const message =
+      typeof detail?.message === "string" && detail.message
+        ? detail.message
+        : "";
+    console.error(message ? `${line} ${message}` : line, detail ?? {});
     return;
   }
   console.info(line, detail ?? {});

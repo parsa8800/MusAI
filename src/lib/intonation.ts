@@ -1,3 +1,4 @@
+import { getInstrument } from "@/lib/instrument/catalog";
 import {
   nearestMidiOfPitchClass,
   SCALE_CLEAR_MISS_CENTS,
@@ -31,9 +32,10 @@ export function formatNoteLabel(midi: number): string {
   return `${n}${octave}`;
 }
 
-/** Violin-friendly range: G3 (55) through E7 (100). */
-export const VIOLIN_MIDI_MIN = 55;
-export const VIOLIN_MIDI_MAX = 100;
+/** Violin-friendly range: G3 through E7. Sourced from the violin profile. */
+const VIOLIN = getInstrument("violin");
+export const VIOLIN_MIDI_MIN = VIOLIN.midiMin;
+export const VIOLIN_MIDI_MAX = VIOLIN.midiMax;
 
 export function violinNoteOptions(): { midi: number; label: string }[] {
   const out: { midi: number; label: string }[] = [];

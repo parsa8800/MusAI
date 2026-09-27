@@ -1,6 +1,10 @@
 import type { ScalePracticeSessionV1 } from "@/lib/scalePracticeTypes";
 import { buildScaleCoachingFeedback } from "@/lib/scalePracticeCopy";
-import { violinStringFingerLabel } from "@/lib/violinScaleReference";
+import {
+  instrumentForSession,
+  preferOpenOverFourthExample,
+  stringFingerLabel,
+} from "@/lib/instrument";
 
 /** Compact measured facts for an LLM — no audio, no secrets. */
 export type ScaleCoachingLlmPayload = {
@@ -36,6 +40,7 @@ export function pitchCueForNote(input: {
 export function buildScaleCoachingLlmPayload(
   session: ScalePracticeSessionV1,
 ): ScaleCoachingLlmPayload {
+  const instrument = instrumentForSession(session);
   const coaching = buildScaleCoachingFeedback(session);
   return {
     scaleLabel: session.scaleLabel,
@@ -49,9 +54,9 @@ export function buildScaleCoachingLlmPayload(
           ? null
           : Number.parseFloat(n.centsLabel.replace("¢", ""));
       const midi = session.notes[n.noteIndex]?.expectedMidi ?? 60;
-      const stringFingerLabel = violinStringFingerLabel(midi);
+      const label = stringFingerLabel(midi, instrument);
       return {
-        label: stringFingerLabel,
+        label,
         pitchCue: pitchCueForNote({
           missing: n.centsLabel === "—",
           bucket: n.bucket,
@@ -65,9 +70,12 @@ export function buildScaleCoachingLlmPayload(
   };
 }
 
-export function scaleCoachingSystemPrompt(): string {
+export function scaleCoachingSystemPrompt(session?: {
+  instrumentId?: string;
+}): string {
+  const instrument = instrumentForSession(session ?? {});
   return [
-    "You are a friendly violin/viola teacher helping kids after a scale take.",
+    `You are a friendly ${instrument.coach.role} helping kids after a scale take.`,
     "You only know measured pitch from the recording. You cannot see their hands, bow, or posture. Never claim you saw how they played.",
     "The student already sees coloured notes and arrows on the staff. That is the detailed feedback.",
     "Arrows on the staff mean what to try next: down means play that note lower, up means play it higher.",
@@ -89,7 +97,7 @@ export function scaleCoachingSystemPrompt(): string {
     "Stay humble. Never claim you saw thumb, posture, or bow.",
     "Prefer simple kid words. Avoid intonation, bias, placement, technique, noticeably, centred.",
     "",
-    "NOTE NAMES: string + finger only. Prefer E0 not A4. Never C4 or F#4.",
+    `NOTE NAMES: string + finger only. Prefer ${preferOpenOverFourthExample(instrument)}. Never C4 or F#4.`,
     "",
     "Each bullet max ~12 easy words. No paragraphs. No markdown.",
     "Never use hyphens or dashes (no -, –, or —).",

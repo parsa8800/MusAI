@@ -163,7 +163,7 @@ test.describe("Scale practice results", () => {
           JSON.stringify([
             {
               schemaVersion: 1,
-              progressKey: "C_major__1",
+              progressKey: "violin__C_major__1",
               scaleId: "C_major",
               scaleLabel: "C major",
               scaleKind: "major",
@@ -218,7 +218,7 @@ test.describe("Scale practice results", () => {
     await expect(page.getByRole("heading", { name: "Switch scale" })).toBeVisible();
     await expect(
       page.getByText("Scales you’ve already practised. Tap one to keep going."),
-    ).toBeVisible();
+    ).toHaveCount(0);
     await expect(page.getByRole("button", { name: /More actions for C major/i })).toBeVisible();
     await page.getByRole("button", { name: /More actions for C major/i }).click();
     await expect(page.getByRole("menuitem", { name: "Reset scale" })).toBeVisible();

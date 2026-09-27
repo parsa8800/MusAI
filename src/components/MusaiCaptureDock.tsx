@@ -1,10 +1,11 @@
 "use client";
 
-import type { ChangeEvent, ReactNode, RefObject } from "react";
-import { AudioActivityVisualizer } from "@/components/AudioActivityVisualizer";
+import { useState, type ReactNode, type RefObject } from "react";
+import { MusaiFileImport } from "@/components/MusaiFileImport";
 import { MusaiMicCapturePanel } from "@/components/MusaiMicCapturePanel";
 import { MusaiSegmentedControl } from "@/components/MusaiSegmentedControl";
 import { AnimatedReveal } from "@/components/motion/AnimatedReveal";
+import { MUSAI_AUDIO_UPLOAD_ACCEPT } from "@/lib/musaiFileImport";
 import { tapFeedback } from "@/lib/motion";
 import type { WaveformLiveClock } from "@/lib/recordingWaveform";
 
@@ -19,7 +20,8 @@ type Props = {
   file: File | null;
   uploadProcessing: boolean;
   fileInputRef: RefObject<HTMLInputElement | null>;
-  onFileChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  /** Same path for click and drag-and-drop (shared MusaiFileImport gate). */
+  onFileSelected: (file: File) => void;
   mainRecorderRef: RefObject<HTMLDivElement | null>;
   micDevices: MediaDeviceInfo[];
   selectedMicId: string;
@@ -83,8 +85,9 @@ function CaptureStagePanel({
 }
 
 /**
- * Shared capture dock for Scale Studio and Tuning trainer.
- * Mode switch stays pinned; Record and Import share one stacked stage.
+ * Shared capture dock (Record / Import chrome around {@link MusaiMicCapturePanel}).
+ * Scale Studio, Note Trainer, and similar hosts consume this — do not fork a
+ * per-studio recorder. Import uses {@link MusaiFileImport}.
  */
 export function MusaiCaptureDock({
   selectId,
@@ -95,7 +98,7 @@ export function MusaiCaptureDock({
   file,
   uploadProcessing,
   fileInputRef,
-  onFileChange,
+  onFileSelected,
   mainRecorderRef,
   micDevices,
   selectedMicId,
@@ -121,12 +124,24 @@ export function MusaiCaptureDock({
   idleHint,
   module,
 }: Props) {
+  const [rejectMessage, setRejectMessage] = useState<string | null>(null);
   const analysing = status === "loading" || uploadProcessing;
   const ready =
     !analysing &&
     ((captureMode === "record" && !!recordedBlob) ||
       (captureMode === "upload" && !!file));
   const showRecord = captureMode === "record";
+
+  const importLabel = file
+    ? "Ready"
+    : nextTake?.again
+      ? `Import ${nextTake.label.toLowerCase()}`
+      : "Import audio";
+  const importHint = file
+    ? file.name
+    : nextTake?.again
+      ? "Another recording of this scale"
+      : "Drop a file or tap to choose";
 
   return (
     <div
@@ -149,6 +164,7 @@ export function MusaiCaptureDock({
           value={captureMode}
           onChange={(mode) => {
             if (isRecording || status === "loading") return;
+            setRejectMessage(null);
             onCaptureMode(mode);
           }}
           options={[
@@ -207,69 +223,27 @@ export function MusaiCaptureDock({
                   : ""
             }`}
           >
-            {file ? (
-              <div className="relative min-h-0 w-full flex-1">
-                <div
-                  className={`absolute inset-0 flex flex-col items-center justify-center px-4 py-3 transition-opacity duration-300 ${
-                    uploadProcessing
-                      ? "z-10 opacity-100"
-                      : "pointer-events-none z-0 opacity-0"
-                  }`}
-                  aria-hidden={!uploadProcessing}
-                  aria-busy={uploadProcessing}
-                  aria-label="Processing selected audio file"
-                >
-                  <AudioActivityVisualizer variant="compact" className="mb-2" />
-                  <span className="text-sm font-semibold tracking-tight text-[var(--musai-ink)]">
-                    Reading…
-                  </span>
-                  <span className="mt-1 max-w-full truncate px-2 text-center text-xs text-[var(--musai-muted)]">
-                    {file.name}
-                  </span>
-                </div>
-                <label
-                  className={`musai-capture-import__body transition-opacity duration-300 ${
-                    uploadProcessing
-                      ? "pointer-events-none relative z-0 opacity-0"
-                      : "relative z-10 opacity-100"
-                  }`}
-                >
-                  <span className="text-sm font-semibold text-[var(--musai-ok)]">
-                    Ready
-                  </span>
-                  <span className="mt-1 max-w-full truncate px-2 text-center text-xs text-[var(--musai-muted)]">
-                    {file.name}
-                  </span>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="audio/*,.wav,.mp3,.m4a,.ogg,.webm,.flac"
-                    className="sr-only"
-                    onChange={onFileChange}
-                  />
-                </label>
-              </div>
-            ) : (
-              <label className="musai-capture-import__body">
-                <span className="text-sm font-semibold text-[var(--musai-ink)]">
-                  {nextTake?.again
-                    ? `Import ${nextTake.label.toLowerCase()}`
-                    : "Import audio"}
-                </span>
-                <span className="mt-1 text-center text-[12px] text-[var(--musai-muted)]">
-                  {nextTake?.again
-                    ? "Another recording of this scale"
-                    : "Tap to choose a file"}
-                </span>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="audio/*,.wav,.mp3,.m4a,.ogg,.webm,.flac"
-                  className="sr-only"
-                  onChange={onFileChange}
-                />
-              </label>
-            )}
+            <MusaiFileImport
+              className="musai-capture-file-import"
+              testId="scale-file-import"
+              compact
+              acceptedFiles={MUSAI_AUDIO_UPLOAD_ACCEPT}
+              inputRef={fileInputRef}
+              processing={uploadProcessing}
+              processingLabel="Reading…"
+              disabled={status === "loading"}
+              label={importLabel}
+              hint={importHint}
+              inputAriaLabel="Import audio file"
+              error={rejectMessage}
+              onReject={setRejectMessage}
+              onFilesSelected={(files) => {
+                const next = files[0];
+                if (!next) return;
+                setRejectMessage(null);
+                onFileSelected(next);
+              }}
+            />
           </div>
         </CaptureStagePanel>
       </div>

@@ -1,13 +1,13 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { ScaleProgressPanel } from "@/components/ScaleProgressPanel";
 import { ScaleSwitcherDrawer } from "@/components/ScaleSwitcherDrawer";
 import {
   clearScalePracticeHistory,
   persistScalePracticeSession,
-  readScalePracticeSession,
 } from "@/lib/scalePracticeSession";
 import { clearScaleProgressHistory } from "@/lib/scaleProgressHistory";
+import { INSTRUMENT_STORAGE_KEY } from "@/lib/instrument";
 import type { ScalePracticeSessionV1 } from "@/lib/scalePracticeTypes";
 
 vi.mock("next/link", () => ({
@@ -102,6 +102,7 @@ describe("ScaleProgressPanel", () => {
   afterEach(() => {
     clearScaleProgressHistory();
     clearScalePracticeHistory();
+    window.localStorage.removeItem(INSTRUMENT_STORAGE_KEY);
   });
 
   it("shows an empty state when there are no journeys", async () => {
@@ -109,16 +110,14 @@ describe("ScaleProgressPanel", () => {
     expect(await screen.findByText("No scales yet")).toBeInTheDocument();
   });
 
-  it("centres the My scales heading and supporting line", async () => {
+  it("centres the My scales heading without extra copy", async () => {
     render(<ScaleProgressPanel onContinue={vi.fn()} />);
     const heading = await screen.findByRole("heading", { name: "My scales" });
     expect(heading.className).toMatch(/musai-scale-switcher__title/);
     const copy = heading.closest(".musai-scale-switcher__copy");
     expect(copy).toBeTruthy();
-    expect(copy).toHaveTextContent(/already practised/i);
-    expect(copy?.querySelector(".musai-scale-switcher__subtitle")).toHaveTextContent(
-      /tap one to keep going/i,
-    );
+    expect(copy?.querySelector(".musai-scale-switcher__subtitle")).toBeNull();
+    expect(screen.queryByText(/already practised/i)).not.toBeInTheDocument();
   });
 
   it("renders selectable cards with continue affordance", async () => {
@@ -187,20 +186,20 @@ describe("ScaleProgressPanel", () => {
     expect(
       await screen.findByRole("link", { name: /Continue C major/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Scales you’ve already practised. Tap one to keep going.")).toBeInTheDocument();
-    expect(screen.getByText("1 octave")).toBeInTheDocument();
-    expect(screen.getByText("2 octaves")).toBeInTheDocument();
-    expect(screen.getAllByText("1 take").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("In progress").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Continue").length).toBeGreaterThan(0);
-    expect(screen.queryByText("Complete")).not.toBeInTheDocument();
+    expect(screen.queryByText(/already practised/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("1 octave")).not.toBeInTheDocument();
+    expect(screen.queryByText("2 octaves")).not.toBeInTheDocument();
+    expect(screen.queryByText(/take/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("In progress")).not.toBeInTheDocument();
+    expect(screen.queryByText(/%/)).not.toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /Continue /i }).length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole("link", { name: /Continue G major/i }));
     expect(onContinue).toHaveBeenCalledTimes(1);
     expect(onContinue.mock.calls[0]?.[0]?.scaleLabel).toBe("G major");
   });
 
-  it("shows Complete instead of a percent for a finished scale", async () => {
+  it("fills the bar for a finished scale without a percent", async () => {
     persistScalePracticeSession(
       makeSession({
         summary: {
@@ -216,10 +215,14 @@ describe("ScaleProgressPanel", () => {
       }),
     );
     render(<ScaleProgressPanel onContinue={vi.fn()} />);
-    expect(await screen.findByText("Complete")).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: /Continue C major.*complete/i }),
-    ).toBeInTheDocument();
+    const link = await screen.findByRole("link", {
+      name: /Continue C major.*complete/i,
+    });
+    expect(link.querySelector(".musai-scale-switcher__meter")).toHaveAttribute(
+      "data-progress",
+      "100",
+    );
+    expect(screen.queryByText("Complete")).not.toBeInTheDocument();
     expect(screen.queryByText("100%")).not.toBeInTheDocument();
   });
 
@@ -231,64 +234,43 @@ describe("ScaleProgressPanel", () => {
       <ScaleProgressPanel
         onContinue={onContinue}
         onDismiss={onDismiss}
-        currentProgressKey="C_major__1"
+        currentProgressKey="violin__C_major__1"
       />,
     );
     const current = await screen.findByRole("link", {
       name: /C major, this page/i,
     });
     expect(current).toHaveAttribute("aria-current", "page");
-    expect(screen.getByText("Here")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /More actions for C major/i }),
-    ).toBeInTheDocument();
+    expect(screen.queryByText("Here")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Close scales" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Remove/i })).not.toBeInTheDocument();
     fireEvent.click(current);
     expect(onContinue).not.toHaveBeenCalled();
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 
-  it("resets a journey after confirmation and removes it from the list", async () => {
-    persistScalePracticeSession(makeSession());
-    const onJourneyReset = vi.fn();
-    render(
-      <ScaleProgressPanel onContinue={vi.fn()} onJourneyReset={onJourneyReset} />,
-    );
+  it("hides violin journeys in viola mode without deleting them", async () => {
+    persistScalePracticeSession(makeSession({ instrumentId: "violin" }));
+    window.localStorage.setItem(INSTRUMENT_STORAGE_KEY, "viola");
+    const violaView = render(<ScaleProgressPanel onContinue={vi.fn()} />);
+    expect(await screen.findByText("No scales yet")).toBeInTheDocument();
+    violaView.unmount();
+
+    window.localStorage.setItem(INSTRUMENT_STORAGE_KEY, "violin");
+    render(<ScaleProgressPanel onContinue={vi.fn()} />);
     expect(
       await screen.findByRole("link", { name: /Continue C major/i }),
     ).toBeInTheDocument();
+  });
 
-    fireEvent.click(
-      screen.getByRole("button", { name: /More actions for C major/i }),
-    );
-    fireEvent.click(screen.getByRole("menuitem", { name: "Reset scale" }));
+  it("does not put a remove control on a scale row", async () => {
+    persistScalePracticeSession(makeSession());
+    render(<ScaleProgressPanel onContinue={vi.fn()} />);
     expect(
-      screen.getByRole("dialog", { name: /Reset C major/i }),
+      await screen.findByRole("link", { name: /Continue C major/i }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(/removes it from My scales/i),
-    ).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: /Continue C major/i }),
-    ).toBeInTheDocument();
-
-    fireEvent.click(
-      screen.getByRole("button", { name: /More actions for C major/i }),
-    );
-    fireEvent.click(screen.getByRole("menuitem", { name: "Reset scale" }));
-    fireEvent.click(screen.getByRole("button", { name: "Reset" }));
-
-    await waitFor(() => {
-      expect(
-        screen.queryByRole("link", { name: /Continue C major/i }),
-      ).not.toBeInTheDocument();
-    });
-    expect(screen.getByText("No scales yet")).toBeInTheDocument();
-    expect(readScalePracticeSession()).toBeNull();
-    expect(onJourneyReset).toHaveBeenCalledTimes(1);
-    expect(onJourneyReset.mock.calls[0]?.[0]?.progressKey).toBe("C_major__1");
+    expect(screen.queryByRole("button", { name: /Remove/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Remove$/)).not.toBeInTheDocument();
   });
 });
 
@@ -312,7 +294,6 @@ describe("ScaleSwitcherDrawer", () => {
         onClose={onClose}
         id="scale-studio-my-scales"
         title="My scales"
-        subtitle="Open a scale"
         onContinue={vi.fn()}
         newScaleHref="/practice/scale"
       />,
@@ -332,7 +313,6 @@ describe("ScaleSwitcherDrawer", () => {
         onClose={onClose}
         id="scale-studio-my-scales"
         title="My scales"
-        subtitle="Open a scale"
         onContinue={vi.fn()}
         newScaleHref="/practice/scale"
       />,
@@ -357,7 +337,6 @@ describe("ScaleSwitcherDrawer", () => {
         onClose={onClose}
         id="scale-workspace-switcher"
         title="Switch scale"
-        subtitle="Pick one"
         onContinue={vi.fn()}
         newScaleHref="/practice/scale"
       />,

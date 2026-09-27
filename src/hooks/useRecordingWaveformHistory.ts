@@ -67,6 +67,8 @@ export function useRecordingWaveformHistory(
     let lastPush = 0;
     let smoothed = 0;
     let hasSmooth = false;
+    let cancelled = false;
+    let waitRaf = 0;
     const times: number[] = [];
 
     const attach = (stream: MediaStream) => {
@@ -81,18 +83,8 @@ export function useRecordingWaveformHistory(
       return true;
     };
 
-    const stream = streamRef.current;
-    if (!stream) return;
-    try {
-      if (!attach(stream)) return;
-    } catch {
-      return;
-    }
-
-    const data = new Float32Array(analyser!.fftSize);
-
     const tick = (now: number) => {
-      if (!analyser) return;
+      if (!analyser || !data || cancelled) return;
       raf = requestAnimationFrame(tick);
       if (now - lastPush < WAVEFORM_SAMPLE_MS) return;
       lastPush = now;
@@ -108,10 +100,37 @@ export function useRecordingWaveformHistory(
       writeClock(collector.snapshot(), times.slice());
     };
 
-    raf = requestAnimationFrame(tick);
+    let data: Float32Array<ArrayBuffer> | null = null;
+    let waitFrames = 0;
+
+    const startFromStream = (stream: MediaStream) => {
+      try {
+        if (!attach(stream)) return;
+      } catch {
+        return;
+      }
+      data = new Float32Array(analyser!.fftSize);
+      raf = requestAnimationFrame(tick);
+    };
+
+    // Stream is usually set before isRecording flips; retry briefly if not.
+    const tryAttach = () => {
+      if (cancelled) return;
+      const stream = streamRef.current;
+      if (stream) {
+        startFromStream(stream);
+        return;
+      }
+      waitFrames += 1;
+      if (waitFrames > 90) return;
+      waitRaf = requestAnimationFrame(tryAttach);
+    };
+    tryAttach();
 
     return () => {
+      cancelled = true;
       cancelAnimationFrame(raf);
+      cancelAnimationFrame(waitRaf);
       if (discardedRef.current) {
         writeClock([], []);
         queueMicrotask(() => setSamples([]));

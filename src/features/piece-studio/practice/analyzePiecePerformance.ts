@@ -1,4 +1,8 @@
-import { matchPiecePitch, type PiecePitchMatch } from "@/features/piece-studio/pitch/piecePitchMatch";
+import {
+  activePiecePitchWindow,
+  matchPiecePitch,
+  type PiecePitchMatch,
+} from "@/features/piece-studio/pitch/piecePitchMatch";
 import { centsFromMatchedHz } from "@/features/piece-studio/pitch/centsFromMatchedHz";
 import {
   PRACTICE_IN_TUNE_CENTS,
@@ -108,6 +112,7 @@ export function analyzePiecePerformance(input: {
       mono: input.mono,
       sampleRateHz: input.sampleRateHz,
       expectedMidis: input.expectedMidis,
+      ...activePiecePitchWindow(),
     });
   return performanceFromPitchMatch(match, input.expectedMidis);
 }

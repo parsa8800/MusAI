@@ -11,10 +11,15 @@ import { PIECE_STUDIO_SCHEMA_VERSION } from "@/features/piece-studio/pieceStudio
 import type { PieceWorkspaceV1 } from "@/features/piece-studio/pieceStudioTypes";
 import { TWINKLE_XML } from "@/features/piece-studio/score/musicXmlFixtures";
 
+const adapterProps: { current: Record<string, unknown> } = { current: {} };
+
 vi.mock("@/features/piece-studio/score/OsmdScoreAdapter", () => ({
-  OsmdScoreAdapter: ({ title }: { title: string }) => (
-    <div data-testid="piece-osmd">{title}</div>
-  ),
+  OsmdScoreAdapter: (props: Record<string, unknown>) => {
+    adapterProps.current = props;
+    return <div data-testid="piece-osmd">{String(props.title ?? "")}</div>;
+  },
+  usePieceScoreToolsSlot: () => null,
+  PIECE_SCORE_ORIGINAL_SLOT_ID: "musai-piece-original-slot",
 }));
 
 function piece(partial: Partial<PieceWorkspaceV1> = {}): PieceWorkspaceV1 {
@@ -63,7 +68,7 @@ describe("PieceScorePaper", () => {
     );
     render(<PieceScorePaper piece={piece()} />);
     expect(await screen.findByTestId("piece-osmd")).toHaveTextContent("Twinkle");
-    expect(screen.getByText("Mozart · C major · 4/4 · 100 bpm")).toBeInTheDocument();
+    expect(screen.queryByText(/Mozart · C major · 4\/4 · 100 bpm/i)).not.toBeInTheDocument();
   });
 
   it("loads recognized MusicXML for an embedded workspace piece", async () => {
@@ -120,8 +125,84 @@ describe("PieceScorePaper", () => {
     );
     expect(await screen.findByTestId("piece-osmd")).toHaveTextContent("Twinkle");
     expect(screen.getByText("Check your score")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Original" }),
-    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Original" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Digital score" })).not.toBeInTheDocument();
+  });
+
+  it("defaults a confirmed PDF piece to the digital score, not the original page", async () => {
+    await savePieceOriginalFile(
+      "scan-pdf",
+      new Blob(["%PDF"], { type: "application/pdf" }),
+    );
+    await savePieceRecognizedMusicXml("scan-pdf", TWINKLE_XML);
+    render(
+      <PieceScorePaper
+        piece={piece({
+          pieceId: "scan-pdf",
+          sourceKind: "pdf",
+          sourceFileName: "page.pdf",
+          sourceMimeType: "application/pdf",
+          recognitionStatus: "ready",
+          recognitionConfirmed: true,
+        })}
+        embedded
+      />,
+    );
+    expect(await screen.findByTestId("piece-osmd")).toHaveTextContent("Twinkle");
+    expect(screen.queryByLabelText(/Twinkle score/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Original" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Digital score" })).not.toBeInTheDocument();
+  });
+
+  it("arms the shared playhead in Practise without dropping feedback highlights", async () => {
+    await savePieceRecognizedMusicXml("twinkle", TWINKLE_XML);
+    const highlight = {
+      id: "issue-1",
+      startWholeNotes: 0,
+      endWholeNotes: 1,
+      label: "First phrase",
+      emphasis: "focus" as const,
+    };
+    render(
+      <PieceScorePaper
+        piece={piece()}
+        embedded
+        followPlayback={false}
+        showPlayhead
+        highlight={highlight}
+        highlights={[highlight]}
+      />,
+    );
+    expect(await screen.findByTestId("piece-osmd")).toBeInTheDocument();
+    expect(adapterProps.current.followPlayback).toBe(false);
+    expect(adapterProps.current.showPlayhead).toBe(true);
+    expect(adapterProps.current.highlight).toEqual(
+      expect.objectContaining({ id: "issue-1" }),
+    );
+    expect(adapterProps.current.highlights).toEqual([
+      expect.objectContaining({ id: "issue-1" }),
+    ]);
+  });
+
+  it("keeps Listen follow mode from painting practise highlights", async () => {
+    await savePieceRecognizedMusicXml("twinkle", TWINKLE_XML);
+    render(
+      <PieceScorePaper
+        piece={piece()}
+        embedded
+        followPlayback
+        showPlayhead
+        highlight={{
+          id: "issue-1",
+          startWholeNotes: 0,
+          endWholeNotes: 1,
+          label: "First phrase",
+        }}
+      />,
+    );
+    expect(await screen.findByTestId("piece-osmd")).toBeInTheDocument();
+    expect(adapterProps.current.followPlayback).toBe(true);
+    expect(adapterProps.current.showPlayhead).toBe(true);
+    expect(adapterProps.current.highlight).toBeNull();
   });
 });

@@ -22,8 +22,10 @@ describe("Piece Studio user-facing import copy", () => {
     expect(blob).not.toMatch(/\bOMR\b/);
     expect(blob).not.toMatch(/terminal/i);
     expect(OMR_COPY.scanningUnavailable).toBe(
-      "Photos and PDFs can’t be scanned right now — digital scores still work",
+      "Photos and PDFs can’t be scanned right now.",
     );
+    expect(OMR_COPY.dropHint).toBe("");
+    expect(OMR_COPY.dropMusic).toBe("Add music");
     expect(OMR_COPY.failed).toBe("Couldn’t read this score");
     expect(OMR_COPY.checking).toBe("Checking the score");
   });

@@ -5,8 +5,10 @@ import {
   buildPlaybackTimeline,
   clampPlaybackTime,
   formatPieceClock,
+  LISTEN_PLAYBACK_VELOCITY,
   loopBoundsSec,
   quarterAtSeconds,
+  resolvePlayRange,
   secondsAtQuarter,
   snapToMeasureStart,
 } from "@/features/piece-studio/playback/playbackTimeline";
@@ -29,6 +31,38 @@ describe("buildPlaybackTimeline", () => {
     ]);
     expect(timeline.notes[5]?.midi).toBe(78);
     expect(timeline.notes[0]?.endSec).toBeCloseTo(0.6, 5);
+    expect(
+      timeline.notes.every((n) => n.velocity === LISTEN_PLAYBACK_VELOCITY),
+    ).toBe(true);
+  });
+
+  it("does not perform written dynamics as Listen volume changes", () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="3.1">
+  <part-list><score-part id="P1"><part-name>Violin</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes>
+        <divisions>1</divisions>
+        <key><fifths>0</fifths></key>
+        <time><beats>2</beats><beat-type>4</beat-type></time>
+        <clef><sign>G</sign><line>2</line></clef>
+      </attributes>
+      <direction><direction-type><dynamics><p/></dynamics></direction-type></direction>
+      <note><pitch><step>A</step><octave>4</octave></pitch><duration>1</duration></note>
+      <direction><direction-type><dynamics><ff/></dynamics></direction-type></direction>
+      <note><pitch><step>A</step><octave>5</octave></pitch><duration>1</duration></note>
+    </measure>
+  </part>
+</score-partwise>`;
+    const score = parseMusicXmlToScore(xml, "Dynamics");
+    expect(score.parts[0]?.measures[0]?.events.some((e) => e.kind === "dynamic")).toBe(
+      true,
+    );
+    const timeline = buildPlaybackTimeline(score);
+    expect(timeline.notes).toHaveLength(2);
+    expect(timeline.notes[0]?.velocity).toBe(timeline.notes[1]?.velocity);
+    expect(timeline.notes[0]?.velocity).toBe(LISTEN_PLAYBACK_VELOCITY);
   });
 
   it("converts quarters through a tempo map", () => {
@@ -46,6 +80,13 @@ describe("buildPlaybackTimeline", () => {
     expect(clampPlaybackTime(-1, 4.8)).toBe(0);
     expect(clampPlaybackTime(9, 4.8)).toBe(4.8);
     expect(formatPieceClock(65)).toBe("1:05");
+  });
+
+  it("widens a tiny highlight into a listenable one-shot span", () => {
+    expect(resolvePlayRange(1, 1.05, 9.6)?.startSec).toBeCloseTo(1);
+    expect(resolvePlayRange(1, 1.05, 9.6)?.endSec).toBeCloseTo(1.45);
+    expect(resolvePlayRange(0, 2, 9.6)).toEqual({ startSec: 0, endSec: 2 });
+    expect(resolvePlayRange(0, 1, 0)).toBeNull();
   });
 
   it("snaps playback into measure starts for practice seeks", () => {

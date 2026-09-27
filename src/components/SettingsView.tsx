@@ -1,50 +1,73 @@
 "use client";
 
+import { PracticeHubBackLink } from "@/components/PracticeHubBackLink";
+import { useInstrument } from "@/components/InstrumentProvider";
 import { MusaiSegmentedControl } from "@/components/MusaiSegmentedControl";
 import {
   useTheme,
   type ThemePreference,
 } from "@/components/ThemeProvider";
-import { PracticeHubBackLink } from "@/components/PracticeHubBackLink";
 import { useAnimeEntrance } from "@/hooks/useAnimeEntrance";
+import { INSTRUMENT_IDS, getInstrument, type InstrumentId } from "@/lib/instrument";
 
 /**
- * App settings — appearance for now; room to grow.
+ * App settings — instrument and appearance, one centred column.
  */
 export function SettingsView() {
   const { preference, setPreference } = useTheme();
+  const { instrumentId, setInstrumentId } = useInstrument();
   const entranceRef = useAnimeEntrance<HTMLDivElement>({ delay: 40 });
 
   return (
-    <div
-      ref={entranceRef}
-      className="mx-auto flex w-full max-w-lg flex-col gap-8 px-5 pb-[max(5rem,env(safe-area-inset-bottom))] pt-10 sm:px-8 sm:pt-14"
-    >
-      <PracticeHubBackLink />
+    <div ref={entranceRef} className="musai-settings">
+      <div className="musai-settings__nav" data-anime-enter>
+        <PracticeHubBackLink className="musai-settings__back" />
+      </div>
 
-      <header data-anime-enter>
-        <h1 className="font-display text-3xl font-semibold tracking-tight text-[var(--musai-ink)]">
-          Settings
-        </h1>
-      </header>
+      <div className="musai-settings__stage">
+        <header className="musai-settings__header" data-anime-enter>
+          <h1 className="musai-settings__title font-display">Settings</h1>
+        </header>
 
-      <section
-        data-anime-enter
-        className="musai-glass-panel px-5 py-5 sm:px-6"
-        aria-label="Theme"
-      >
-        <MusaiSegmentedControl<ThemePreference>
-          ariaLabel="Colour theme"
-          value={preference}
-          onChange={setPreference}
-          options={[
-            { value: "light", label: "Light" },
-            { value: "dark", label: "Dark" },
-            { value: "system", label: "System" },
-          ]}
-          className="max-w-none"
-        />
-      </section>
+        <section
+          className="musai-settings__panel"
+          data-anime-enter
+          aria-label="Preferences"
+        >
+          <div className="musai-settings__group">
+            <p className="musai-settings__label">Instrument</p>
+            <div className="musai-settings__control">
+              <MusaiSegmentedControl<InstrumentId>
+                ariaLabel="Instrument"
+                value={instrumentId}
+                onChange={setInstrumentId}
+                options={INSTRUMENT_IDS.map((id) => ({
+                  value: id,
+                  label: getInstrument(id).name,
+                }))}
+                className="musai-settings__segmented"
+              />
+            </div>
+          </div>
+
+          <div className="musai-settings__group">
+            <p className="musai-settings__label">Appearance</p>
+            <div className="musai-settings__control">
+              <MusaiSegmentedControl<ThemePreference>
+                ariaLabel="Colour theme"
+                value={preference}
+                onChange={setPreference}
+                options={[
+                  { value: "light", label: "Light" },
+                  { value: "dark", label: "Dark" },
+                  { value: "system", label: "System" },
+                ]}
+                className="musai-settings__segmented"
+              />
+            </div>
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

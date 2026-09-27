@@ -29,6 +29,7 @@
   "dependencies": {
     "animejs": "^4.5.0",
     "fflate": "^0.8.3",
+    "jspdf": "^4.2.1",
     "next": "16.2.2",
     "opensheetmusicdisplay": "^2.1.2",
     "pitchy": "^4.1.0",

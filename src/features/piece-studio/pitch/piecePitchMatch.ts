@@ -6,6 +6,7 @@ import {
   type StablePitchRun,
 } from "@/lib/analyzePitch";
 import { midiToHz } from "@/lib/intonation";
+import { getActiveInstrument } from "@/lib/instrument/storage";
 
 /**
  * Shared pitch match for a piece take.
@@ -38,10 +39,18 @@ function timesFromMatchedSlots(
   });
 }
 
+/** Pitch window for the instrument chosen in Settings. */
+export function activePiecePitchWindow(): { minHz: number; maxHz: number } {
+  const pitch = getActiveInstrument().pitch;
+  return { minHz: pitch.minHz, maxHz: pitch.practiceMaxHz };
+}
+
 export function matchPiecePitch(input: {
   mono: Float32Array;
   sampleRateHz: number;
   expectedMidis: readonly number[];
+  minHz?: number;
+  maxHz?: number;
 }): PiecePitchMatch {
   const durationSec =
     input.mono.length > 0 ? input.mono.length / input.sampleRateHz : 0;
@@ -50,6 +59,8 @@ export function matchPiecePitch(input: {
   }
   const frames = collectPitchFrames(input.mono, input.sampleRateHz, {
     mode: "piece",
+    minHz: input.minHz,
+    maxHz: input.maxHz,
   });
   const runs = collectStablePitchRuns(frames);
   const slots = matchDetectedRunsToExpected(runs, input.expectedMidis);

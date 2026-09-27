@@ -1,18 +1,20 @@
 import { PracticeHubBackLink } from "@/components/PracticeHubBackLink";
-import { ViolinTuner } from "@/components/ViolinTuner";
+import { Tuner } from "@/components/ViolinTuner";
 
 export default function TunerPracticePage() {
   return (
-    <div className="flex min-h-full flex-col items-center px-4 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-6 sm:px-8 sm:pt-8">
-      <div className="w-full max-w-[min(1000px,100%)]">
-        <PracticeHubBackLink />
+    <div className="musai-tuner-page">
+      <div className="musai-tuner-page__chrome">
+        <PracticeHubBackLink className="!mb-0 shrink-0" />
       </div>
-      <header className="mb-3 flex w-full max-w-[min(440px,100%)] flex-col items-center text-center sm:mb-4">
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-[var(--musai-ink)] sm:text-[1.75rem]">
-          Violin tuner
-        </h1>
-      </header>
-      <ViolinTuner />
+      <div className="musai-tuner-page__stage">
+        <header className="musai-tuner-page__header">
+          <h1 className="musai-tuner-page__title font-display">
+            Tuner
+          </h1>
+        </header>
+        <Tuner />
+      </div>
     </div>
   );
 }

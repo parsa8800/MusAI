@@ -17,7 +17,7 @@ import {
   isSheetMusicScan,
   mimeForSheetScan,
 } from "@/features/piece-studio/omr/sheetMusicScan";
-import { validateRecognizedMusicXml } from "@/features/piece-studio/omr/validateRecognizedMusicXml";
+import { musicXmlLooksReadable } from "@/features/piece-studio/score/musicXmlLooksReadable";
 import { PIECE_UPLOAD_MAX_BYTES } from "@/features/piece-studio/pieceStudioLimits";
 
 export const runtime = "nodejs";
@@ -143,14 +143,17 @@ export async function POST(req: Request) {
       chars: result.musicXml.length,
     });
 
-    pieceImportLog("PARSE", "start", { where: "validateRecognizedMusicXml" });
-    const { musicXml } = validateRecognizedMusicXml(result.musicXml);
+    pieceImportLog("PARSE", "start", { where: "sync musicXml shape check" });
+    if (!musicXmlLooksReadable(result.musicXml)) {
+      throw new OmrError(OMR_COPY.invalidScore);
+    }
+    const musicXml = result.musicXml;
     pieceImportLog("PARSE", "ok", {
-      where: "validateRecognizedMusicXml",
+      where: "sync shape check (browser parses)",
       chars: musicXml.length,
     });
     pieceImportLog("NORMALISE", "ok", {
-      where: "validateRecognizedMusicXml (parse + MusaiScore check)",
+      where: "sync recognize",
     });
 
     return NextResponse.json({ musicXml });

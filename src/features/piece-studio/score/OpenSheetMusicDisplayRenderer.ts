@@ -1,5 +1,9 @@
 import { collectCursorWalkSamples } from "@/features/piece-studio/score/cursorSnapshotWalk";
-import { alignCursorSamplesToNotes } from "@/features/piece-studio/score/cursorNoteAlign";
+import {
+  alignCursorSamplesToNotes,
+  alignNoteheadPosesToNotes,
+  collapsePlaybackNoteAttacks,
+} from "@/features/piece-studio/score/cursorNoteAlign";
 import { collectNoteheadPosesFromDom } from "@/features/piece-studio/score/noteheadPoses";
 import {
   applyPieceOsmdTheme,
@@ -24,6 +28,7 @@ import {
   type ScoreLayoutMetrics,
   type ScorePaintOptions,
 } from "@/features/piece-studio/score/scorePresentation";
+import { prepareMusicXmlForEngraving } from "@/features/piece-studio/score/prepareMusicXmlForEngraving";
 import { MIN_SCORE_VIEWPORT_WIDTH_PX } from "@/features/piece-studio/score/scoreViewport";
 
 type OsmdCursor = {
@@ -56,6 +61,12 @@ type OsmdHandle = PieceOsmdThemable & {
   render: () => void;
   clear?: () => void;
   setPageFormat?: (format: string) => void;
+  setOptions?: (options: {
+    drawMetronomeMarks?: boolean;
+    drawLyrics?: boolean;
+    drawFingerings?: boolean;
+    drawMeasureNumbers?: boolean;
+  }) => void;
   cursor?: OsmdCursor;
   cursors?: OsmdCursor[];
   enableOrDisableCursors?: (enable: boolean) => void;
@@ -172,6 +183,11 @@ export function createOpenSheetMusicDisplayRenderer(): ScoreRenderer {
           },
         ],
       });
+      // Audiveris multi-movement merges often emit empty bars; OSMD crashes
+      // (`getStave` / empty staffEntries) unless it fills them itself.
+      if (osmd.EngravingRules) {
+        osmd.EngravingRules.FillEmptyMeasuresWithWholeRest = 1; // YesVisible
+      }
       // Do not call enableOrDisableCursors here — OSMD cursor elements exist
       // only after the first render().
     },
@@ -181,7 +197,18 @@ export function createOpenSheetMusicDisplayRenderer(): ScoreRenderer {
       if (source.format !== "musicxml") {
         throw new Error("This renderer only accepts MusicXML interchange.");
       }
-      await osmd.load(source.content);
+      try {
+        await osmd.load(source.content);
+      } catch (err) {
+        const prepared = prepareMusicXmlForEngraving(source.content);
+        if (prepared === source.content) throw err;
+        try {
+          osmd.clear?.();
+        } catch {
+          /* sheet may be half-built */
+        }
+        await osmd.load(prepared);
+      }
     },
 
     paint(theme: PieceOsmdTheme, options?: ScorePaintOptions): ScoreLayoutMetrics {
@@ -220,6 +247,14 @@ export function createOpenSheetMusicDisplayRenderer(): ScoreRenderer {
 
       applyPieceOsmdTheme(osmd, theme);
       const purpose = options?.purpose ?? "workspace";
+      if (purpose === "library-snippet") {
+        osmd.setOptions?.({
+          drawMetronomeMarks: false,
+          drawLyrics: false,
+          drawFingerings: false,
+          drawMeasureNumbers: false,
+        });
+      }
       applyPieceOsmdPageMargins(osmd.EngravingRules ?? null, viewMode, purpose);
       let zoom = pieceOsmdZoomForPresentation(
         viewportW,
@@ -274,47 +309,22 @@ export function createOpenSheetMusicDisplayRenderer(): ScoreRenderer {
         }
       }
 
-      // Workspace Continuous: if a short score still wrapped, step zoom down
-      // until it fits one system (size comes from display scale after).
+      // Workspace Continuous: crop to the engraved music and centre that
+      // block under the title. Short scores can still grow a little.
       if (purpose === "workspace" && viewMode === "continuous") {
-        let draft = readSheetMetrics(osmd, fitted);
-        if (draft.pageCount <= 1 && draft.systemCount > 1 && draft.systemCount <= 3) {
-          const zoomBeforePack = zoom;
-          let packed = false;
-          const downSteps = [1.0, 0.95, 0.9, 0.85, 0.8] as const;
-          for (const tryZoom of downSteps) {
-            if (tryZoom >= zoomBeforePack - 0.001) continue;
-            prepareOsmdHostForPaint(host, viewportW);
-            applyPieceOsmdZoom(osmd, viewportW, tryZoom);
-            osmd.render();
-            const tryFit = fitOsmdHostToContent(host);
-            const tryMetrics = readSheetMetrics(osmd, tryFit);
-            if (tryMetrics.systemCount === 1) {
-              zoom = tryZoom;
-              fitted = tryFit;
-              draft = tryMetrics;
-              packed = true;
-              break;
-            }
-          }
-          // Failed pack attempts leave the DOM on the last try — restore.
-          if (!packed) {
-            prepareOsmdHostForPaint(host, viewportW);
-            applyPieceOsmdZoom(osmd, viewportW, zoomBeforePack);
-            osmd.render();
-            fitted = fitOsmdHostToContent(host);
-            draft = readSheetMetrics(osmd, fitted);
-          }
-        }
-        if (draft.pageCount <= 1 && draft.systemCount <= 3) {
+        const draft = readSheetMetrics(osmd, fitted);
+        if (draft.pageCount <= 1) {
           fitted = centerCropOsmdHostToMusic(host);
           const afterCrop = readSheetMetrics(osmd, fitted);
-          fitted = scaleOsmdHostToWorkspaceReading(
-            host,
-            viewportW,
-            viewportH || fitted.contentHeightPx * 2,
-            afterCrop,
-          );
+          fitted =
+            draft.systemCount <= 4
+              ? scaleOsmdHostToWorkspaceReading(
+                  host,
+                  viewportW,
+                  viewportH || fitted.contentHeightPx * 2,
+                  afterCrop,
+                )
+              : afterCrop;
         }
       }
 
@@ -389,19 +399,21 @@ export function createOpenSheetMusicDisplayRenderer(): ScoreRenderer {
       // Prefer engraved noteheads in the SVG — one pose per sounding head.
       // The OSMD iterator walk often stops mid-piece or lands on the meter.
       if (noteTimes && noteTimes.length > 0) {
+        const attacks = collapsePlaybackNoteAttacks(noteTimes);
         const heads = collectNoteheadPosesFromDom(wrap);
         if (heads.length > 0) {
-          const fromDom = alignCursorSamplesToNotes(
+          const fromDom = alignNoteheadPosesToNotes(
             heads.map((h, i) => ({
               realValue: i,
               x: h.x,
               y: h.y,
               height: h.height,
+              width: h.width,
             })),
             noteTimes,
-            wholeNotesToSeconds,
           );
-          if (fromDom.length === noteTimes.length) {
+          // Chord tones share one attack — compare against collapsed count.
+          if (fromDom.length === attacks.length && fromDom.length > 0) {
             return fromDom;
           }
         }
@@ -409,6 +421,9 @@ export function createOpenSheetMusicDisplayRenderer(): ScoreRenderer {
 
       const cursor = getCursor(osmd);
       if (!cursor) return [];
+      const attackCount = noteTimes?.length
+        ? collapsePlaybackNoteAttacks(noteTimes).length
+        : 0;
       const samples = collectCursorWalkSamples(
         cursor,
         wrap,
@@ -416,9 +431,7 @@ export function createOpenSheetMusicDisplayRenderer(): ScoreRenderer {
           paintWidthPx: lastPaintWidthPx,
         },
         undefined,
-        noteTimes && noteTimes.length > 0
-          ? { targetNoteCount: noteTimes.length }
-          : undefined,
+        attackCount > 0 ? { targetNoteCount: attackCount } : undefined,
       );
       if (noteTimes && noteTimes.length > 0) {
         return alignCursorSamplesToNotes(

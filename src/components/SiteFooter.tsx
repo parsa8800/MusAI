@@ -1,8 +1,8 @@
 import Link from "next/link";
 
 const NAV = [
-  { href: "/", label: "Practice" },
-  { href: "/#features", label: "Exercises" },
+  { href: "/", label: "Home" },
+  { href: "/#features", label: "Practice" },
   { href: "/settings", label: "Settings" },
 ] as const;
 
@@ -120,8 +120,8 @@ export function SiteFooter() {
       className="musai-site-footer relative z-[1] mt-auto border-t border-[var(--musai-border)] bg-[var(--musai-surface)]"
       aria-labelledby="site-footer-heading"
     >
-      <div className="mx-auto max-w-5xl px-5 py-12 pb-[max(3rem,env(safe-area-inset-bottom))] sm:px-8 sm:py-16 sm:pb-16">
-        <div className="flex flex-col items-center gap-10 text-center md:flex-row md:items-start md:justify-between md:gap-8 md:text-left">
+      <div className="mx-auto max-w-5xl px-5 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom))] sm:px-8 sm:py-12 sm:pb-12">
+        <div className="flex flex-col items-center gap-8 text-center md:flex-row md:items-start md:justify-between md:gap-8 md:text-left">
           {/* Brand */}
           <div className="max-w-xs shrink-0">
             <p
@@ -131,7 +131,7 @@ export function SiteFooter() {
               MusAI
             </p>
             <p className="mt-2 text-[13px] leading-relaxed text-[var(--musai-muted)]">
-              AI powered music feedback and training.
+              Practice feedback for violin, viola, and piano.
             </p>
           </div>
 
@@ -168,9 +168,9 @@ export function SiteFooter() {
           </div>
         </div>
 
-        <div className="mt-12 border-t border-[var(--musai-border)] pt-8 text-center">
+        <div className="mt-9 border-t border-[var(--musai-border)] pt-6 text-center">
           <p className="text-[11px] font-normal tracking-wide text-[var(--musai-muted)]">
-            © {year} MusAI. All rights reserved.
+            © {year} MusAI
           </p>
         </div>
       </div>

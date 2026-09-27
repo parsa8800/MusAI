@@ -4,6 +4,7 @@ import type {
   ScalePracticeSummary,
 } from "@/lib/scalePracticeTypes";
 import { sameScaleExercise } from "@/lib/scaleTakeHistory";
+import { scoreScaleTake } from "@/lib/scaleTakeScore";
 
 /** Constructive practice stages — never “Needs work”. */
 export type PracticeStageId =
@@ -57,9 +58,6 @@ export const MASTERY_NEAR_TOP_MIN_GAIN = 0.55;
  * unless the take is a fully correct great run (`isGreatAccuracyTake`).
  */
 export const MASTERY_FIRST_TAKE_CAP = 92;
-
-export const ATTEMPT_COMPLETION_WEIGHT = 0.4;
-export const ATTEMPT_QUALITY_WEIGHT = 0.6;
 
 export function clampMastery(n: number): number {
   if (!Number.isFinite(n)) return 0;
@@ -124,30 +122,11 @@ export function scoreScaleAttempt(
     "notes" | "summary" | "expectedNotesMidi"
   >,
 ): AttemptScoreBreakdown {
-  const expected = Math.max(
-    1,
-    session.expectedNotesMidi?.length ?? session.notes.length,
-  );
-  const analyzed = Math.max(0, session.summary.notesAnalyzed);
-  const completionFrac = Math.min(1, analyzed / expected);
-  const completionScore = 100 * completionFrac;
-
-  if (analyzed <= 0) {
-    return { completionScore: 0, performanceScore: 0, attemptScore: 0 };
-  }
-
-  const overall = clampMastery(session.summary.overallScore0to100);
-  const inTune = clampMastery(session.summary.inTunePercent);
-  const performanceScore = 0.75 * overall + 0.25 * inTune;
-  const attemptScore = clampMastery(
-    ATTEMPT_COMPLETION_WEIGHT * completionScore +
-      ATTEMPT_QUALITY_WEIGHT * performanceScore * completionFrac,
-  );
-
+  const take = scoreScaleTake(session.notes, session.summary);
   return {
-    completionScore: Math.round(completionScore * 10) / 10,
-    performanceScore: Math.round(performanceScore * 10) / 10,
-    attemptScore: Math.round(attemptScore * 10) / 10,
+    completionScore: take.completionScore,
+    performanceScore: take.performanceScore,
+    attemptScore: take.score,
   };
 }
 

@@ -4,25 +4,29 @@ import {
   LISTEN_UNDERLINE_HEIGHT_MIN,
   LISTEN_UNDERLINE_MAX,
   LISTEN_UNDERLINE_MIN,
-  NOTE_PLATE_MAX,
-  NOTE_PLATE_MIN,
   notePlateFromPose,
+  shapeNoteFocusUnderline,
   shapeNotePlateRect,
 } from "@/features/piece-studio/score/notePlate";
 
 describe("notePlate shared geometry", () => {
-  it("sizes Practise as a tight square on the staff band", () => {
-    const fromRect = shapeNotePlateRect({
+  it("sizes Practise as an underline under the staff band", () => {
+    const fromRect = shapeNoteFocusUnderline({
       x: 80,
       y: 20,
       width: 48,
       height: 48,
     });
-    expect(fromRect.width).toBe(fromRect.height);
-    expect(fromRect.width).toBeGreaterThanOrEqual(NOTE_PLATE_MIN);
-    expect(fromRect.width).toBeLessThanOrEqual(NOTE_PLATE_MAX);
-    expect(fromRect.y).toBeGreaterThan(20);
-    expect(fromRect.y + fromRect.height).toBeLessThan(20 + 48);
+    expect(fromRect.width).toBeGreaterThan(fromRect.height);
+    expect(fromRect.width).toBeGreaterThanOrEqual(LISTEN_UNDERLINE_MIN);
+    expect(fromRect.width).toBeLessThanOrEqual(LISTEN_UNDERLINE_MAX * 1.55);
+    expect(fromRect.height).toBeGreaterThanOrEqual(LISTEN_UNDERLINE_HEIGHT_MIN);
+    expect(fromRect.height).toBeLessThanOrEqual(LISTEN_UNDERLINE_HEIGHT_MAX);
+    // Under the noteheads — bottom of the staff band, not over the oval.
+    expect(fromRect.y).toBeGreaterThan(20 + 48 * 0.7);
+    expect(shapeNotePlateRect({ x: 80, y: 20, width: 48, height: 48 })).toEqual(
+      fromRect,
+    );
   });
 
   it("sizes Listen as an underline below the notehead", () => {

@@ -39,7 +39,8 @@ export const OMR_COPY = {
   failedTitle: "Couldn’t read this score",
   failedLead: "",
   confirm: "Check your score",
-  confirmLead: "Does this look right?",
+  /** Empty — confirm page stays visual; actions speak for themselves. */
+  confirmLead: "",
   looksGood: "Use this score",
   tryAgain: "Try another file",
   tryAnotherImage: "Try again",
@@ -64,17 +65,15 @@ export const OMR_COPY = {
   unavailable:
     "We couldn’t read the notes from this page yet. Try again with a clearer photo, or try another file.",
   /** Subtle status when PDF/image scanning isn’t available (digital scores still work). */
-  scanningUnavailable:
-    "Photos and PDFs can’t be scanned right now — digital scores still work",
+  scanningUnavailable: "Photos and PDFs can’t be scanned right now.",
+  /** Shown under scanningUnavailable when the local OMR worker is offline. */
+  scanningUnavailableLead: "The score reader isn’t running on this computer yet.",
   /** @deprecated Alias of {@link OMR_COPY.scanningUnavailable} — keep for API/protocol matches. */
-  readingNotReady:
-    "Photos and PDFs can’t be scanned right now — digital scores still work",
+  readingNotReady: "Photos and PDFs can’t be scanned right now.",
   /** @deprecated Alias of {@link OMR_COPY.scanningUnavailable}. */
-  workerOffline:
-    "Photos and PDFs can’t be scanned right now — digital scores still work",
+  workerOffline: "Photos and PDFs can’t be scanned right now.",
   /** @deprecated Alias of {@link OMR_COPY.scanningUnavailable}. */
-  workerNeedsAudiveris:
-    "Photos and PDFs can’t be scanned right now — digital scores still work",
+  workerNeedsAudiveris: "Photos and PDFs can’t be scanned right now.",
   noMusic: "We couldn’t find music on that page.",
   unreadableFile: "That file couldn’t be opened.",
   unsupported: "That page isn’t a kind of music we can read yet.",
@@ -87,8 +86,15 @@ export const OMR_COPY = {
   chooseDigital: "Choose a photo, PDF, or digital score.",
   uploadSheet: "Upload sheet music",
   advancedDigital: "Digital score",
-  dropMusic: "Drop your music here",
-  dropFormats: "PDF, image or digital score",
+  /** Primary dropzone line — keep short; the icon does most of the talking. */
+  dropMusic: "Add music",
+  /**
+   * Optional secondary hint under the primary line.
+   * Piece Studio home leaves this blank — the motif + title are enough.
+   */
+  dropHint: "",
+  /** Format detail — prefer sr-only in the dropzone; keep for accessibility. */
+  dropFormats: "PDF, photo, or digital score",
   importMusic: "Import music",
 } as const;
 

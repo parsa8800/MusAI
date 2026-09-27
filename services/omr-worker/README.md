@@ -58,7 +58,7 @@ Statuses: `queued` → `processing` → `completed` | `failed`.
 
 1. Validate PDF / PNG / JPG
 2. PDF → `pdftoppm -png -r 300` (page order preserved); if Poppler is missing, feed the PDF to Audiveris directly
-3. `Audiveris -batch -export` → `.mxl` / MusicXML
+3. `Audiveris -batch -export` → `.mxl` / MusicXML (multi-movement `*.mvtN.mxl` exports are merged into one continuous score). Leave `smallHeads` / `smallBeams` off — they add false extra notes.
 4. Return MusicXML text; delete temp files
 
 ## Production

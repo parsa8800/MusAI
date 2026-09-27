@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { Fraunces, Source_Sans_3 } from "next/font/google";
 import { AmbientBackground } from "@/components/AmbientBackground";
+import { InstrumentProvider } from "@/components/InstrumentProvider";
 import { PreferLocalhost } from "@/components/PreferLocalhost";
 import {
   ThemeProvider,
@@ -50,9 +51,11 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }}
         />
         <ThemeProvider>
-          <PreferLocalhost />
-          <AmbientBackground />
-          <div className="flex flex-1 flex-col">{children}</div>
+          <InstrumentProvider>
+            <PreferLocalhost />
+            <AmbientBackground />
+            <div className="flex flex-1 flex-col">{children}</div>
+          </InstrumentProvider>
         </ThemeProvider>
       </body>
     </html>

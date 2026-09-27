@@ -12,18 +12,18 @@ Piece Studio lives in `src/features/piece-studio/`. The App Router page is a thi
 
 - Do not import Scale Studio session, progress, detection, or take-history modules.
 - Do not reuse Scale Studio localStorage keys. Use `musai-piece-*` only.
-- Shared UI (`StudioViewport`, `PracticeHubBackLink`, later capture/waveform) is fine. Shared *domain* is not.
+- Shared UI (`StudioViewport`, `PracticeHubBackLink`, `MusaiMicCapturePanel`, `MusaiCaptureDock`) is fine. Shared *domain* is not.
 - OpenSheetMusicDisplay stays behind `score/ScoreRenderer` → `OpenSheetMusicDisplayRenderer`. The React shell (`OsmdScoreAdapter`) must not import the OSMD package. Overlay geometry stays in `score/`. Do not import OSMD from catalog, parser, playback timing, or Scale Studio.
 - MusicXML/MXL remains the structured interchange for engraving. Domain logic (playback, practise, feedback) consumes `MusaiScoreV1`, not raw MusicXML or a renderer SDK.
 - Playback timing comes from the MusAI score (`playback/`). OSMD only supplies note positions for the cursor.
-- Practise capture UI is Piece-owned (`PiecePractiseDock`). Shared mic/recorder helpers are fine; do not import Scale Studio session, detection, or take-history modules.
+- Practise **recording chrome** is the shared `MusaiMicCapturePanel` (`.musai-rec-bar`). Idle bar is mic + record; the tape appears while recording. `PiecePractiseDock` only wraps it and adds Piece **Last take** replay (hidden audio + playhead). Do not restyle mic, record button, or waveform inside Piece CSS — change the shared panel instead. Do not use a native `<audio controls>` widget for take playback.
 - Take orchestration lives in `practice/` (`analyzePieceTake`). Skill analyzers live in `feedback/analyzers/`. Shared pitch matching lives in `pitch/`. Score-derived expected notes live in `score/expectedNotes`.
 - Unimplemented skills return `not_ready` with no events — do not invent rhythm, tempo, dynamics, or consistency.
 - Orchestration is `runPieceFeedback` only — do not put multi-skill DSP in one giant service.
 - Coach Parsa consumes `PieceFeedbackReportV1` / `PieceCoachContextV1` from `feedback/`. Do not pass pitch frames, recorders, or Scale Studio sessions into piece coaching.
 - Full reports persist in IndexedDB (`feedback` store). Catalog attempts may keep a compact `feedbackSkills` map only.
 - Practise UI must not show “not ready” skill names to students.
-- Visual feedback preview lives in `feedback/visual/`. Mock issues are labeled `mock-preview` / “Sample review · not from your take” and must stay out of analyzers and `buildPieceCoachContext`. Overlay **one** focused issue at a time with subtle washes/markers (no text labels on the score). Coach panel: one focus, where, concise what, one practise action, **Show me on the score**, plus shared `CoachParsaChat` for follow-ups (not Scale domain APIs).
+- Visual feedback preview lives in `feedback/visual/`. One shared panel (`PieceFeedbackReview`) serves every skill: category selector + score annotations. **Pitch** is visual-first — colour on engraved noteheads only (sharp / flat / missed), matching Scale Studio intonation colour, with a short legend in the panel (no bar washes, no per-note Heard/Try cards). Other skills still list issues. Mock issues are labeled `mock-preview` / Sample and must stay out of analyzers and `buildPieceCoachContext`. Do not show `not_ready` skill names. Ask your coach stays secondary. Do not confuse **Hear this** (written notes) with the Listen tab or Last take replay. Recording status belongs on the shared recorder.
 - Sheet-music recognition lives behind `omr/OMRProvider`. Do not import Flat, Audiveris, or any vendor from import, catalog, or UI.
 - Audiveris (Java) runs only in `services/omr-worker`. Next.js submits jobs and polls — never spawn Audiveris inside a Vercel/serverless request.
 - User-facing copy stays simple (“Upload sheet music”, “Reading your music...”). Do not mention OCR, OMR, MusicXML, or providers in the UI.

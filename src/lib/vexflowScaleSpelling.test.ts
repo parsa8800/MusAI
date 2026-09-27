@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  clefPointForLineSpacing,
+  keySignatureMiniAccidentalPoint,
+  keySignatureMiniClefPoint,
   letterAndMidiToVexKey,
   spellAscendingMidisToVexKeys,
   staffStepFromVexKey,
@@ -50,6 +53,21 @@ describe("spellAscendingMidisToVexKeys", () => {
       "a/4",
       "b/4",
       "c/5",
+    ]);
+  });
+
+  it("spells C major one octave from C3 for viola register", () => {
+    const midis = buildAscendingScaleMidis(48, "major", 1);
+    const keys = spellAscendingMidisToVexKeys(midis, 0, "major");
+    expect(keys).toEqual([
+      "c/3",
+      "d/3",
+      "e/3",
+      "f/3",
+      "g/3",
+      "a/3",
+      "b/3",
+      "c/4",
     ]);
   });
 
@@ -163,11 +181,50 @@ describe("high-accidental minor spellings", () => {
   });
 });
 
+describe("clefPointForLineSpacing", () => {
+  it("scales the clef with staff spacing so it matches enlarged staves", () => {
+    expect(clefPointForLineSpacing(10)).toBe(30);
+    expect(clefPointForLineSpacing(17)).toBeGreaterThanOrEqual(51);
+    expect(clefPointForLineSpacing(17, 39)).toBeGreaterThanOrEqual(51);
+  });
+
+  it("uses the same point scale for alto and treble", () => {
+    expect(clefPointForLineSpacing(17, 39, "alto")).toBe(
+      clefPointForLineSpacing(17, 39, "treble"),
+    );
+  });
+
+  it("shrinks the clef for compact key-signature previews", () => {
+    expect(clefPointForLineSpacing(5)).toBeLessThan(18);
+    expect(clefPointForLineSpacing(4.85)).toBeLessThan(16);
+  });
+});
+
+describe("keySignatureMiniClefPoint", () => {
+  it("sizes key-list clefs to fill the staff without matching full engraving", () => {
+    expect(keySignatureMiniClefPoint(5.35)).toBeGreaterThanOrEqual(14);
+    expect(keySignatureMiniClefPoint(5.35)).toBeLessThanOrEqual(17);
+    expect(keySignatureMiniClefPoint(5.35)).toBeLessThanOrEqual(
+      clefPointForLineSpacing(5.35),
+    );
+  });
+});
+
+describe("keySignatureMiniAccidentalPoint", () => {
+  it("keeps key-list accidentals compact enough for crowded signatures", () => {
+    expect(keySignatureMiniAccidentalPoint(5.45)).toBeLessThan(
+      keySignatureMiniClefPoint(5.45),
+    );
+    expect(keySignatureMiniAccidentalPoint(5.45)).toBeLessThanOrEqual(15);
+    expect(keySignatureMiniAccidentalPoint(5.45)).toBeGreaterThanOrEqual(14);
+  });
+});
+
 describe("staveCanvasMetrics", () => {
   it("keeps a compact box for notes on the stave", () => {
     const mid = staveCanvasMetrics(["d/4", "e/4", "f#/4", "g/4", "a/4", "b/4", "c#/5", "d/5"]);
-    expect(mid.height).toBeLessThan(185);
-    expect(mid.staveY).toBeLessThan(50);
+    expect(mid.height).toBeLessThan(220);
+    expect(mid.staveY).toBeLessThan(75);
   });
 
   it("grows only when notes sit on high ledger lines", () => {
@@ -182,5 +239,25 @@ describe("staveCanvasMetrics", () => {
     const low = staveCanvasMetrics(["eb/3", "f/3", "g/3", "ab/3", "bb/3", "c/4", "d/4", "eb/4"]);
     expect(low.staveY).toBeLessThanOrEqual(mid.staveY + 8);
     expect(low.height).toBeGreaterThan(mid.height + 20);
+  });
+
+  it("places F3 on the alto staff instead of treble ledger lines", () => {
+    const alto = staveCanvasMetrics(["f/3"], 17, "alto");
+    const treble = staveCanvasMetrics(["f/3"], 17, "treble");
+    expect(alto.height).toBeLessThan(treble.height);
+  });
+
+  it("places viola C major from C3 on the alto staff", () => {
+    const alto = staveCanvasMetrics(
+      ["c/3", "d/3", "e/3", "f/3", "g/3", "a/3", "b/3", "c/4"],
+      17,
+      "alto",
+    );
+    const treble = staveCanvasMetrics(
+      ["c/3", "d/3", "e/3", "f/3", "g/3", "a/3", "b/3", "c/4"],
+      17,
+      "treble",
+    );
+    expect(alto.height).toBeLessThan(treble.height);
   });
 });

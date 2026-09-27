@@ -10,7 +10,7 @@ type Props = {
   onClose: () => void;
   id: string;
   title: string;
-  subtitle: string;
+  subtitle?: string;
   revision?: number;
   currentProgressKey?: string;
   onContinue: (journey: ScaleProgressJourneyV1) => void;

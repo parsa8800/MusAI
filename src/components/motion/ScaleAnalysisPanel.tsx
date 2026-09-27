@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { animate, createTimeline } from "animejs";
-import { AudioActivityVisualizer } from "@/components/AudioActivityVisualizer";
+import { MusaiLoadingMark } from "@/components/MusaiLoadingMark";
 import { MUSAI_DUR, MUSAI_EASE, prefersReducedMotion } from "@/lib/motion";
 
 type AnimeLike = { pause: () => void; revert?: () => void; cancel?: () => void };
@@ -103,7 +103,7 @@ export function ScaleAnalysisPanel({
         ref={copyRef}
         className="relative z-[1] flex w-full flex-col items-center"
       >
-        <AudioActivityVisualizer variant="prominent" />
+        <MusaiLoadingMark />
         <p className="mt-8 font-display text-base font-semibold tracking-tight text-[var(--musai-ink)]">
           {label}
         </p>

@@ -19,6 +19,7 @@ async function assertStudioFits(page: Page) {
       recVisible: recBox
         ? recBox.top >= 0 && recBox.bottom <= window.innerHeight + 1
         : false,
+      waveMounted: Boolean(wave),
       waveVisible: waveBox
         ? waveBox.top >= 0 && waveBox.bottom <= window.innerHeight + 1
         : false,
@@ -29,7 +30,9 @@ async function assertStudioFits(page: Page) {
     metrics.vh + 2,
   );
   expect(metrics.recVisible).toBe(true);
-  expect(metrics.waveVisible).toBe(true);
+  expect(metrics.waveMounted, "idle bar should not show an empty waveform well").toBe(
+    false,
+  );
 }
 
 async function notationFitMetrics(page: Page) {
@@ -72,7 +75,7 @@ test.describe("Scale Studio viewport fit", () => {
     { width: 1366, height: 768 },
     { width: 1280, height: 800 },
   ]) {
-    test(`${viewport.width}x${viewport.height} shows record + waveform without scrolling`, async ({
+    test(`${viewport.width}x${viewport.height} shows record without scrolling`, async ({
       page,
     }) => {
       await page.setViewportSize(viewport);

@@ -8,8 +8,14 @@ import {
 } from "@/features/piece-studio/pieceStudioFiles";
 import type { PieceWorkspaceV1 } from "@/features/piece-studio/pieceStudioTypes";
 import type { PiecePlaybackTimeListener } from "@/features/piece-studio/playback/playbackTime";
-import { OsmdScoreAdapter, type PieceScoreHighlight } from "@/features/piece-studio/score/OsmdScoreAdapter";
+import {
+  OsmdScoreAdapter,
+  type PieceScoreHighlight,
+} from "@/features/piece-studio/score/OsmdScoreAdapter";
+import type { PitchNoteMark } from "@/features/piece-studio/feedback/visual/piecePitchScoreMap";
 import { musicXmlFromBytes } from "@/features/piece-studio/score/musicXmlSource";
+import { sanitizeMusicXmlDynamics } from "@/features/piece-studio/score/sanitizeMusicXmlDynamics";
+import { prepareMusicXmlForEngraving } from "@/features/piece-studio/score/prepareMusicXmlForEngraving";
 
 function EmptyStaves() {
   return (
@@ -24,8 +30,8 @@ function EmptyStaves() {
 }
 
 /**
- * Central digital-score stage. MusicXML (imported or read from a page) is
- * drawn by the OSMD adapter. PDF and images fall back to the original file.
+ * Central score stage. MusicXML (imported or read from a page) is drawn by
+ * the OSMD adapter. A scan is shown only when there is no digital score yet.
  *
  * When `embedded`, piece identity is owned by the workspace chrome so the
  * notation can use the full stage.
@@ -34,30 +40,57 @@ export function PieceScorePaper({
   piece,
   embedded = false,
   followPlayback = false,
+  showPlayhead = false,
   subscribePlaybackTime,
   getPlaybackTime,
   wholeNotesToSeconds,
   onSeekFromScore,
+  onLoopMark,
+  loopSpan = null,
+  loopPicking = false,
+  onScrubPreview,
+  onScrubCommit,
+  getPlaying,
   playbackNotes,
   highlight = null,
+  highlights = null,
+  pitchMarks = null,
   onHighlightSelect,
+  onScoreOpen,
 }: {
   piece: PieceWorkspaceV1;
   embedded?: boolean;
   followPlayback?: boolean;
+  /** Shared score playhead (Listen + Practise). Independent of Listen layout. */
+  showPlayhead?: boolean;
   subscribePlaybackTime?: (listener: PiecePlaybackTimeListener) => () => void;
   getPlaybackTime?: () => number;
   wholeNotesToSeconds?: (wholeNotes: number) => number;
   onSeekFromScore?: (tSec: number) => void;
+  /** While choosing a loop, score taps set the start bar, then the end bar. */
+  onLoopMark?: (tSec: number) => void;
+  loopSpan?: { startSec: number; endSec: number } | null;
+  loopPicking?: boolean;
+  onScrubPreview?: (tSec: number) => void;
+  onScrubCommit?: (tSec: number, resume: boolean) => void;
+  getPlaying?: () => boolean;
   playbackNotes?: readonly { startSec: number; endSec: number }[];
   highlight?: PieceScoreHighlight | null;
+  highlights?: readonly PieceScoreHighlight[] | null;
+  /** Pitch notehead colour map (Practise). */
+  pitchMarks?: readonly PitchNoteMark[] | null;
   onHighlightSelect?: (id: string) => void;
+  /** Fires once the score module is mounted (Listen waits on this plus the piano). */
+  onScoreOpen?: () => void;
 }) {
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
   const [musicXml, setMusicXml] = useState<string | null>(null);
   const [xmlError, setXmlError] = useState<string | null>(null);
   const [xmlLoading, setXmlLoading] = useState(true);
-  const [showOriginal, setShowOriginal] = useState(false);
+
+  useEffect(() => {
+    onScoreOpen?.();
+  }, [onScoreOpen]);
 
   useEffect(() => {
     let revoked: string | null = null;
@@ -71,7 +104,13 @@ export function PieceScorePaper({
       const recognized = await readPieceRecognizedMusicXml(piece.pieceId);
       if (cancelled) return;
       if (recognized) {
-        setMusicXml(recognized);
+        // PDF/photo OMR merges need engraving scrub before OSMD; digital
+        // MusicXML imports only need dynamics cleanup.
+        const forDisplay =
+          piece.sourceKind === "pdf" || piece.sourceKind === "image"
+            ? prepareMusicXmlForEngraving(recognized)
+            : recognized;
+        setMusicXml(sanitizeMusicXmlDynamics(forDisplay));
         setXmlLoading(false);
       }
 
@@ -114,21 +153,15 @@ export function PieceScorePaper({
     };
   }, [piece.pieceId, piece.hasOriginalFile, piece.sourceKind, piece.sourceFileName]);
 
-  const bits: string[] = [];
-  if (piece.composer?.trim()) bits.push(piece.composer.trim());
-  if (piece.score.keySignature) bits.push(piece.score.keySignature);
-  if (piece.score.timeSignature) bits.push(piece.score.timeSignature);
-  if (piece.score.tempoBpm) bits.push(`${piece.score.tempoBpm} bpm`);
   const visual = piece.sourceKind === "pdf" || piece.sourceKind === "image";
-  const canToggleOriginal = Boolean(musicXml && objectUrl && visual);
-  const showPage = visual && objectUrl && (showOriginal || !musicXml);
+  const preferDigital =
+    Boolean(piece.recognitionConfirmed) || piece.sourceKind === "musicxml";
+  const showPage =
+    visual && objectUrl && !musicXml && !preferDigital && !xmlLoading;
   const recognized = piece.recognitionStatus === "ready";
   const failed = piece.recognitionStatus === "failed";
   const awaitingConfirm = recognized && !piece.recognitionConfirmed;
-  const showToolbar =
-    (awaitingConfirm && musicXml && !showOriginal) ||
-    (failed && visual) ||
-    canToggleOriginal;
+  const showToolbar = (awaitingConfirm && Boolean(musicXml)) || (failed && visual);
 
   return (
     <div
@@ -139,15 +172,12 @@ export function PieceScorePaper({
       {!embedded ? (
         <div className="musai-piece-score__head">
           <h2 className="musai-piece-score__title font-display">{piece.title}</h2>
-          {bits.length > 0 ? (
-            <p className="musai-piece-score__meta">{bits.join(" · ")}</p>
-          ) : null}
         </div>
       ) : null}
 
       {showToolbar ? (
         <div className="musai-piece-score__toolbar">
-          {awaitingConfirm && musicXml && !showOriginal ? (
+          {awaitingConfirm && musicXml ? (
             <p className="musai-piece-score__confirm">{OMR_COPY.confirm}</p>
           ) : null}
           {failed && visual ? (
@@ -155,31 +185,17 @@ export function PieceScorePaper({
               {piece.recognitionMessage ?? OMR_COPY.failed}
             </p>
           ) : null}
-          {canToggleOriginal ? (
-            <button
-              type="button"
-              className="musai-piece-score__toggle"
-              onClick={() => setShowOriginal((v) => !v)}
-            >
-              {showOriginal ? OMR_COPY.showDigital : OMR_COPY.showOriginal}
-            </button>
-          ) : null}
         </div>
       ) : null}
 
       <div className="musai-piece-score__stage">
         {showPage ? (
           piece.sourceKind === "pdf" ? (
-            <object
-              className="musai-piece-score__page"
-              data={objectUrl ?? undefined}
-              type="application/pdf"
-              aria-label={`${piece.title} score`}
-            >
-              <a href={objectUrl ?? "#"} className="musai-piece-score__fallback">
-                Open the score
-              </a>
-            </object>
+            <iframe
+              className="musai-piece-score__page musai-piece-score__page--pdf"
+              src={objectUrl ? `${objectUrl}#toolbar=0&navpanes=0&view=FitH` : undefined}
+              title={`${piece.title} original score`}
+            />
           ) : (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -192,13 +208,22 @@ export function PieceScorePaper({
           <OsmdScoreAdapter
             musicXml={musicXml}
             title={piece.title}
-            followPlayback={followPlayback && !showOriginal}
+            followPlayback={followPlayback}
+            showPlayhead={showPlayhead || followPlayback}
             subscribePlaybackTime={subscribePlaybackTime}
             getPlaybackTime={getPlaybackTime}
             wholeNotesToSeconds={wholeNotesToSeconds}
             onSeek={onSeekFromScore}
+            onLoopMark={onLoopMark}
+            loopSpan={loopSpan}
+            loopPicking={loopPicking}
+            onScrubPreview={onScrubPreview}
+            onScrubCommit={onScrubCommit}
+            getPlaying={getPlaying}
             playbackNotes={playbackNotes}
-            highlight={followPlayback || showOriginal ? null : highlight}
+            highlight={followPlayback ? null : highlight}
+            highlights={followPlayback ? null : highlights}
+            pitchMarks={followPlayback ? null : pitchMarks}
             onHighlightSelect={onHighlightSelect}
           />
         ) : (

@@ -6,17 +6,26 @@ import {
 } from "@/lib/alignScaleOctave";
 import { buildExerciseScaleMidis, defaultRootMidiForTonic } from "@/lib/scales";
 import { formatNoteLabel } from "@/lib/intonation";
+import { getInstrument } from "@/lib/instrument";
 
 describe("defaultRootMidiForTonic", () => {
-  it("defaults C major practice to C4 (MIDI 60)", () => {
-    expect(defaultRootMidiForTonic(0)).toBe(60);
-    expect(formatNoteLabel(defaultRootMidiForTonic(0))).toBe("C4");
+  it("defaults C major practice to C4 (MIDI 60) on violin", () => {
+    const violin = getInstrument("violin");
+    expect(defaultRootMidiForTonic(0, violin)).toBe(60);
+    expect(formatNoteLabel(defaultRootMidiForTonic(0, violin))).toBe("C4");
   });
 
-  it("defaults G major near G4, not a high start", () => {
-    const g = defaultRootMidiForTonic(7);
-    expect(g).toBe(67); // G4
-    expect(g).toBeLessThan(80);
+  it("defaults C major practice to C3 (MIDI 48) on viola", () => {
+    const viola = getInstrument("viola");
+    expect(defaultRootMidiForTonic(0, viola)).toBe(48);
+    expect(formatNoteLabel(defaultRootMidiForTonic(0, viola))).toBe("C3");
+  });
+
+  it("defaults G major near G4 on violin and G3 on viola", () => {
+    const violinG = defaultRootMidiForTonic(7, getInstrument("violin"));
+    expect(violinG).toBe(67); // G4
+    expect(violinG).toBeLessThan(80);
+    expect(defaultRootMidiForTonic(7, getInstrument("viola"))).toBe(55); // G3
   });
 });
 
@@ -132,5 +141,22 @@ describe("staffFeedbackFromSession — detected notes display", () => {
     expect(displayMidis.map((m) => formatNoteLabel(m))[0]).toBe("C5");
     expect(ascendingCents[2]).toBe(25);
     expect(Math.max(...displayMidis)).toBeLessThan(96); // not C7+
+  });
+
+  it("keeps a viola C3 take on C3, not shifted into violin C4", () => {
+    const midis = buildExerciseScaleMidis(48, "major", 1);
+    const notes = midis.map((detectedMidi) => ({
+      detectedMidi,
+      missingData: false,
+      centsDifference: 0,
+    }));
+    const { displayMidis } = staffFeedbackFromSession({
+      expectedNotesMidi: midis,
+      notes,
+      instrumentId: "viola",
+    });
+    expect(displayMidis[0]).toBe(48);
+    expect(displayMidis.at(-1)).toBe(48);
+    expect(displayMidis.map((m) => formatNoteLabel(m))[0]).toBe("C3");
   });
 });

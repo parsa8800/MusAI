@@ -38,7 +38,8 @@ export function pieceImportLog(
   if (!loggingEnabled()) return;
   const label = prefix(stage, outcome);
   if (outcome === "fail") {
-    console.error(label, detail ?? {});
+    // warn, not error: Next.js treats console.error as a dev "Issues" badge.
+    console.warn(label, detail ?? {});
     return;
   }
   console.info(label, detail ?? {});
@@ -60,7 +61,7 @@ export function pieceImportFail(
     err instanceof Error && "cause" in err
       ? (err as Error & { cause?: unknown }).cause
       : undefined;
-  console.error(prefix(stage, "fail"), {
+  console.warn(prefix(stage, "fail"), {
     ...detail,
     message,
     cause,

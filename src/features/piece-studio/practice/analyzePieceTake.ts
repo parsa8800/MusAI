@@ -1,13 +1,24 @@
 import { defaultPieceFeedbackAnalyzers } from "@/features/piece-studio/feedback/analyzers/defaultAnalyzers";
 import type { PieceAnalyzerInput } from "@/features/piece-studio/feedback/analyzers/PieceFeedbackAnalyzer";
 import { runPieceFeedback } from "@/features/piece-studio/feedback/pieceFeedbackOrchestrator";
-import type { PieceFeedbackReportV1 } from "@/features/piece-studio/feedback/pieceFeedbackTypes";
+import type {
+  PieceFeedbackReportV1,
+  PiecePitchNoteV1,
+} from "@/features/piece-studio/feedback/pieceFeedbackTypes";
 import {
   analyzePiecePerformance,
   type PiecePerformanceResult,
 } from "@/features/piece-studio/practice/analyzePiecePerformance";
-import { expectedNotesFromScore } from "@/features/piece-studio/score/expectedNotes";
-import { matchPiecePitch } from "@/features/piece-studio/pitch/piecePitchMatch";
+import { centsFromMatchedHz } from "@/features/piece-studio/pitch/centsFromMatchedHz";
+import {
+  activePiecePitchWindow,
+  matchPiecePitch,
+  type PiecePitchMatch,
+} from "@/features/piece-studio/pitch/piecePitchMatch";
+import {
+  expectedNotesFromScore,
+  type PieceExpectedNote,
+} from "@/features/piece-studio/score/expectedNotes";
 import type { MusaiScoreV1 } from "@/features/piece-studio/score/musaiScore";
 
 export type PieceTakeAnalysis = {
@@ -35,6 +46,7 @@ export function analyzePieceTake(input: {
           mono: input.mono,
           sampleRateHz: input.sampleRateHz,
           expectedMidis: expectedNotes.map((n) => n.midi),
+          ...activePiecePitchWindow(),
         })
       : null;
   const performance =
@@ -60,5 +72,26 @@ export function analyzePieceTake(input: {
     history: input.history,
   };
   const report = runPieceFeedback(analyzerInput, defaultPieceFeedbackAnalyzers());
+  if (pitchMatch) {
+    report.pitchNotes = pitchNotesFromMatch(expectedNotes, pitchMatch);
+  }
   return { performance, report };
+}
+
+function pitchNotesFromMatch(
+  expected: readonly PieceExpectedNote[],
+  match: PiecePitchMatch,
+): PiecePitchNoteV1[] {
+  return expected.map((note, i) => {
+    const hz = match.slots[i];
+    const heardSec = match.timesSec[i] ?? null;
+    if (hz == null || !(hz > 0)) {
+      return { noteIndex: note.noteIndex, cents: null, heardSec: null };
+    }
+    return {
+      noteIndex: note.noteIndex,
+      cents: centsFromMatchedHz(hz, note.midi).cents,
+      heardSec,
+    };
+  });
 }

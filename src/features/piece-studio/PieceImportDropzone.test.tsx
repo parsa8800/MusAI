@@ -5,15 +5,17 @@ import { PIECE_STUDIO_UPLOAD_ACCEPT } from "@/features/piece-studio/pieceStudioI
 import { OMR_COPY } from "@/features/piece-studio/omr/omrProvider";
 
 describe("PieceImportDropzone", () => {
-  it("shows one drop surface with format hint and unified accept", () => {
+  it("shows an icon-first drop surface with short copy", () => {
     render(<PieceImportDropzone onFile={vi.fn()} />);
 
     expect(screen.getByTestId("piece-import-dropzone")).toBeInTheDocument();
-    expect(screen.getByText(OMR_COPY.dropMusic)).toBeInTheDocument();
-    expect(screen.getByText(OMR_COPY.dropFormats)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: OMR_COPY.dropMusic })).toBeInTheDocument();
+    expect(screen.queryByText(/Drop or click/i)).not.toBeInTheDocument();
+    expect(screen.getByText(OMR_COPY.dropFormats)).toHaveClass("sr-only");
     expect(screen.queryByText(OMR_COPY.uploadSheet)).not.toBeInTheDocument();
     expect(screen.queryByText(OMR_COPY.advancedDigital)).not.toBeInTheDocument();
     expect(screen.queryByText(/choose file/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/drop your music here/i)).not.toBeInTheDocument();
 
     const input = screen.getByLabelText(OMR_COPY.importMusic);
     expect(input).toHaveAttribute("type", "file");
@@ -39,7 +41,12 @@ describe("PieceImportDropzone", () => {
     const zone = screen.getByTestId("piece-import-dropzone");
     const file = new File([`xml`], "tune.musicxml", { type: "" });
     fireEvent.drop(zone, {
-      dataTransfer: { files: [file], dropEffect: "copy" },
+      dataTransfer: {
+        files: [file],
+        items: [{ kind: "file", type: "", getAsFile: () => file }],
+        types: ["Files"],
+        dropEffect: "copy",
+      },
     });
     expect(onFile).toHaveBeenCalledWith(file);
   });
@@ -47,9 +54,24 @@ describe("PieceImportDropzone", () => {
   it("highlights while dragging over", () => {
     render(<PieceImportDropzone onFile={vi.fn()} />);
     const zone = screen.getByTestId("piece-import-dropzone");
-    fireEvent.dragEnter(zone, { dataTransfer: { files: [] } });
-    expect(zone).toHaveAttribute("data-dragging", "true");
-    fireEvent.dragLeave(zone, { dataTransfer: { files: [] } });
-    expect(zone).not.toHaveAttribute("data-dragging");
+    fireEvent.dragEnter(zone, {
+      dataTransfer: { files: [], items: [], types: ["Files"] },
+    });
+    expect(zone).toHaveAttribute("data-state", "drag-valid");
+    fireEvent.dragLeave(zone, {
+      dataTransfer: { files: [], items: [], types: ["Files"] },
+    });
+    expect(zone).toHaveAttribute("data-state", "idle");
+  });
+
+  it("rejects an unsupported type through the shared gate", () => {
+    const onFile = vi.fn();
+    const onReject = vi.fn();
+    render(<PieceImportDropzone onFile={onFile} onReject={onReject} />);
+    const input = screen.getByLabelText(OMR_COPY.importMusic);
+    const file = new File(["nope"], "notes.bin", { type: "application/octet-stream" });
+    fireEvent.change(input, { target: { files: [file] } });
+    expect(onFile).not.toHaveBeenCalled();
+    expect(onReject).toHaveBeenCalled();
   });
 });

@@ -10,45 +10,24 @@ export function HomeMusicMotifs() {
       aria-hidden
     >
       <Motif
-        className="musai-home-motif musai-home-motif--a left-[4%] top-[18%] hidden sm:block md:left-[8%] md:top-[16%]"
-        style={{ ["--musai-motif-rot"]: "-12deg" } as CSSProperties}
-      >
-        <Crotchet />
-      </Motif>
-
-      <Motif
-        className="musai-home-motif musai-home-motif--b right-[5%] top-[22%] sm:right-[10%] sm:top-[20%] md:right-[12%]"
-        style={{ ["--musai-motif-rot"]: "9deg" } as CSSProperties}
-      >
-        <BeamedEighths />
-      </Motif>
-
-      <Motif
-        className="musai-home-motif musai-home-motif--c left-[2%] top-[48%] hidden md:block md:left-[5%]"
-        style={{ ["--musai-motif-rot"]: "14deg" } as CSSProperties}
-      >
-        <Quaver />
-      </Motif>
-
-      <Motif
-        className="musai-home-motif musai-home-motif--d right-[3%] top-[52%] hidden sm:block md:right-[7%] md:top-[55%]"
+        className="musai-home-motif musai-home-motif--a left-[4%] top-[22%] hidden sm:block md:left-[8%]"
         style={{ ["--musai-motif-rot"]: "-8deg" } as CSSProperties}
       >
         <Crotchet />
       </Motif>
 
       <Motif
-        className="musai-home-motif musai-home-motif--e left-[8%] bottom-[12%] sm:left-[14%] sm:bottom-[14%]"
+        className="musai-home-motif musai-home-motif--b right-[5%] top-[26%] sm:right-[10%] md:right-[12%]"
         style={{ ["--musai-motif-rot"]: "6deg" } as CSSProperties}
       >
-        <Quaver />
+        <BeamedEighths />
       </Motif>
 
       <Motif
-        className="musai-home-motif musai-home-motif--f bottom-[18%] right-[10%] hidden lg:block"
-        style={{ ["--musai-motif-rot"]: "-16deg" } as CSSProperties}
+        className="musai-home-motif musai-home-motif--e hidden left-[9%] bottom-[18%] md:block md:left-[13%] md:bottom-[19%]"
+        style={{ ["--musai-motif-rot"]: "4deg" } as CSSProperties}
       >
-        <BeamedEighths />
+        <Quaver />
       </Motif>
     </div>
   );
@@ -74,7 +53,7 @@ function Crotchet() {
   return (
     <svg
       viewBox="0 0 36 64"
-      className="h-[3.25rem] w-auto text-[var(--musai-notation)] sm:h-[3.75rem]"
+      className="h-[2.7rem] w-auto text-[var(--musai-notation)] sm:h-[3.05rem]"
       fill="currentColor"
     >
       <ellipse cx="13" cy="50" rx="11.5" ry="8.2" transform="rotate(-22 13 50)" />
@@ -87,7 +66,7 @@ function Quaver() {
   return (
     <svg
       viewBox="0 0 40 64"
-      className="h-[2.6rem] w-auto text-[var(--musai-notation)] sm:h-[3rem]"
+      className="h-[2.15rem] w-auto text-[var(--musai-notation)] sm:h-[2.45rem]"
       fill="currentColor"
     >
       <ellipse cx="13" cy="50" rx="11" ry="7.8" transform="rotate(-22 13 50)" />
@@ -101,7 +80,7 @@ function BeamedEighths() {
   return (
     <svg
       viewBox="0 0 58 64"
-      className="h-[2.85rem] w-auto text-[var(--musai-notation)] sm:h-[3.35rem]"
+      className="h-[2.35rem] w-auto text-[var(--musai-notation)] sm:h-[2.7rem]"
       fill="currentColor"
     >
       <ellipse cx="12" cy="51" rx="10" ry="7.2" transform="rotate(-22 12 51)" />

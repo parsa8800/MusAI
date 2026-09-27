@@ -2,23 +2,30 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { PieceLibraryIncipit } from "@/features/piece-studio/PieceLibraryIncipit";
+import { PieceNameControl } from "@/features/piece-studio/PieceNameControl";
 import type { PieceLibraryCardModel } from "@/features/piece-studio/practice/piecePracticeCopy";
+import { isMachinePieceTitle } from "@/features/piece-studio/pieceTitle";
 import { tapFeedback } from "@/lib/motion";
 
 /**
- * Library card — title, composer, one quiet progress/status cue.
- * Whole card opens the piece. Remove lives in ··· → confirmation.
+ * Library card — the same frame for every piece.
+ * Whole card opens the piece. Remove lives in the ··· menu.
  */
 export function PieceLibraryCard({
   href,
   model,
+  musicXml = null,
   onOpen,
   onRemove,
+  onRename,
 }: {
   href: string;
   model: PieceLibraryCardModel;
+  musicXml?: string | null;
   onOpen: () => void;
   onRemove: () => Promise<void> | void;
+  onRename?: (title: string) => void;
 }) {
   const menuId = useId();
   const titleId = `${menuId}-confirm-title`;
@@ -138,11 +145,19 @@ export function PieceLibraryCard({
               aria-labelledby={titleId}
               aria-describedby={descId}
             >
+              <div className="musai-piece-remove__mark" aria-hidden>
+                <span />
+                <span />
+                <span />
+              </div>
               <p id={titleId} className="musai-piece-remove__title">
-                Remove “{model.title}”?
+                Remove this piece?
               </p>
+              {isMachinePieceTitle(model.title) ? null : (
+                <p className="musai-piece-remove__name font-display">{model.title}</p>
+              )}
               <p id={descId} className="musai-piece-remove__lead">
-                This will remove the piece and its saved practice progress.
+                This removes the piece and the practice saved with it.
               </p>
               {removeError ? (
                 <p className="musai-piece-remove__error" role="alert">
@@ -182,51 +197,32 @@ export function PieceLibraryCard({
       className="musai-piece-library__item"
       data-state={model.state}
     >
-      <a
-        href={href}
-        className="musai-piece-library__card"
-        data-testid="piece-library-card"
-        aria-label={openLabel}
-        onClick={(event) => {
-          event.preventDefault();
-          closeMenus();
-          onOpen();
-        }}
-      >
+      <div className="musai-piece-library__card" data-testid="piece-library-card">
+        <a
+          href={href}
+          className="musai-piece-library__hit"
+          aria-label={openLabel}
+          onClick={(event) => {
+            event.preventDefault();
+            closeMenus();
+            onOpen();
+          }}
+        />
         <span className="musai-piece-library__main">
-          <span className="musai-piece-library__title">{model.title}</span>
-          {model.composer ? (
-            <span className="musai-piece-library__composer">{model.composer}</span>
+          <PieceLibraryIncipit musicXml={musicXml} />
+          <PieceNameControl
+            variant="card"
+            title={model.title}
+            onCommit={(next) => onRename?.(next)}
+          />
+          <span className="musai-piece-library__composer">
+            {model.composer ?? ""}
+          </span>
+          {model.statusLabel ? (
+            <span className="musai-piece-library__status">{model.statusLabel}</span>
           ) : null}
         </span>
-
-        {model.state === "practised" ? (
-          <span className="musai-piece-library__cue">
-            <span
-              className="musai-piece-library__rail"
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={model.progressFill}
-              aria-label={`Best ${model.bestPercent ?? model.progressFill}%`}
-            >
-              <span
-                className="musai-piece-library__rail-fill"
-                style={{ width: `${model.progressFill}%` }}
-              />
-            </span>
-            {model.bestPercent != null ? (
-              <span className="musai-piece-library__score">
-                Best {model.bestPercent}%
-              </span>
-            ) : null}
-          </span>
-        ) : null}
-
-        {model.statusLabel ? (
-          <span className="musai-piece-library__status">{model.statusLabel}</span>
-        ) : null}
-      </a>
+      </div>
 
       <div className="musai-piece-library__actions">
         <button
@@ -276,6 +272,16 @@ export function PieceLibraryCard({
                 openConfirm();
               }}
             >
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path
+                  d="M3.2 4.2h9.6M6.1 4.1V3.2h3.8v.9M4.4 4.2l.5 8.1h6.2l.5-8.1"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.35"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
               Remove piece
             </button>
           </div>

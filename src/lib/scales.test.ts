@@ -13,10 +13,12 @@ import {
   preferredTonicOption,
   scaleIdFor,
   scaleDisplayLabel,
+  availableOctaveSpans,
   tonicAccidentalRows,
   validateScaleMidisInViolinRange,
   violinRootsForTonic,
 } from "@/lib/scales";
+import { getInstrument } from "@/lib/instrument";
 import { VIOLIN_MIDI_MAX, VIOLIN_MIDI_MIN } from "@/lib/intonation";
 
 describe("buildAscendingScaleMidis", () => {
@@ -154,6 +156,30 @@ describe("violin range extremes", () => {
       const up = buildScaleExerciseMidis(root, "major", 2, "ascending");
       expect(up.at(-1)!).toBeLessThanOrEqual(VIOLIN_MIDI_MAX);
     }
+  });
+});
+
+describe("viola scale register", () => {
+  it("keeps C major as C major, starting on C3", () => {
+    const viola = getInstrument("viola");
+    const root = defaultRootMidiForTonic(0, viola);
+    expect(root).toBe(48);
+    expect(buildAscendingScaleMidis(root, "major", 1)).toEqual([
+      48, 50, 52, 53, 55, 57, 59, 60,
+    ]);
+    expect(buildAscendingScaleMidis(root, "major", 2).at(-1)).toBe(72);
+    expect(availableOctaveSpans(root, "major", viola)).toEqual([1, 2]);
+  });
+
+  it("hides 2 octaves when the run leaves the viola", () => {
+    const viola = getInstrument("viola");
+    expect(availableOctaveSpans(81, "major", viola)).toEqual([1]);
+  });
+
+  it("does not change violin C major defaults", () => {
+    const violin = getInstrument("violin");
+    expect(defaultRootMidiForTonic(0, violin)).toBe(60);
+    expect(buildAscendingScaleMidis(60, "major", 1)[0]).toBe(60);
   });
 });
 

@@ -1,17 +1,16 @@
 /**
- * Shared note-plate geometry for Listen playhead and Practise note heat.
- * Practise: tight square on the notehead.
- * Listen: short underline below the notehead — never covers the note.
+ * Shared note-cue geometry for Practise feedback.
+ * Listen playback uses `ScorePlaybackPlayhead`, not this plate.
  */
 
 export const NOTE_PLATE_MIN = 24;
 export const NOTE_PLATE_MAX = 32;
-/** Listen underline width. */
-export const LISTEN_UNDERLINE_MIN = 18;
-export const LISTEN_UNDERLINE_MAX = 30;
-/** Listen underline height. */
-export const LISTEN_UNDERLINE_HEIGHT_MIN = 7;
-export const LISTEN_UNDERLINE_HEIGHT_MAX = 11;
+/** Listen / Practise underline width. */
+export const LISTEN_UNDERLINE_MIN = 20;
+export const LISTEN_UNDERLINE_MAX = 36;
+/** Listen / Practise underline height. */
+export const LISTEN_UNDERLINE_HEIGHT_MIN = 6;
+export const LISTEN_UNDERLINE_HEIGHT_MAX = 10;
 /** @deprecated Prefer NOTE_PLATE_MIN — kept for older test imports. */
 export const NOTE_PLATE_MIN_HEIGHT = NOTE_PLATE_MIN;
 /** @deprecated Use LISTEN_UNDERLINE_* — kept for older imports. */
@@ -30,7 +29,7 @@ export function notePlateSize(basisPx: number): number {
 export function listenUnderlineWidth(basisPx: number): number {
   return Math.min(
     LISTEN_UNDERLINE_MAX,
-    Math.max(LISTEN_UNDERLINE_MIN, basisPx * 0.7),
+    Math.max(LISTEN_UNDERLINE_MIN, basisPx * 0.85),
   );
 }
 
@@ -65,18 +64,40 @@ export function notePlateFromPose(pose: {
   };
 }
 
-/** Practise: same square, centred in an overlay rect that spans the staff. */
+/**
+ * Practise note focus: underline under a staff-band wash rect.
+ * Same language as Listen — never covers the notehead.
+ */
+export function shapeNoteFocusUnderline(rect: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}): { x: number; y: number; width: number; height: number } {
+  const basis = Math.max(rect.height, 28);
+  const minWidth = listenUnderlineWidth(basis);
+  const height = listenUnderlineHeight(basis);
+  const width = Math.max(
+    minWidth,
+    Math.min(rect.width * 0.7, LISTEN_UNDERLINE_MAX * 1.55),
+  );
+  return {
+    x: rect.x + Math.max(0, (rect.width - width) * 0.5),
+    y: rect.y + rect.height * 0.88,
+    width,
+    height,
+  };
+}
+
+/**
+ * @deprecated Use shapeNoteFocusUnderline — Practise note cues are underlines.
+ * Kept so older imports keep a stable name; now returns an under-note underline.
+ */
 export function shapeNotePlateRect(rect: {
   x: number;
   y: number;
   width: number;
   height: number;
 }): { x: number; y: number; width: number; height: number } {
-  const size = notePlateSize(Math.max(rect.height, rect.width * 0.5));
-  return {
-    x: rect.x + Math.max(0, (rect.width - size) * 0.5),
-    y: rect.y + Math.max(0, (rect.height - size) * 0.4),
-    width: size,
-    height: size,
-  };
+  return shapeNoteFocusUnderline(rect);
 }

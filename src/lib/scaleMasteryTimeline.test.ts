@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   masteryPercentThroughTake,
   withMasteryAfterTake,
+  bestMasteryPercent,
 } from "@/lib/scaleMasteryTimeline";
 import { buildLoopMastery } from "@/lib/scalePracticeProgress";
 import type { ScalePracticeSessionV1 } from "@/lib/scalePracticeTypes";
@@ -150,5 +151,27 @@ describe("scaleMasteryTimeline", () => {
     expect(masteryPercentThroughTake([a, b], "b")).toBe(
       buildLoopMastery([a, b]).percent,
     );
+  });
+
+  it("keeps the peak mastery after a weaker later take", () => {
+    const a = session({
+      sessionId: "a",
+      inTunePercent: 40,
+      inTuneCount: 3,
+      masteryPercentAfterTake: 40,
+    });
+    const b = session({
+      sessionId: "b",
+      inTunePercent: 90,
+      inTuneCount: 7,
+      masteryPercentAfterTake: 82,
+    });
+    const c = session({
+      sessionId: "c",
+      inTunePercent: 50,
+      inTuneCount: 4,
+      masteryPercentAfterTake: 70,
+    });
+    expect(bestMasteryPercent([a, b, c])).toBe(82);
   });
 });

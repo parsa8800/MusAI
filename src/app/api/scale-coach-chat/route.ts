@@ -73,7 +73,7 @@ async function callOpenAiChat(
         max_tokens: 220,
         response_format: { type: "json_object" },
         messages: [
-          { role: "system", content: scaleCoachChatSystemPrompt() },
+          { role: "system", content: scaleCoachChatSystemPrompt(ctx) },
           { role: "system", content: scaleCoachChatDataMessage(ctx) },
           ...recent,
         ],

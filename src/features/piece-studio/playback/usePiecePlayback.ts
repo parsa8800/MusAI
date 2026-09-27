@@ -7,8 +7,14 @@ import {
   resumePieceAudio,
   suspendPieceAudio,
   type PieceInstrument,
-  type PieceInstrumentId,
 } from "@/features/piece-studio/playback/pieceInstrument";
+import {
+  pieceInstrumentIdFor,
+  readPieceListenVoice,
+  writePieceListenVoice,
+  type PieceListenVoice,
+} from "@/features/piece-studio/playback/pieceListenVoice";
+import type { ListenSoundfont } from "@/lib/instrument";
 import {
   createPieceMetronome,
   type PieceMetronome,
@@ -20,6 +26,7 @@ import {
   loopBoundsSec,
   measureAtSeconds,
   measureByNumber,
+  resolvePlayRange,
   snapToMeasureStart,
   type PlaybackTimeline,
 } from "@/features/piece-studio/playback/playbackTimeline";
@@ -46,17 +53,32 @@ export type PieceLoopRange = {
  * and other infrequent UI, so the workspace does not re-render at 60fps.
  *
  * Speed changes only rescale note *timing* (MIDI samples keep concert pitch).
+ * Written dynamics are not performed — Listen stays at even volume.
  */
 export function usePiecePlayback(
   score: MusaiScoreV1 | null,
   options: {
-    instrumentId?: PieceInstrumentId;
+    /** GM patch used when the listener chooses the player's instrument. */
+    stringSoundfont?: ListenSoundfont;
     /** When false, skip loading smplr samples (Score / Practise stay light). */
     loadInstrument?: boolean;
   } = {},
 ) {
-  const instrumentId = options.instrumentId ?? "piano";
+  const stringSoundfont = options.stringSoundfont ?? "violin";
   const loadInstrument = options.loadInstrument ?? true;
+  const [voice, setVoiceState] = useState<PieceListenVoice>("piano");
+  const [voiceReady, setVoiceReady] = useState(false);
+  const instrumentId = pieceInstrumentIdFor(voice, stringSoundfont);
+
+  useEffect(() => {
+    setVoiceState(readPieceListenVoice());
+    setVoiceReady(true);
+  }, []);
+
+  const setVoice = useCallback((next: PieceListenVoice) => {
+    writePieceListenVoice(next);
+    setVoiceState(next);
+  }, []);
   const timeline = useMemo(
     () => (score ? buildPlaybackTimeline(score) : null),
     [score],
@@ -94,8 +116,15 @@ export function usePiecePlayback(
   const timeListenersRef = useRef(new Set<PiecePlaybackTimeListener>());
   /** Blocks RAF from scheduling between silence and re-arm after seek/tempo. */
   const transportLockRef = useRef(false);
+  /**
+   * Bumped on every silence(). In-flight RAF ticks and stale schedule() calls
+   * from the previous score position abort when their epoch no longer matches.
+   */
+  const transportGenRef = useRef(0);
   /** True while the Listen scrubber is dragging — freeze clock to preview time. */
   const scrubbingRef = useRef(false);
+  /** One-shot section end (Practise Listen). Null during normal Listen play. */
+  const rangeEndRef = useRef<number | null>(null);
 
   useEffect(() => {
     instrumentIdRef.current = instrumentId;
@@ -116,6 +145,7 @@ export function usePiecePlayback(
   }, []);
 
   const getCurrentSec = useCallback(() => currentSecRef.current, []);
+  const getPlaying = useCallback(() => playingRef.current, []);
 
   useEffect(() => {
     timelineRef.current = timeline;
@@ -125,6 +155,7 @@ export function usePiecePlayback(
       startedNotesRef.current.clear();
       startedClicksRef.current.clear();
       scheduledUntilRef.current = -1;
+      rangeEndRef.current = null;
       instrumentRef.current?.allOff();
       metronomeRef.current?.silence();
       publishTime(0);
@@ -147,9 +178,9 @@ export function usePiecePlayback(
     bpmRef.current = bpm;
   }, [bpm]);
 
-  /** Load sampled instrument only while Listen needs audio (not on Score/Practise). */
+  /** Load the piano when the score page can play. */
   useEffect(() => {
-    if (!loadInstrument || !timeline || timeline.durationSec <= 0) {
+    if (!voiceReady || !loadInstrument || !timeline || timeline.durationSec <= 0) {
       return;
     }
     const ctx = getPieceAudioContext();
@@ -207,7 +238,7 @@ export function usePiecePlayback(
       cancelled = true;
       timers.forEach((id) => window.clearTimeout(id));
     };
-  }, [timeline, instrumentId, loadInstrument]);
+  }, [timeline, instrumentId, loadInstrument, voiceReady]);
 
   const rate = () => bpmRef.current / Math.max(1, baseBpmRef.current);
 
@@ -219,6 +250,7 @@ export function usePiecePlayback(
   }, []);
 
   const silence = useCallback(() => {
+    transportGenRef.current += 1;
     instrumentRef.current?.allOff();
     metronomeRef.current?.silence();
     startedNotesRef.current.clear();
@@ -227,7 +259,13 @@ export function usePiecePlayback(
   }, []);
 
   const scheduleMetronome = useCallback(
-    (fromSec: number, audioNow: number, until: number) => {
+    (
+      fromSec: number,
+      audioNow: number,
+      until: number,
+      epoch = transportGenRef.current,
+    ) => {
+      if (epoch !== transportGenRef.current) return;
       if (!metronomeOnRef.current) return;
       const tl = timelineRef.current;
       const metro = metronomeRef.current;
@@ -243,6 +281,7 @@ export function usePiecePlayback(
         else hi = mid;
       }
       for (let index = lo; index < beats.length; index++) {
+        if (epoch !== transportGenRef.current) return;
         const beat = beats[index]!;
         if (beat.tSec > until) break;
         if (startedClicksRef.current.has(index)) continue;
@@ -255,7 +294,8 @@ export function usePiecePlayback(
   );
 
   const schedule = useCallback(
-    (fromSec: number, audioNow: number) => {
+    (fromSec: number, audioNow: number, epoch = transportGenRef.current) => {
+      if (epoch !== transportGenRef.current) return;
       const tl = timelineRef.current;
       const inst = instrumentRef.current;
       if (!tl || !inst) return;
@@ -268,8 +308,14 @@ export function usePiecePlayback(
             loopRef.current.toMeasure,
           )
         : null;
-      const noteUntil =
-        loopRange != null ? Math.min(until, loopRange.endSec + 0.001) : until;
+      const rangeEnd = rangeEndRef.current;
+      const cap =
+        loopRange != null
+          ? loopRange.endSec + 0.001
+          : rangeEnd != null
+            ? rangeEnd + 0.001
+            : null;
+      const noteUntil = cap != null ? Math.min(until, cap) : until;
 
       const planned = planScheduledNotes({
         notes: tl.notes,
@@ -281,6 +327,7 @@ export function usePiecePlayback(
         loopEndSec: loopRange?.endSec ?? null,
       });
       for (const attack of planned) {
+        if (epoch !== transportGenRef.current) return;
         const note = tl.notes[attack.index]!;
         const armed = inst.noteOn(
           attack.midi,
@@ -294,7 +341,8 @@ export function usePiecePlayback(
           startedNotesRef.current.add(attack.index);
         }
       }
-      scheduleMetronome(fromSec, audioNow, noteUntil);
+      if (epoch !== transportGenRef.current) return;
+      scheduleMetronome(fromSec, audioNow, noteUntil, epoch);
       scheduledUntilRef.current = until;
     },
     [scheduleMetronome],
@@ -316,8 +364,8 @@ export function usePiecePlayback(
       if (!playingRef.current || !ctx) return;
       transportLockRef.current = true;
       try {
-        // Keep transport “playing” but mute until seek commits — otherwise RAF
-        // would keep advancing past the scrub thumb.
+        // Keep transport “playing” but mute until scrub commits — otherwise RAF
+        // would keep advancing past the dragged playhead.
         silence();
         originAudioRef.current = ctx.currentTime;
         originScoreRef.current = t;
@@ -349,7 +397,7 @@ export function usePiecePlayback(
         if (playingRef.current && ctx) {
           originAudioRef.current = ctx.currentTime;
           originScoreRef.current = t;
-          schedule(t, ctx.currentTime);
+          schedule(t, ctx.currentTime, transportGenRef.current);
         }
       } finally {
         transportLockRef.current = false;
@@ -383,18 +431,73 @@ export function usePiecePlayback(
 
   const pause = useCallback(() => {
     const ctx = ctxRef.current;
+    // Capture score time while still playing — scoreTimeNow freezes after.
     const t = ctx ? scoreTimeNow(ctx.currentTime) : pausePosRef.current;
     const duration = timelineRef.current?.durationSec ?? 0;
-    pausePosRef.current = clampPlaybackTime(t, duration);
-    publishTime(pausePosRef.current);
+    const frozen = clampPlaybackTime(t, duration);
+    // Cut audio before React state so pause feels immediate.
+    // playingRef first so the RAF tick cannot re-arm notes during silence().
     playingRef.current = false;
-    setPlaying(false);
     silence();
+    pausePosRef.current = frozen;
+    publishTime(frozen);
+    setPlaying(false);
   }, [publishTime, scoreTimeNow, silence]);
 
-  const play = useCallback(async () => {
+  const armTransport = useCallback(
+    (ctx: AudioContext, t: number) => {
+      transportLockRef.current = true;
+      try {
+        silence();
+        originAudioRef.current = ctx.currentTime;
+        originScoreRef.current = t;
+        playingRef.current = true;
+        publishTime(t);
+        setPlaying(true);
+        schedule(t, ctx.currentTime, transportGenRef.current);
+      } finally {
+        transportLockRef.current = false;
+      }
+    },
+    [publishTime, schedule, silence],
+  );
+
+  const play = useCallback(async (opts?: { keepRange?: boolean }) => {
+    if (!opts?.keepRange) rangeEndRef.current = null;
     const tl = timelineRef.current;
     if (!tl || tl.durationSec <= 0) return;
+
+    let t = pausePosRef.current;
+    const loopRange = loopRef.current
+      ? loopBoundsSec(
+          tl.measures,
+          loopRef.current.fromMeasure,
+          loopRef.current.toMeasure,
+        )
+      : null;
+    if (rangeEndRef.current == null && loopRange) {
+      if (t < loopRange.startSec - 0.02 || t >= loopRange.endSec - 0.02) {
+        t = loopRange.startSec;
+      }
+    } else if (rangeEndRef.current == null && t >= tl.durationSec - 0.02) {
+      t = 0;
+    }
+    pausePosRef.current = t;
+
+    // Fast path: context running + instrument ready — arm without awaiting.
+    const warmCtx = ctxRef.current;
+    const warmInst = instrumentRef.current;
+    if (
+      warmCtx &&
+      warmCtx.state === "running" &&
+      warmInst &&
+      warmInst.id === instrumentIdRef.current
+    ) {
+      if (!metronomeRef.current) metronomeRef.current = createPieceMetronome(warmCtx);
+      armTransport(warmCtx, t);
+      return;
+    }
+
     const ctx = await resumePieceAudio();
     if (!ctx) return;
     ctxRef.current = ctx;
@@ -421,37 +524,59 @@ export function usePiecePlayback(
       }
     }
 
-    let t = pausePosRef.current;
-    const loopRange = loopRef.current
-      ? loopBoundsSec(
-          tl.measures,
-          loopRef.current.fromMeasure,
-          loopRef.current.toMeasure,
-        )
-      : null;
-    if (loopRange) {
-      if (t < loopRange.startSec - 0.02 || t >= loopRange.endSec - 0.02) {
-        t = loopRange.startSec;
-      }
-    } else if (t >= tl.durationSec - 0.02) {
-      t = 0;
-    }
-    pausePosRef.current = t;
-    transportLockRef.current = true;
-    try {
-      // Clear any stale queue before arming the full remaining sequence.
-      silence();
-      originAudioRef.current = ctx.currentTime;
-      originScoreRef.current = t;
-      playingRef.current = true;
-      publishTime(t);
-      setPlaying(true);
-      schedule(t, ctx.currentTime);
-    } finally {
-      transportLockRef.current = false;
-    }
-  }, [publishTime, schedule, silence]);
+    // Position may have changed while we waited for samples.
+    t = pausePosRef.current;
+    armTransport(ctx, t);
+  }, [armTransport]);
 
+  /**
+   * End a playhead drag. When `resume` is true (transport was playing before
+   * the drag), re-arm audio from the new score time — never during the drag.
+   */
+  const commitScrub = useCallback(
+    (next: number, resume: boolean) => {
+      const tl = timelineRef.current;
+      const duration = tl?.durationSec ?? 0;
+      const t = clampPlaybackTime(next, duration);
+      scrubbingRef.current = false;
+      pausePosRef.current = t;
+      publishTime(t);
+      if (!resume) return;
+
+      const ctx = ctxRef.current;
+      if (
+        ctx &&
+        ctx.state === "running" &&
+        instrumentRef.current?.id === instrumentIdRef.current
+      ) {
+        armTransport(ctx, t);
+        return;
+      }
+      void play();
+    },
+    [armTransport, play, publishTime],
+  );
+
+  const playRange = useCallback(
+    async (startSec: number, endSec: number) => {
+      const tl = timelineRef.current;
+      if (!tl || tl.durationSec <= 0) return;
+      const span = resolvePlayRange(startSec, endSec, tl.durationSec);
+      if (!span) return;
+      loopRef.current = null;
+      setLoopState(null);
+      rangeEndRef.current = span.endSec;
+      pausePosRef.current = span.startSec;
+      await play({ keepRange: true });
+    },
+    [play],
+  );
+
+  /**
+   * Hard restart: fully stop audio first, then optionally start from the
+   * section/piece beginning. Re-arming in-place left the previous attack
+   * bleeding into the new first note (same-pitch spam on Twinkle, etc.).
+   */
   const restart = useCallback(() => {
     const tl = timelineRef.current;
     const loopRange =
@@ -463,26 +588,27 @@ export function usePiecePlayback(
           )
         : null;
     const t = loopRange?.startSec ?? 0;
-    pausePosRef.current = t;
-    publishTime(t);
+    const wasPlaying = playingRef.current;
     transportLockRef.current = true;
     try {
-      if (playingRef.current && ctxRef.current) {
-        originAudioRef.current = ctxRef.current.currentTime;
-        originScoreRef.current = t;
-      }
       silence();
-      const ctx = ctxRef.current;
-      if (playingRef.current && ctx) {
-        originAudioRef.current = ctx.currentTime;
-        originScoreRef.current = t;
-        schedule(t, ctx.currentTime);
-      }
+      pausePosRef.current = t;
+      publishTime(t);
+      playingRef.current = false;
+      setPlaying(false);
     } finally {
       transportLockRef.current = false;
     }
-  }, [publishTime, schedule, silence]);
+    if (wasPlaying) {
+      void play();
+    }
+  }, [play, publishTime, silence]);
 
+  /**
+   * Tempo / speed changes only update the rate while paused. Live re-arm on
+   * every slider tick was re-attacking the current note and causing spam.
+   * Listen UI pauses while options are open so this stays a quiet write.
+   */
   const applyTempo = useCallback(
     (bpmNext: number) => {
       const ctx = ctxRef.current;
@@ -490,21 +616,47 @@ export function usePiecePlayback(
       bpmRef.current = bpmNext;
       pausePosRef.current = t;
       publishTime(t);
-      if (playingRef.current && ctx) {
+      if (playingRef.current) {
+        // Cut audio; keep transport paused so the next Play uses the new rate.
         transportLockRef.current = true;
         try {
-          originAudioRef.current = ctx.currentTime;
-          originScoreRef.current = t;
           silence();
-          originAudioRef.current = ctx.currentTime;
-          originScoreRef.current = t;
-          schedule(t, ctx.currentTime);
+          playingRef.current = false;
+          setPlaying(false);
         } finally {
           transportLockRef.current = false;
         }
       }
     },
-    [publishTime, schedule, scoreTimeNow, silence],
+    [publishTime, scoreTimeNow, silence],
+  );
+
+  /**
+   * Seek to a score time from a Listen tap/drag commit.
+   * Hard-cuts audio first. Only auto-plays when already playing — while
+   * paused, just move the playhead so they can place it without starting.
+   */
+  const seekAndPlay = useCallback(
+    (next: number) => {
+      const tl = timelineRef.current;
+      const duration = tl?.durationSec ?? 0;
+      const t = clampPlaybackTime(next, duration);
+      const wasPlaying = playingRef.current;
+      transportLockRef.current = true;
+      try {
+        silence();
+        pausePosRef.current = t;
+        publishTime(t);
+        playingRef.current = false;
+        setPlaying(false);
+      } finally {
+        transportLockRef.current = false;
+      }
+      if (wasPlaying) {
+        void play();
+      }
+    },
+    [play, publishTime, silence],
   );
 
   const setBpm = useCallback(
@@ -586,6 +738,15 @@ export function usePiecePlayback(
         return;
       }
       let t = scoreTimeNow(ctx.currentTime);
+      const rangeEnd = rangeEndRef.current;
+      if (rangeEnd != null && t >= rangeEnd - 0.02) {
+        pausePosRef.current = rangeEnd;
+        publishTime(rangeEnd);
+        playingRef.current = false;
+        setPlaying(false);
+        silence();
+        return;
+      }
       const loopRange = loopRef.current
         ? loopBoundsSec(
             tl.measures,
@@ -601,7 +762,7 @@ export function usePiecePlayback(
         originScoreRef.current = t;
         silence();
         publishTime(t);
-        schedule(t, ctx.currentTime);
+        schedule(t, ctx.currentTime, transportGenRef.current);
         raf = window.requestAnimationFrame(tick);
         return;
       }
@@ -616,8 +777,9 @@ export function usePiecePlayback(
       }
       pausePosRef.current = t;
       publishTime(t);
+      const epoch = transportGenRef.current;
       if (t > scheduledUntilRef.current - 0.12) {
-        schedule(t, ctx.currentTime);
+        schedule(t, ctx.currentTime, epoch);
       }
       raf = window.requestAnimationFrame(tick);
     };
@@ -645,6 +807,11 @@ export function usePiecePlayback(
     if (!tl) return 1;
     return measureAtSeconds(tl.measures, currentSecRef.current)?.number ?? 1;
   }, []);
+  const measureNumberAt = useCallback((tSec: number) => {
+    const tl = timelineRef.current;
+    if (!tl) return null;
+    return measureAtSeconds(tl.measures, tSec)?.number ?? null;
+  }, []);
   const instrumentStatusForUi: PieceInstrumentStatus =
     !loadInstrument || !timeline || timeline.durationSec <= 0
       ? "idle"
@@ -654,12 +821,15 @@ export function usePiecePlayback(
     timeline,
     playing,
     getCurrentSec,
+    getPlaying,
     subscribeTime,
     durationSec: timeline?.durationSec ?? 0,
     bpm,
     baseBpm,
     speedPreset,
     setSpeedPreset,
+    voice,
+    setVoice,
     setBpm,
     metronomeOn,
     toggleMetronome,
@@ -670,12 +840,16 @@ export function usePiecePlayback(
     /** Prefer getCurrentMeasure during playback — avoids reading time refs in render. */
     currentMeasure: 1,
     getCurrentMeasure,
+    measureNumberAt,
     play,
+    playRange,
     pause,
     toggle,
     restart,
     seek,
+    seekAndPlay,
     scrubPreview,
+    commitScrub,
     seekToMeasureAt,
     seekToMeasure,
     instrumentStatus: instrumentStatusForUi,

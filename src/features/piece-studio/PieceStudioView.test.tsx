@@ -36,23 +36,24 @@ describe("PieceStudioView", () => {
   it("offers one unified import dropzone for all score formats", async () => {
     render(<PieceStudioView />);
     expect(
-      screen.getByRole("heading", { name: "Piece studio" }),
+      screen.getByRole("heading", { name: "Piece Studio" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Open a score, listen, then practise."),
-    ).toBeInTheDocument();
-    expect(await screen.findByTestId("piece-library-empty")).toHaveTextContent(
-      /Your pieces will show up here/i,
-    );
+      screen.queryByText("Open a score, listen, then practise."),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("piece-library-empty")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Your pieces will show up here/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/isn’t connected/i)).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Your pieces" })).not.toBeInTheDocument();
     expect(screen.queryByText(/no pieces yet/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Drop or click/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(OMR_COPY.scanningUnavailable)).not.toBeInTheDocument();
     expect(screen.getByTestId("piece-import-dropzone")).toBeInTheDocument();
     expect(screen.getByTestId("piece-import-dropzone")).not.toHaveAttribute(
       "data-compact",
     );
-    expect(screen.getByText(OMR_COPY.dropMusic)).toBeInTheDocument();
-    expect(screen.getByText(OMR_COPY.dropFormats)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: OMR_COPY.dropMusic })).toBeInTheDocument();
+    expect(screen.getByText(OMR_COPY.dropFormats)).toHaveClass("sr-only");
     expect(screen.queryByText(OMR_COPY.uploadSheet)).not.toBeInTheDocument();
     expect(screen.queryByText(OMR_COPY.advancedDigital)).not.toBeInTheDocument();
     expect(screen.queryByText(/choose file/i)).not.toBeInTheDocument();
@@ -73,7 +74,7 @@ describe("PieceStudioView", () => {
     expect(screen.queryByRole("heading", { name: "Scale studio" })).not.toBeInTheDocument();
   });
 
-  it("shows a scanning hint when photos/PDFs are offline but keeps the dropzone usable", async () => {
+  it("keeps the dropzone usable without a scanning status line on the home", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -82,14 +83,11 @@ describe("PieceStudioView", () => {
       }),
     );
     render(<PieceStudioView />);
-    expect(
-      await screen.findByText(OMR_COPY.scanningUnavailable),
-    ).toBeInTheDocument();
-    expect(OMR_COPY.scanningUnavailable).toMatch(/digital scores still work/i);
+    expect(screen.queryByText(OMR_COPY.scanningUnavailable)).not.toBeInTheDocument();
     expect(screen.queryByText(/npm /i)).not.toBeInTheDocument();
     expect(screen.queryByText(/omr-worker/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/internal worker detail/i)).not.toBeInTheDocument();
-    expect(screen.getByText(OMR_COPY.dropMusic)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: OMR_COPY.dropMusic })).toBeInTheDocument();
     const upload = screen.getByLabelText(OMR_COPY.importMusic);
     expect(upload).not.toBeDisabled();
   });
@@ -160,7 +158,9 @@ describe("PieceStudioView", () => {
     render(<PieceStudioView />);
     expect(await screen.findByText("Canon in D")).toBeInTheDocument();
     expect(screen.getByText("Pachelbel")).toBeInTheDocument();
-    expect(screen.getByText("Best 82%")).toBeInTheDocument();
+    expect(screen.queryByText("82%")).not.toBeInTheDocument();
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Best 82%/)).not.toBeInTheDocument();
     expect(screen.queryByText(/2 attempts/)).not.toBeInTheDocument();
     expect(screen.queryByText("Continue")).not.toBeInTheDocument();
     expect(
@@ -216,9 +216,10 @@ describe("PieceStudioView", () => {
     );
     fireEvent.click(screen.getByTestId("piece-remove-menu-item"));
     expect(screen.getByTestId("piece-remove-dialog")).toBeInTheDocument();
-    expect(screen.getByText(/Remove “Canon in D”\?/)).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toHaveTextContent("Remove this piece?");
+    expect(screen.getByRole("dialog")).toHaveTextContent("Canon in D");
     expect(
-      screen.getByText(/remove the piece and its saved practice progress/i),
+      screen.getByText(/removes the piece and the practice saved with it/i),
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
@@ -236,7 +237,8 @@ describe("PieceStudioView", () => {
     });
     expect(screen.queryByTestId("piece-remove-dialog")).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Your pieces" })).not.toBeInTheDocument();
-    expect(screen.getByTestId("piece-library-empty")).toBeInTheDocument();
+    expect(screen.queryByTestId("piece-library-empty")).not.toBeInTheDocument();
+    expect(screen.getByTestId("piece-import-dropzone")).toBeInTheDocument();
   });
 
   it("reopens the check step for an unconfirmed page scan", async () => {

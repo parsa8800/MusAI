@@ -1,3 +1,5 @@
+import { DEFAULT_INSTRUMENT_ID } from "@/lib/instrument/catalog";
+import type { InstrumentId } from "@/lib/instrument/types";
 import {
   scaleDisplayLabel,
   scaleIdFor,
@@ -14,12 +16,13 @@ export type ScaleWorkspaceIdentity = {
   slug: string;
 };
 
-/** Journey key: scale + octave (range/root is settings within the page). */
+/** Journey key: instrument + scale + octave (range/root is settings within the page). */
 export function progressKeyFor(
   scaleId: string,
   octaveSpan: 1 | 2,
+  instrumentId: InstrumentId = DEFAULT_INSTRUMENT_ID,
 ): string {
-  return `${scaleId}__${octaveSpan}`;
+  return `${instrumentId}__${scaleId}__${octaveSpan}`;
 }
 
 export function scaleWorkspaceSlug(
@@ -78,6 +81,7 @@ export function identityFromSelection(
   tonicPitchClass: number,
   scaleKind: ScaleKind,
   octaveSpan: 1 | 2,
+  instrumentId: InstrumentId = DEFAULT_INSTRUMENT_ID,
 ): ScaleWorkspaceIdentity {
   const scaleId = scaleIdFor(tonicPitchClass, scaleKind);
   return {
@@ -86,7 +90,7 @@ export function identityFromSelection(
     scaleKind,
     tonicPitchClass,
     octaveSpan,
-    progressKey: progressKeyFor(scaleId, octaveSpan),
+    progressKey: progressKeyFor(scaleId, octaveSpan, instrumentId),
     slug: scaleWorkspaceSlug(scaleId, octaveSpan),
   };
 }

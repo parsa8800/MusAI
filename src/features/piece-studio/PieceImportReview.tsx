@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { MusaiLoadingMark } from "@/components/MusaiLoadingMark";
 import { MusaiSegmentedControl } from "@/components/MusaiSegmentedControl";
 import { OMR_COPY } from "@/features/piece-studio/omr/omrProvider";
 import { measureWholeNoteSpan } from "@/features/piece-studio/omr/assessRecognitionHints";
@@ -11,7 +12,10 @@ import {
   type PieceScoreHighlight,
   type ScorePaintState,
 } from "@/features/piece-studio/score/OsmdScoreAdapter";
+import { prepareMusicXmlForEngraving } from "@/features/piece-studio/score/prepareMusicXmlForEngraving";
 import { musicXmlPreviewLog } from "@/features/piece-studio/score/scoreViewport";
+import { PieceNameControl } from "@/features/piece-studio/PieceNameControl";
+import { recommendedPieceTitle } from "@/features/piece-studio/pieceTitle";
 import { tapFeedback } from "@/lib/motion";
 
 type OriginalKind = "pdf" | "image" | "other";
@@ -35,7 +39,7 @@ export function PieceImportReview({
   /** Full-screen reading state before the draft exists. */
   processing?: boolean;
   processingLabel?: string;
-  onConfirm: () => void;
+  onConfirm: (title: string) => void;
   onTryAgain: () => void;
   onChooseAnotherFile: () => void;
 }) {
@@ -48,7 +52,14 @@ export function PieceImportReview({
   const sessionId = draft?.sessionId ?? null;
   const sourceKind = draft?.sourceKind;
   const sourceMimeType = draft?.sourceMimeType;
-  const musicXml = draft?.musicXml ?? null;
+  const recognizedXml = draft?.musicXml ?? null;
+  const musicXml = useMemo(() => {
+    if (!recognizedXml) return null;
+    if (sourceKind === "pdf" || sourceKind === "image") {
+      return prepareMusicXmlForEngraving(recognizedXml);
+    }
+    return recognizedXml;
+  }, [recognizedXml, sourceKind]);
   const structured = draft?.structured ?? null;
   const file = draft?.file ?? null;
 
@@ -139,6 +150,19 @@ export function PieceImportReview({
   }, [uncertain, focusMeasure, structured]);
 
   const title = draft?.title?.trim() || null;
+  const suggestion = useMemo(
+    () =>
+      recommendedPieceTitle({
+        fileName: draft?.sourceFileName,
+        scoreTitle: draft?.structured?.title ?? draft?.title,
+        musicXml: draft?.musicXml,
+      }),
+    [draft?.sourceFileName, draft?.structured?.title, draft?.title, draft?.musicXml],
+  );
+  const nameRef = useRef(title ?? "");
+  const rememberName = useCallback((name: string) => {
+    nameRef.current = name;
+  }, []);
   const readingLabel = processingLabel || OMR_COPY.reading;
   const isDigitalSource = sourceKind === "musicxml";
   const showPageNav =
@@ -174,9 +198,11 @@ export function PieceImportReview({
         <>
           <header className="musai-piece-import-review__head">
             {title ? (
-              <h1 className="musai-piece-import-review__title font-display">
-                {title}
-              </h1>
+              <PieceNameControl
+                title={title}
+                suggestion={suggestion}
+                onName={rememberName}
+              />
             ) : null}
             {mode === "ready" && uncertain ? (
               <p
@@ -237,11 +263,6 @@ export function PieceImportReview({
             className="musai-piece-import-review__decide"
             data-ready={mode === "ready" ? "true" : undefined}
           >
-            {mode === "ready" ? (
-              <p className="musai-piece-import-review__decide-lead">
-                {OMR_COPY.confirmLead || OMR_COPY.confirm}
-              </p>
-            ) : null}
             <div className="musai-piece-import-review__actions">
               {mode === "ready" ? (
                 <button
@@ -250,7 +271,7 @@ export function PieceImportReview({
                   data-testid="piece-import-confirm"
                   onClick={() => {
                     tapFeedback("medium");
-                    onConfirm();
+                    onConfirm(nameRef.current);
                   }}
                 >
                   {OMR_COPY.looksGood}
@@ -278,22 +299,29 @@ export function PieceImportReview({
             <h1 className="musai-piece-import-review__title font-display">
               {displayFailed
                 ? OMR_COPY.displayFailedTitle
-                : OMR_COPY.failedTitle}
+                : draft?.recognitionMessage === OMR_COPY.scanningUnavailable
+                  ? OMR_COPY.scanningUnavailable
+                  : OMR_COPY.failedTitle}
             </h1>
-            {!displayFailed && OMR_COPY.failedLead ? (
-              <p className="musai-piece-import-review__lead">
-                {OMR_COPY.failedLead}
+            {!displayFailed &&
+            draft?.recognitionMessage === OMR_COPY.scanningUnavailable ? (
+              <p className="musai-piece-import-review__lead" role="status">
+                {OMR_COPY.scanningUnavailableLead}
               </p>
             ) : null}
           </header>
 
           <div className="musai-piece-import-review__stage">
             {displayFailed || isDigitalSource ? (
-              recognitionFailed && draft?.recognitionMessage ? (
+              recognitionFailed &&
+              draft?.recognitionMessage &&
+              draft.recognitionMessage !== OMR_COPY.scanningUnavailable ? (
                 <p className="musai-piece-import-review__lead" role="status">
                   {draft.recognitionMessage}
                 </p>
               ) : null
+            ) : draft?.recognitionMessage === OMR_COPY.scanningUnavailable ? (
+              null
             ) : objectUrl ? (
               <FailedPreview
                 objectUrl={objectUrl}
@@ -350,6 +378,9 @@ function ImportLoadingLayout({
   label: string;
   tip?: string;
 }) {
+  // Visible UI is wordless; keep copy for assistive tech only.
+  void tip;
+  const a11y = [title, label].filter(Boolean).join(". ");
   return (
     <div
       className="musai-piece-import-review__loading"
@@ -357,33 +388,11 @@ function ImportLoadingLayout({
       role="status"
       aria-live="polite"
       aria-busy="true"
+      aria-label={a11y}
     >
-      <header className="musai-piece-import-review__head">
-        <h1 className="musai-piece-import-review__title font-display">{title}</h1>
-        <p className="musai-piece-import-review__loading-copy">{label}</p>
-        {tip ? <p className="musai-piece-import-review__loading-tip">{tip}</p> : null}
-      </header>
-
-      <div className="musai-piece-import-review__stage musai-piece-import-review__stage--preview">
-        <div
-          className="musai-piece-import-review__compare musai-piece-import-review__compare--digital"
-          aria-hidden
-        >
-          <div className="musai-piece-import-review__frame musai-piece-import-review__frame--loading">
-            <div className="musai-piece-import-review__loading-score">
-              <span className="musai-piece-import-review__pulse" />
-              <LoadingStaffMotif />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="musai-piece-import-review__decide" aria-hidden>
-        <div className="musai-piece-import-review__actions">
-          <span className="musai-piece-import-review__primary-ghost">
-            {OMR_COPY.looksGood}
-          </span>
-        </div>
+      <span className="musai-piece-import-review__a11y">{a11y}</span>
+      <div className="musai-piece-import-review__loading-stage">
+        <MusaiLoadingMark />
       </div>
     </div>
   );
@@ -391,44 +400,16 @@ function ImportLoadingLayout({
 
 function ImportLoadingCompact({ label }: { label: string }) {
   return (
-    <div className="musai-piece-import-review__processing">
-      <span className="musai-piece-import-review__pulse" aria-hidden />
-      <p className="musai-piece-import-review__loading-copy">{label}</p>
-    </div>
-  );
-}
-
-function LoadingStaffMotif() {
-  return (
-    <svg
-      className="musai-piece-import-review__loading-staff"
-      viewBox="0 0 280 72"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden
+    <div
+      className="musai-piece-import-review__processing"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+      aria-label={label}
     >
-      <g
-        stroke="currentColor"
-        strokeWidth="1.2"
-        opacity="0.35"
-      >
-        <path d="M16 18h248" />
-        <path d="M16 28h248" />
-        <path d="M16 38h248" />
-        <path d="M16 48h248" />
-        <path d="M16 58h248" />
-      </g>
-      <g fill="currentColor" opacity="0.45">
-        <ellipse cx="72" cy="48" rx="6" ry="4.4" transform="rotate(-18 72 48)" />
-        <path d="M77.2 47V28" stroke="currentColor" strokeWidth="1.8" />
-        <ellipse cx="118" cy="38" rx="6" ry="4.4" transform="rotate(-18 118 38)" />
-        <path d="M123.2 37V24" stroke="currentColor" strokeWidth="1.8" />
-        <ellipse cx="164" cy="48" rx="6" ry="4.4" transform="rotate(-18 164 48)" />
-        <path d="M169.2 47V28" stroke="currentColor" strokeWidth="1.8" />
-        <ellipse cx="210" cy="32" rx="6" ry="4.4" transform="rotate(-18 210 32)" />
-        <path d="M215.2 31V20" stroke="currentColor" strokeWidth="1.8" />
-      </g>
-    </svg>
+      <span className="musai-piece-import-review__a11y">{label}</span>
+      <MusaiLoadingMark compact />
+    </div>
   );
 }
 
@@ -576,10 +557,6 @@ function FailedPreview({
   objectUrl,
   kind,
   title,
-  pageIndex,
-  pageCount,
-  showPageNav,
-  onPageChange,
 }: {
   objectUrl: string;
   kind: OriginalKind;
@@ -592,20 +569,24 @@ function FailedPreview({
   return (
     <div className="musai-piece-import-review__fail">
       <div className="musai-piece-import-review__frame musai-piece-import-review__frame--fail">
-        <OriginalPagePreview
-          url={objectUrl}
-          kind={kind}
-          title={title}
-          pageIndex={pageIndex}
-        />
+        <div className="musai-piece-import-review__fail-page">
+          <p className="musai-piece-import-review__fail-copy">
+            {OMR_COPY.failed}
+          </p>
+          <a
+            href={objectUrl}
+            className="musai-piece-import-review__fallback"
+            target="_blank"
+            rel="noreferrer"
+          >
+            {kind === "pdf"
+              ? "Open original PDF"
+              : kind === "image"
+                ? "Open original image"
+                : `Open ${title}`}
+          </a>
+        </div>
       </div>
-      {showPageNav ? (
-        <PageNav
-          pageIndex={pageIndex}
-          pageCount={pageCount}
-          onChange={onPageChange}
-        />
-      ) : null}
     </div>
   );
 }

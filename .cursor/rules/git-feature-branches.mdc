@@ -1,36 +1,24 @@
 ---
-description: Use one Git branch per feature area when changing MusAI
+description: Stay on the current git branch unless the user asks to switch
 alwaysApply: true
 ---
 
-# Feature branches
+# Git branches
 
-When starting work that changes or improves the app, create a **new branch from `main`** named for that feature — not a dump of mixed work.
+Work in the **current checkout**. Do **not** switch branches, checkout `main`, or `git stash` unless the user explicitly asks.
 
-## Naming
+The app on screen is the source of truth. Edits must land in these files so the running dev server updates live.
 
-Use `feature/<area>-<short-goal>` (kebab-case):
+## Do not
 
-| Area | Examples |
-|------|----------|
-| Scale studio | `feature/scale-detection`, `feature/scale-session-history`, `feature/scale-coaching` |
-| Violin tuner | `feature/tuner-meter`, `feature/tuner-mic` |
-| Tuning trainer | `feature/tuning-trainer-results`, `feature/tuning-trainer-record` |
-| Cross-cutting UI | `feature/ui-<what>` or `Mus-UI-alterations` for a named UI pass |
-| Piece practice (Phase 2+) | `feature/piece-<name>` |
+- `git checkout main`
+- `git checkout -b …` for a new feature
+- `git stash` (including `stash push -u`) to “get a clean tree”
 
-Do **not** pile unrelated fixes onto an old feature branch. Finish or abandon that PR first, then branch again from updated `main`.
+Those hide uncommitted work and make the site jump back to an old version.
 
-## Workflow
+## When the user asks to commit / PR / ship
 
-1. `git checkout main && git pull`
-2. `git checkout -b feature/<area>-<short-goal>`
-3. Commit only that feature’s changes (when the user asks to commit)
-4. Push / open a **pull request** into `main` only when the user asks to ship or PR
-5. After merge, delete the feature branch locally and on the remote
+Then follow **ship-feature-to-main**: commit on the **current** branch, push that branch, open a PR into `main` if they asked.
 
-When a major pass looks finished or the user says they are happy and moving on, **suggest** opening a PR (see **ship-feature-to-main**). Do not push or create the PR automatically.
-
-## This repo’s current UI pass
-
-`Mus-UI-alterations` is the branch for the warm redesign / navigation polish across pages. Do not rename it to a single product area (scale/tuner) — that work is intentionally cross-cutting.
+If they later want a named feature branch, they will say so. Until then, keep everything on whatever branch is already checked out.

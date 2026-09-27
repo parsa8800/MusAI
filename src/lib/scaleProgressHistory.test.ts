@@ -161,11 +161,11 @@ describe("scale progress journeys", () => {
 
     const journeys = listScaleProgressJourneys();
     expect(journeys).toHaveLength(3);
-    expect(journeys[0]?.progressKey).toBe("C_major__2");
-    expect(journeys.find((j) => j.progressKey === "C_major__1")?.attempts).toHaveLength(
+    expect(journeys[0]?.progressKey).toBe("violin__C_major__2");
+    expect(journeys.find((j) => j.progressKey === "violin__C_major__1")?.attempts).toHaveLength(
       2,
     );
-    expect(journeys.find((j) => j.progressKey === "C_major__1")?.bestInTunePercent).toBe(
+    expect(journeys.find((j) => j.progressKey === "violin__C_major__1")?.bestInTunePercent).toBe(
       84,
     );
   });
@@ -192,10 +192,10 @@ describe("scale progress journeys", () => {
     );
     const journeys = listScaleProgressJourneys();
     expect(journeys.map((j) => j.progressKey).sort()).toEqual([
-      "C_major__1",
-      "C_natural_minor__1",
+      "violin__C_major__1",
+      "violin__C_natural_minor__1",
     ]);
-    expect(journeys.find((j) => j.progressKey === "C_major__1")?.attempts).toHaveLength(
+    expect(journeys.find((j) => j.progressKey === "violin__C_major__1")?.attempts).toHaveLength(
       1,
     );
   });
@@ -274,9 +274,9 @@ describe("scale progress journeys", () => {
         tonicPitchClass: 2,
       }),
     );
-    removeScaleProgressJourney("C_major__1");
+    removeScaleProgressJourney("violin__C_major__1");
     expect(listScaleProgressJourneys().map((j) => j.progressKey)).toEqual([
-      "D_major__1",
+      "violin__D_major__1",
     ]);
   });
 
@@ -319,7 +319,121 @@ describe("scale progress journeys", () => {
         recordedAt: "2026-03-01T00:00:00.000Z",
       }),
     ]);
-    expect(grouped[0]?.progressKey).toBe("D_major__1");
+    expect(grouped[0]?.progressKey).toBe("violin__D_major__1");
+  });
+
+  it("keeps violin and viola C major journeys apart", () => {
+    pushScaleProgressAttempt(
+      makeSession({
+        sessionId: "vn",
+        instrumentId: "violin",
+        rootMidi: 60,
+      }),
+    );
+    pushScaleProgressAttempt(
+      makeSession({
+        sessionId: "va",
+        instrumentId: "viola",
+        rootMidi: 48,
+        octaveRangeLabel: "C3 → C4",
+        expectedNotesMidi: [48, 50],
+        notes: [
+          {
+            noteIndex: 0,
+            expectedMidi: 48,
+            expectedNoteLabel: "C3",
+            detectedMidi: 48,
+            detectedNoteLabel: "C3",
+            detectedHz: 131,
+            centsDifference: 0,
+            intonationBucket: "in_tune",
+            missingData: false,
+          },
+          {
+            noteIndex: 1,
+            expectedMidi: 50,
+            expectedNoteLabel: "D3",
+            detectedMidi: 50,
+            detectedNoteLabel: "D3",
+            detectedHz: 147,
+            centsDifference: 0,
+            intonationBucket: "in_tune",
+            missingData: false,
+          },
+        ],
+      }),
+    );
+
+    const violin = listScaleProgressJourneys("violin");
+    const viola = listScaleProgressJourneys("viola");
+    expect(violin.map((j) => j.progressKey)).toEqual(["violin__C_major__1"]);
+    expect(viola.map((j) => j.progressKey)).toEqual(["viola__C_major__1"]);
+    expect(violin[0]?.attempts.map((a) => a.sessionId)).toEqual(["vn"]);
+    expect(viola[0]?.attempts.map((a) => a.sessionId)).toEqual(["va"]);
+    expect(violin[0]?.lastRootMidi).toBe(60);
+  });
+
+  it("prefixes stored violin journeys so switching instrument cannot mix them", () => {
+    localStorage.setItem(
+      "musai-scale-progress-v1",
+      JSON.stringify([
+        {
+          schemaVersion: 1,
+          progressKey: "C_major__1",
+          scaleId: "C_major",
+          scaleLabel: "C major",
+          scaleKind: "major",
+          tonicPitchClass: 0,
+          attempts: [makeSession({ sessionId: "old-vn", rootMidi: 60 })],
+          bestInTunePercent: 90,
+          lastPractisedAt: "2026-01-01T00:00:00.000Z",
+          lastOctaveSpan: 1,
+          lastRootMidi: 60,
+          lastOctaveRangeLabel: "C4 → C5",
+        },
+      ]),
+    );
+
+    const violin = listScaleProgressJourneys("violin");
+    expect(violin[0]?.progressKey).toBe("violin__C_major__1");
+    expect(violin[0]?.attempts[0]?.sessionId).toBe("old-vn");
+    expect(listScaleProgressJourneys("viola")).toHaveLength(0);
+  });
+
+  it("does not let viola journeys evict saved violin progress", () => {
+    pushScaleProgressAttempt(
+      makeSession({ sessionId: "keep-vn", instrumentId: "violin" }),
+    );
+    const tonics = [
+      "C",
+      "Db",
+      "D",
+      "Eb",
+      "E",
+      "F",
+      "Gb",
+      "G",
+      "Ab",
+      "A",
+      "Bb",
+      "B",
+    ] as const;
+    for (let pc = 0; pc < tonics.length; pc++) {
+      pushScaleProgressAttempt(
+        makeSession({
+          sessionId: `va-${pc}`,
+          instrumentId: "viola",
+          scaleId: `${tonics[pc]}_major`,
+          scaleLabel: `${tonics[pc]} major`,
+          tonicPitchClass: pc,
+          rootMidi: 48 + pc,
+        }),
+      );
+    }
+    expect(listScaleProgressJourneys("violin").map((j) => j.progressKey)).toEqual([
+      "violin__C_major__1",
+    ]);
+    expect(listScaleProgressJourneys("viola")).toHaveLength(12);
   });
 });
 

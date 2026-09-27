@@ -6,6 +6,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { unzipSync, strFromU8 } from "./mxl.mjs";
+import { pickOrMergeExportedScores } from "./mergePartwiseMusicXml.mjs";
 import { run } from "./rasterize.mjs";
 
 /**
@@ -38,14 +39,20 @@ export async function runAudiverisExport(opts) {
     "-export",
     "-output",
     opts.outputDir,
-    "-option",
+    // Audiveris 5.x renamed -option → -constant (both accepted; prefer new name)
+    "-constant",
     "org.audiveris.omr.sheet.BookManager.useSeparateBookFolders=false",
+    "-constant",
+    "org.audiveris.omr.Main.sheetStepTimeOut=180",
+    // smallHeads/smallBeams stay off — they invent extra notes and misread
+    // principal pitches (confirmed on Caprice 24 vs the first accurate export).
+    "--",
     ...opts.inputPaths,
   ];
 
   console.info(`[omr-worker] audiveris ${args.join(" ")}`);
   try {
-    await run(bin, args, {
+    const result = await run(bin, args, {
       timeoutMs,
       env: {
         JAVA_TOOL_OPTIONS: [
@@ -56,13 +63,25 @@ export async function runAudiverisExport(opts) {
           .join(" "),
       },
     });
+    if (result?.stderr) {
+      const warnLines = String(result.stderr)
+        .split("\n")
+        .filter((line) => /WARN|ERROR|Exception/i.test(line))
+        .slice(0, 12);
+      for (const line of warnLines) {
+        console.info(`[omr-worker] audiveris: ${line}`);
+      }
+    }
   } catch (err) {
     if (err && err.code === "ENOENT") {
       const missing = new Error(`Audiveris binary not found (${bin})`);
       missing.code = "AUDIVERIS_MISSING";
       throw missing;
     }
-    throw err;
+    const detail = audiverisFailureDetail(err);
+    const wrapped = new Error(detail);
+    wrapped.code = err && err.code;
+    throw wrapped;
   }
 
   const musicXml = await findExportedMusicXml(opts.outputDir);
@@ -72,6 +91,33 @@ export async function runAudiverisExport(opts) {
     throw err;
   }
   return musicXml;
+}
+
+function audiverisFailureDetail(err) {
+  const text = `${err?.stderr || ""}\n${err?.stdout || ""}\n${err?.message || ""}`;
+  const line = text
+    .split("\n")
+    .map((row) => row.trim())
+    .find((row) =>
+      /interline|Sheet ignored|Could not export|No suitable|too low/i.test(row),
+    );
+  return line || err?.message || String(err);
+}
+
+/**
+ * Collect every MusicXML/.mxl under dir (and one level of nest), then merge
+ * Audiveris multi-movement exports (*.mvtN.mxl) into one continuous score.
+ */
+export async function findExportedMusicXml(dir) {
+  const collected = await collectExportedScores(dir);
+  const merged = pickOrMergeExportedScores(collected);
+  if (merged && collected.length > 1) {
+    const mvtCount = collected.filter((e) => /\.mvt\d+/i.test(e.name)).length;
+    console.info(
+      `[omr-worker] export merge files=${collected.length} movements=${mvtCount} measures=${(merged.match(/<measure(?=[\s>])/gi) || []).length} chars=${merged.length}`,
+    );
+  }
+  return merged;
 }
 
 async function audiverisExists(bin) {
@@ -109,26 +155,36 @@ export async function probeAudiverisBinary() {
   };
 }
 
-async function findExportedMusicXml(dir) {
+/**
+ * @param {string} dir
+ * @returns {Promise<{ name: string, text: string }[]>}
+ */
+async function collectExportedScores(dir) {
   const names = await readdir(dir);
-  const preferred = names.filter(
-    (n) =>
-      n.toLowerCase().endsWith(".mxl") ||
-      n.toLowerCase().endsWith(".musicxml") ||
-      n.toLowerCase().endsWith(".xml"),
-  );
-  // Prefer compressed MusicXML, then .musicxml, then generic .xml
-  preferred.sort((a, b) => scoreExport(b) - scoreExport(a));
+  /** @type {{ name: string, text: string }[]} */
+  const collected = [];
+  /** @type {string[]} */
+  const decodeErrors = [];
 
-  for (const name of preferred) {
-    const full = path.join(dir, name);
+  const tryDecode = async (fileName, fullPath) => {
+    if (!/\.(mxl|musicxml|xml)$/i.test(fileName)) return;
     try {
-      const buf = await readFile(full);
-      const text = decodeMusicXmlBuffer(buf, name);
-      if (looksLikeMusicXml(text)) return text;
-    } catch {
-      /* try next */
+      const buf = await readFile(fullPath);
+      const text = decodeMusicXmlBuffer(buf, fileName);
+      if (looksLikeMusicXml(text)) {
+        collected.push({ name: fileName, text });
+      } else {
+        decodeErrors.push(`${fileName}: not MusicXML`);
+      }
+    } catch (err) {
+      decodeErrors.push(
+        `${fileName}: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
+  };
+
+  for (const name of names) {
+    await tryDecode(name, path.join(dir, name));
   }
 
   // Audiveris may nest under a book folder even with the option set
@@ -137,24 +193,19 @@ async function findExportedMusicXml(dir) {
     try {
       const nested = await readdir(full);
       for (const child of nested) {
-        if (!/\.(mxl|musicxml|xml)$/i.test(child)) continue;
-        const buf = await readFile(path.join(full, child));
-        const text = decodeMusicXmlBuffer(buf, child);
-        if (looksLikeMusicXml(text)) return text;
+        await tryDecode(`${name}/${child}`, path.join(full, child));
       }
     } catch {
       /* not a directory */
     }
   }
-  return null;
-}
 
-function scoreExport(name) {
-  const lower = name.toLowerCase();
-  if (lower.endsWith(".mxl")) return 3;
-  if (lower.endsWith(".musicxml")) return 2;
-  if (lower.endsWith(".xml")) return 1;
-  return 0;
+  if (collected.length === 0 && decodeErrors.length) {
+    console.warn(
+      `[omr-worker] export decode failed: ${decodeErrors.slice(0, 5).join("; ")}`,
+    );
+  }
+  return collected;
 }
 
 function looksLikeMusicXml(text) {
