@@ -92,20 +92,7 @@ function ScaleMasteryBar({
         historical ? " musai-scale-progress-block--historical" : ""
       }`}
     >
-      <div className="musai-scale-progress-meta">
-        <span className="musai-scale-progress-label">{label}</span>
-        <div className="musai-scale-progress-meta-end">
-          <span
-            className={`musai-scale-progress-pct${
-              grew || completing ? " musai-scale-progress-pct--pulse" : ""
-            }${highlight ? " musai-scale-progress-pct--best" : ""}`}
-            aria-hidden
-          >
-            {displayPct}%
-          </span>
-          {endSlot ? <div className="shrink-0">{endSlot}</div> : null}
-        </div>
-      </div>
+      <span className="musai-scale-progress-label">{label}</span>
       <div
         className={`musai-scale-progress relative min-w-0 w-full${
           size === "lg" ? " musai-scale-progress--lg" : ""
@@ -120,10 +107,22 @@ function ScaleMasteryBar({
       >
         <div
           className={`musai-scale-progress-fill${grew ? " musai-scale-progress-fill--up" : ""}${
-            completing ? " musai-scale-progress-fill--complete" : ""
+            complete ? " musai-scale-progress-fill--complete" : ""
           }`}
           style={{ width: `${fill}%` }}
         />
+      </div>
+      <div className="musai-scale-progress-meta-end">
+        <span
+          className={`musai-scale-progress-pct${
+            grew || completing ? " musai-scale-progress-pct--pulse" : ""
+          }${highlight ? " musai-scale-progress-pct--best" : ""}`}
+          data-empty={displayPct === 0 ? "true" : undefined}
+          aria-hidden
+        >
+          {displayPct}%
+        </span>
+        {endSlot ? <div className="shrink-0">{endSlot}</div> : null}
       </div>
       {showCompleteMsg && complete ? (
         <p
@@ -211,12 +210,7 @@ export function ScaleProgressReadyBar({
 }) {
   return (
     <div className="musai-scale-progress-block min-w-0 flex-1">
-      <div className="musai-scale-progress-meta">
-        <span className="musai-scale-progress-label">Progress</span>
-        <span className="musai-scale-progress-pct" aria-hidden>
-          0%
-        </span>
-      </div>
+      <span className="musai-scale-progress-label">Progress</span>
       <div
         className={`musai-scale-progress relative min-w-0 w-full${
           size === "lg" ? " musai-scale-progress--lg" : ""
@@ -229,6 +223,9 @@ export function ScaleProgressReadyBar({
       >
         <div className="musai-scale-progress-fill" style={{ width: "0%" }} />
       </div>
+      <span className="musai-scale-progress-pct" data-empty="true" aria-hidden>
+        0%
+      </span>
     </div>
   );
 }

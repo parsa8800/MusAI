@@ -102,6 +102,9 @@ describe("piece feedback architecture", () => {
     expect(sharp?.importance).toBeGreaterThan(0);
     expect(sharp?.explanation).toMatch(/bar 1/i);
     expect(sharp?.explanation).not.toMatch(/cent/i);
+    expect(report.pitchNotes?.length).toBe(expectedNotesFromScore(score).length);
+    expect(report.pitchNotes?.[0]?.cents).toBeGreaterThan(25);
+    expect(report.pitchNotes?.[0]?.heardSec).toBeTypeOf("number");
   });
 
   it("marks missed notes without inventing a recording timestamp", () => {

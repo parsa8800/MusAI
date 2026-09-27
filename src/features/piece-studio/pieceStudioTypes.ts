@@ -111,3 +111,15 @@ export const PIECE_WORKSPACE_VIEWS: readonly PieceWorkspaceView[] = [
 export function isPieceWorkspaceView(v: string): v is PieceWorkspaceView {
   return (PIECE_WORKSPACE_VIEWS as readonly string[]).includes(v);
 }
+
+/**
+ * Score includes playback. A stored or linked `listen` view opens that page.
+ */
+export function resolvePieceWorkspaceView(
+  requested: string | null | undefined,
+  lastView: PieceWorkspaceView,
+): "score" | "practise" {
+  const raw =
+    requested && isPieceWorkspaceView(requested) ? requested : lastView;
+  return raw === "practise" ? "practise" : "score";
+}

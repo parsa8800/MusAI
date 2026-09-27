@@ -12,6 +12,11 @@ import {
   type ReactNode,
 } from "react";
 import { useCoachSpeechInput } from "@/hooks/useCoachSpeechInput";
+import {
+  readCoachMemory,
+  writeCoachMessages,
+  type CoachMemoryMessage,
+} from "@/lib/coachThreadMemory";
 import { tapFeedback } from "@/lib/motion";
 
 function usePrefersReducedMotion(): boolean {
@@ -154,7 +159,21 @@ function PromptChips({
           onClick={() => onPick(q)}
           className="musai-coach-prompt"
         >
-          {q}
+          <span className="musai-coach-prompt__text">{q}</span>
+          <svg
+            className="musai-coach-prompt__go"
+            viewBox="0 0 16 16"
+            aria-hidden="true"
+          >
+            <path
+              d="M6 3.5 10.5 8 6 12.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </button>
       ))}
     </div>
@@ -218,6 +237,18 @@ function PreviewCoachDot() {
   );
 }
 
+function coachMessageLineKind(line: string): "lead" | "practise" | "next" | "aside" | "point" | "body" {
+  const trimmed = line.replace(/^•\s*/, "").trim();
+  if (/^start here:/i.test(trimmed)) return "lead";
+  if (/^try:/i.test(trimmed) || /^first:/i.test(trimmed)) return "practise";
+  if (/^then:/i.test(trimmed)) return "next";
+  if (/^we.?ll leave/i.test(trimmed) || /^keep looping/i.test(trimmed)) {
+    return "aside";
+  }
+  if (/^•/.test(line.trim())) return "point";
+  return "body";
+}
+
 function AssistantTurn({
   text,
   stream,
@@ -264,12 +295,17 @@ function AssistantTurn({
       {phase === "thinking" ? (
         <ThinkingIndicator />
       ) : (
-        <div className="musai-coach-msg text-[15px] leading-[1.55] text-[var(--musai-ink)]">
+        <div className="musai-coach-msg">
           {lines.map((line, i) => {
             const body = line.replace(/^•\s*/, "");
             const isLast = i === lines.length - 1;
+            const kind = coachMessageLineKind(line);
             return (
-              <p key={`${i}-${body.slice(0, 12)}`} className={i > 0 ? "mt-2" : ""}>
+              <p
+                key={`${i}-${body.slice(0, 12)}`}
+                className={`musai-coach-msg__line musai-coach-msg__line--${kind}`}
+                data-coach-line={kind}
+              >
                 {body}
                 {typing && isLast ? <StreamingCaret /> : null}
               </p>
@@ -306,7 +342,132 @@ export type CoachParsaChatProps = {
   topSlot?: ReactNode;
   /** When true, show the tiny preview status dot beside the title. */
   showPreviewDot?: boolean;
+  /**
+   * Keep the thread across remounts (Score ↔ Practise). Same key restores
+   * the same messages.
+   */
+  threadKey?: string;
 };
+
+function restoredThread(threadKey: string | undefined): ThreadMsg[] {
+  if (!threadKey) return [];
+  return readCoachMemory(threadKey).messages.map((message) =>
+    message.role === "user"
+      ? { id: message.id, role: "user", text: message.text }
+      : {
+          id: message.id,
+          role: "assistant",
+          text: message.text,
+          stream: false,
+          source: "template" as const,
+        },
+  );
+}
+
+function memoryMessages(messages: readonly ThreadMsg[]): CoachMemoryMessage[] {
+  return messages.map((message) => ({
+    id: message.id,
+    role: message.role,
+    text: message.text,
+  }));
+}
+
+const COACH_LISTEN_LINES = 22;
+
+/**
+ * Thin lines across the prompt while the mic is open.
+ * Heights follow the live input so silence stays nearly flat.
+ */
+function CoachListenLines() {
+  const hostRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+    const bars = [...host.querySelectorAll<HTMLElement>("[data-line]")];
+    if (bars.length === 0) return;
+
+    const reduce =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) return;
+
+    let stopped = false;
+    let raf = 0;
+    let stream: MediaStream | null = null;
+    let ctx: AudioContext | null = null;
+    const shown = new Float32Array(bars.length);
+
+    void (async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true },
+        });
+      } catch {
+        return;
+      }
+      if (stopped) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext?: typeof AudioContext })
+          .webkitAudioContext;
+      if (!AudioCtx) return;
+      ctx = new AudioCtx();
+      await ctx.resume();
+      if (stopped) {
+        stream.getTracks().forEach((track) => track.stop());
+        void ctx.close();
+        return;
+      }
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 128;
+      analyser.smoothingTimeConstant = 0.8;
+      ctx.createMediaStreamSource(stream).connect(analyser);
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      const used = Math.min(data.length, 36);
+
+      const tick = () => {
+        if (stopped) return;
+        analyser.getByteFrequencyData(data);
+        for (let i = 0; i < bars.length; i += 1) {
+          const idx = Math.min(
+            used - 1,
+            Math.round((i / Math.max(1, bars.length - 1)) * (used - 1)),
+          );
+          const target = (data[idx] ?? 0) / 255;
+          shown[i] = shown[i]! * 0.55 + target * 0.45;
+          const scale = 0.28 + shown[i]! * 0.72;
+          bars[i]!.style.transform = `scaleY(${scale.toFixed(3)})`;
+        }
+        raf = window.requestAnimationFrame(tick);
+      };
+      raf = window.requestAnimationFrame(tick);
+    })();
+
+    return () => {
+      stopped = true;
+      window.cancelAnimationFrame(raf);
+      stream?.getTracks().forEach((track) => track.stop());
+      void ctx?.close();
+    };
+  }, []);
+
+  return (
+    <div
+      ref={hostRef}
+      className="musai-coach-listen"
+      data-testid="coach-listen-lines"
+      aria-hidden
+    >
+      {Array.from({ length: COACH_LISTEN_LINES }, (_, i) => (
+        <span key={i} data-line="" className="musai-coach-listen__line" />
+      ))}
+    </div>
+  );
+}
 
 /**
  * Shared Coach · Parsa chat chrome — domain-agnostic.
@@ -323,6 +484,7 @@ export function CoachParsaChat({
   title = "Coach · Parsa",
   topSlot = null,
   showPreviewDot,
+  threadKey,
 }: CoachParsaChatProps) {
   const reduce = usePrefersReducedMotion();
   const formId = useId();
@@ -330,11 +492,14 @@ export function CoachParsaChat({
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [awaitingReply, setAwaitingReply] = useState(false);
-  const [messages, setMessages] = useState<ThreadMsg[]>([]);
-  const [bootDone, setBootDone] = useState(false);
+  const [messages, setMessages] = useState<ThreadMsg[]>(() => restoredThread(threadKey));
+  const [bootDone, setBootDone] = useState(
+    () => restoredThread(threadKey).length > 0,
+  );
   const [coachSource, setCoachSource] = useState<CoachReplySource>(initialSource);
   const [inflate, setInflate] = useState(false);
   const bubbleSizeRef = useRef<CoachBubbleSize>("seed");
+  const skipThreadSave = useRef(true);
   const getReplyRef = useRef(getReply);
   getReplyRef.current = getReply;
 
@@ -350,11 +515,20 @@ export function CoachParsaChat({
   useEffect(() => {
     if (!start) {
       speech.stop();
+      skipThreadSave.current = true;
       setMessages([]);
       setBootDone(false);
       setBusy(false);
       setAwaitingReply(false);
       setDraft("");
+      return;
+    }
+
+    skipThreadSave.current = true;
+    const saved = restoredThread(threadKey);
+    if (saved.length > 0) {
+      setMessages(saved);
+      setBootDone(true);
       return;
     }
 
@@ -377,7 +551,16 @@ export function CoachParsaChat({
     setBootDone(false);
     // speech.stop is stable enough; avoid re-boot on speech identity churn
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [start, openerText, initialSource]);
+  }, [start, openerText, initialSource, threadKey]);
+
+  useEffect(() => {
+    if (!threadKey || !bootDone) return;
+    if (skipThreadSave.current) {
+      skipThreadSave.current = false;
+      return;
+    }
+    writeCoachMessages(threadKey, memoryMessages(messages));
+  }, [threadKey, messages, bootDone]);
 
   useEffect(() => {
     const el = bottomRef.current;
@@ -464,8 +647,15 @@ export function CoachParsaChat({
   const canSend = bootDone && !busy && Boolean(sanitizeUserText(draft));
   const previewDot =
     showPreviewDot ?? coachSource !== "llm";
-  const showSuggestions =
-    bootDone && !busy && messages.length <= 1 && suggestions.length > 0;
+  const asked = new Set(
+    messages
+      .filter((message) => message.role === "user")
+      .map((message) => message.text.trim().toLowerCase()),
+  );
+  const visibleSuggestions = suggestions
+    .filter((question) => !asked.has(question.trim().toLowerCase()))
+    .slice(0, 3);
+  const showSuggestions = bootDone && !busy && visibleSuggestions.length > 0;
 
   return (
     <div
@@ -485,7 +675,22 @@ export function CoachParsaChat({
       {embed ? (
         <header className="musai-coach-header">
           <span className="musai-coach-header__avatar" aria-hidden>
-            P
+            <svg viewBox="0 0 24 24">
+              <path
+                d="M5.5 6.75h13a1.75 1.75 0 0 1 1.75 1.75v7a1.75 1.75 0 0 1-1.75 1.75H11l-3.75 2.75V17.25H5.5A1.75 1.75 0 0 1 3.75 15.5v-7A1.75 1.75 0 0 1 5.5 6.75Z"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M8.25 11h.01M12 11h.01M15.75 11h.01"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+              />
+            </svg>
           </span>
           <p className="musai-coach-header__title">
             <span className="inline-flex items-center">
@@ -536,26 +741,17 @@ export function CoachParsaChat({
 
         {awaitingReply ? <ThinkingIndicator /> : null}
 
-        {!embed && showSuggestions ? (
+        {showSuggestions ? (
           <PromptChips
-            questions={suggestions}
+            questions={visibleSuggestions}
             disabled={!bootDone || busy}
             onPick={(q) => void sendUserMessage(q)}
-            pad="page"
+            pad={embed ? "embed" : "page"}
           />
         ) : null}
 
         <div ref={bottomRef} />
       </div>
-
-      {embed && showSuggestions ? (
-        <PromptChips
-          questions={suggestions}
-          disabled={!bootDone || busy}
-          onPick={(q) => void sendUserMessage(q)}
-          pad="embed"
-        />
-      ) : null}
 
       <form
         id={formId}
@@ -564,7 +760,10 @@ export function CoachParsaChat({
           embed ? "musai-coach-composer musai-coach-composer--embed" : "musai-coach-composer"
         }
       >
-        <div className="musai-coach-composer__field">
+        <div
+          className="musai-coach-composer__field"
+          data-listening={speech.listening ? "true" : "false"}
+        >
           {speech.supported ? (
             <button
               type="button"
@@ -608,12 +807,14 @@ export function CoachParsaChat({
           <label className="sr-only" htmlFor={`${formId}-input`}>
             Message
           </label>
+          {speech.listening ? <CoachListenLines /> : null}
           <textarea
             id={`${formId}-input`}
             rows={1}
             value={draft}
             disabled={!bootDone || busy}
-            placeholder={speech.listening ? "Listening…" : "Ask your coach..."}
+            placeholder="Ask your coach..."
+            aria-label={speech.listening ? "Listening" : "Message"}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {

@@ -41,6 +41,7 @@ export type MockPieceFeedbackIssue = {
   visualStyle: MockPieceVisualStyle;
   measure: string;
   beat: number | null;
+  noteIndex?: number | null;
   startWholeNotes: number;
   endWholeNotes: number;
   improveFirst: string;
@@ -93,10 +94,6 @@ function whole(q: number): number {
   return q / 4;
 }
 
-function bar(measure: string): string {
-  return `Bar ${measure}`;
-}
-
 function issue(
   partial: Omit<MockPieceFeedbackIssue, "mock" | "source">,
 ): MockPieceFeedbackIssue {
@@ -109,7 +106,7 @@ function issue(
 
 /**
  * Sample issues placed on the real score so overlays can be tried.
- * Importance order: pitch → rhythm → rushing → dragging → dynamics.
+ * Importance order: pitch → rhythm → tempo → dynamics.
  * Only one should be focused in the UI at a time.
  */
 export function mockPieceFeedbackIssues(
@@ -127,9 +124,6 @@ export function mockPieceFeedbackIssues(
   const out: MockPieceFeedbackIssue[] = [];
 
   if (pitchNote) {
-    const span = spans.find((s) => s.number === pitchNote.measure) ?? first;
-    const startQ = span.startQ + pitchNote.onsetQuarters;
-    const endQ = startQ + Math.max(pitchNote.durationQuarters, 0.5);
     out.push(
       issue({
         id: "mock-pitch",
@@ -140,22 +134,59 @@ export function mockPieceFeedbackIssues(
         visualStyle: "note",
         measure: pitchNote.measure,
         beat: pitchNote.beat,
-        startWholeNotes: whole(startQ),
-        endWholeNotes: whole(endQ),
+        noteIndex: pitchNote.noteIndex,
+        startWholeNotes: whole(pitchNote.onsetQuarters),
+        endWholeNotes: whole(
+          pitchNote.onsetQuarters + Math.max(0.5, pitchNote.durationQuarters),
+        ),
         improveFirst: "Pitch",
-        where: `${bar(pitchNote.measure)}, beat ${pitchNote.beat}`,
-        what: "A few notes are running sharp",
-        practise: "Play the phrase slowly and relax into each note",
+        where: "Opening phrase",
+        what: "Running slightly sharp",
+        practise: "Relax the left hand and play this phrase slowly.",
         coach:
           "The first thing to settle is pitch. Stay on that note until it sits, then join the notes on either side.",
       }),
     );
+    const extraPitchNotes = [notes[0], notes[6] ?? notes[3] ?? notes[1]].filter(
+      (note) => note && note.noteIndex !== pitchNote.noteIndex,
+    );
+    for (const [i, note] of extraPitchNotes.entries()) {
+      if (!note) continue;
+      out.push(
+        issue({
+          id: `mock-pitch-${i + 2}`,
+          category: "pitch",
+          kind: i === 0 ? "flat" : "missed",
+          label: "Pitch",
+          visualTone: "pitch",
+          visualStyle: "note",
+          measure: note.measure,
+          beat: note.beat,
+          noteIndex: note.noteIndex,
+          startWholeNotes: whole(note.onsetQuarters),
+          endWholeNotes: whole(
+            note.onsetQuarters + Math.max(0.5, note.durationQuarters),
+          ),
+          improveFirst: "Pitch",
+          where: `Bar ${note.measure}`,
+          what:
+            i === 0
+              ? "Running slightly flat"
+              : "Some written notes weren’t heard clearly",
+          practise:
+            i === 0
+              ? "Lift into the note and hold it steady."
+              : "Air-bow the missing notes, then play the bar again.",
+          coach:
+            i === 0
+              ? "This note sat a little low. Check the finger and listen until it matches."
+              : "That written note didn’t speak. Air-bow it, then play the bar again.",
+        }),
+      );
+    }
   }
 
   if (rhythmNote) {
-    const span = spans.find((s) => s.number === rhythmNote.measure) ?? mid;
-    const startQ = span.startQ + rhythmNote.onsetQuarters;
-    const endQ = startQ + Math.max(rhythmNote.durationQuarters, 0.5);
     out.push(
       issue({
         id: "mock-rhythm",
@@ -166,12 +197,15 @@ export function mockPieceFeedbackIssues(
         visualStyle: "note",
         measure: rhythmNote.measure,
         beat: rhythmNote.beat,
-        startWholeNotes: whole(startQ),
-        endWholeNotes: whole(endQ),
+        startWholeNotes: whole(rhythmNote.onsetQuarters),
+        endWholeNotes: whole(
+          rhythmNote.onsetQuarters +
+            Math.max(0.5, rhythmNote.durationQuarters),
+        ),
         improveFirst: "Rhythm",
-        where: `${bar(rhythmNote.measure)}, beat ${rhythmNote.beat}`,
-        what: "A note arrived after the beat",
-        practise: "Tap the beat, then play just this bar",
+        where: "Early in the tune",
+        what: "Arrived a little late",
+        practise: "Tap the beat, then play just this bar.",
         coach:
           "Keep a steady beat in your foot. Come in with the beat instead of after it.",
       }),
@@ -183,17 +217,17 @@ export function mockPieceFeedbackIssues(
       id: "mock-rushing",
       category: "tempo",
       kind: "rushing",
-      label: "Rushing",
+      label: "Tempo",
       visualTone: "rushing",
-      visualStyle: "heat",
+      visualStyle: "measure",
       measure: first.number,
       beat: 1,
       startWholeNotes: whole(first.startQ),
       endWholeNotes: whole(first.endQ),
       improveFirst: "Tempo",
-      where: bar(first.number),
-      what: "This stretch is rushing ahead of the beat",
-      practise: "Play under tempo, then bring it back up",
+      where: "First phrase",
+      what: "Getting ahead of the beat",
+      practise: "Play under tempo, then bring it back up.",
       coach:
         "The start of the piece leaned forward. Think of each beat landing, not hurrying to the next bar.",
     }),
@@ -205,17 +239,17 @@ export function mockPieceFeedbackIssues(
       id: "mock-dragging",
       category: "tempo",
       kind: "slowing",
-      label: "Dragging",
+      label: "Tempo",
       visualTone: "dragging",
-      visualStyle: "heat",
+      visualStyle: "measure",
       measure: dragSpan.number,
       beat: 1,
       startWholeNotes: whole(dragSpan.startQ),
       endWholeNotes: whole(dragSpan.endQ),
       improveFirst: "Tempo",
-      where: bar(dragSpan.number),
-      what: "This stretch is dragging behind the beat",
-      practise: "Count out loud through these bars",
+      where: "Middle stretch",
+      what: "Falling behind the beat",
+      practise: "Count out loud through these bars.",
       coach:
         "This stretch sat behind the beat. Count through the notes so they don’t lean back.",
     }),
@@ -234,9 +268,9 @@ export function mockPieceFeedbackIssues(
       startWholeNotes: whole(last.startQ),
       endWholeNotes: whole(last.endQ),
       improveFirst: "Dynamics",
-      where: bar(last.number),
-      what: "This part is louder than the score asks",
-      practise: "Play once quietly, then as written",
+      where: "Closing bars",
+      what: "Louder than written",
+      practise: "Play once quietly, then as written.",
       coach:
         "Watch the dynamic mark on this staff. Try the bar once under the written volume, then once as written.",
     }),

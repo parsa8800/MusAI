@@ -14,6 +14,8 @@ import { skillMapFromReport } from "@/features/piece-studio/feedback/pieceFeedba
 import { appendPieceAttempt } from "@/features/piece-studio/practice/piecePracticeAttempts";
 import { pieceAttemptFeedback } from "@/features/piece-studio/practice/piecePracticeCopy";
 import { expectedMidisFromScore } from "@/features/piece-studio/practice/pieceExpectedNotes";
+import { expectedNotesFromScore } from "@/features/piece-studio/score/expectedNotes";
+import { synthesizePieceSampleTake } from "@/features/piece-studio/practice/synthesizePieceSampleTake";
 import { readPieceFeedbackHistory } from "@/features/piece-studio/pieceStudioFiles";
 import type { MusaiScoreV1 } from "@/features/piece-studio/score/musaiScore";
 import { useSyncedRecorderUi } from "@/hooks/useSyncedRecorderUi";
@@ -66,7 +68,7 @@ export function usePiecePracticeCapture(input: {
     waveformSamples,
     waveformLiveRef,
     resetTakeUi,
-  } = useSyncedRecorderUi(isRecording, streamRef);
+  } = useSyncedRecorderUi(isRecording, streamRef, { levels: false });
 
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -200,6 +202,17 @@ export function usePiecePracticeCapture(input: {
     },
     [captureMode, file, pieceId, recordedBlob],
   );
+
+  const loadSampleTake = useCallback(() => {
+    const notes = expectedNotesFromScore(structuredRef.current ?? null);
+    if (notes.length === 0) {
+      setStatus("error");
+      setMessage("This score has no notes to play a sample take.");
+      return;
+    }
+    const sample = synthesizePieceSampleTake(notes);
+    void runAnalyze(sample.wav);
+  }, [runAnalyze]);
 
   const startRecording = useCallback(async () => {
     setMessage(null);
@@ -367,6 +380,7 @@ export function usePiecePracticeCapture(input: {
     refreshMicDevices,
     startRecording,
     stopRecording,
+    loadSampleTake,
     discardRecording,
     streamRef,
     elapsedLabel,

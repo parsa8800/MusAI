@@ -176,12 +176,12 @@ describe("scalePracticeSession history", () => {
       }),
     );
     expect(readScalePracticeSession()?.sessionId).toBe("d1");
-    resetScaleProgressJourney("C_major__1");
+    resetScaleProgressJourney("violin__C_major__1");
     expect(listScaleProgressJourneys().map((j) => j.progressKey)).toEqual([
-      "D_major__1",
+      "violin__D_major__1",
     ]);
     expect(readScalePracticeSession()?.sessionId).toBe("d1");
-    resetScaleProgressJourney("D_major__1");
+    resetScaleProgressJourney("violin__D_major__1");
     expect(listScaleProgressJourneys()).toHaveLength(0);
     expect(readScalePracticeSession()).toBeNull();
   });

@@ -6,6 +6,7 @@ import { mkdir, writeFile, rm } from "node:fs/promises";
 import path from "node:path";
 import { runAudiverisExport } from "./audiveris.mjs";
 import { updateJob } from "./jobs.mjs";
+import { prepareSheetImageForOmr } from "./prepareSheetImage.mjs";
 import { rasterizePdfToPngs } from "./rasterize.mjs";
 
 const USER_FAIL = "We couldn’t read the notes from this page.";
@@ -57,10 +58,18 @@ export async function processRecognitionJob(opts) {
           outDir: rasterDir,
           dpi,
         });
-        if (pages && pages.length > 0) {
+        if (pages && pages.length === 1) {
+          // Single raster page is fine as one Audiveris book.
           audiverisInputs = pages;
           console.info(
-            `[omr-worker] job ${jobId}: PDF_RASTERISE ok pages=${pages.length}`,
+            `[omr-worker] job ${jobId}: PDF_RASTERISE ok pages=1`,
+          );
+        } else if (pages && pages.length > 1) {
+          // Separate PNGs become separate books; keep the PDF so Audiveris
+          // builds one multi-sheet book with page order preserved.
+          audiverisInputs = [inputPath];
+          console.info(
+            `[omr-worker] job ${jobId}: PDF_RASTERISE ok pages=${pages.length} — feeding PDF as one book`,
           );
         } else {
           console.info(
@@ -75,9 +84,24 @@ export async function processRecognitionJob(opts) {
         audiverisInputs = [inputPath];
       }
     } else {
-      console.info(
-        `[omr-worker] job ${jobId}: image input — no rasterise (${mimeType})`,
-      );
+      try {
+        const prepared = await prepareSheetImageForOmr({
+          inputPath,
+          outDir: rasterDir,
+        });
+        if (prepared) {
+          audiverisInputs = [prepared];
+        } else {
+          console.info(
+            `[omr-worker] job ${jobId}: image input — already large enough (${mimeType})`,
+          );
+        }
+      } catch (err) {
+        console.warn(
+          `[omr-worker] job ${jobId}: image upscale failed, using the original`,
+          err,
+        );
+      }
     }
 
     console.info(

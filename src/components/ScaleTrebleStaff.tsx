@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useInstrument } from "@/components/InstrumentProvider";
+import {
+  clefForNotes,
+  fingerLabelRegex,
+  stringFingerLabel,
+} from "@/lib/instrument";
+import type { InstrumentProfile, NotationClef } from "@/lib/instrument";
 import type { ScaleKind } from "@/lib/scales";
+import { placeFingerLabel } from "@/lib/fingerLabelPlacement";
 import {
   notationEngravingPlan,
   notationFitFromBoxes,
@@ -11,13 +19,10 @@ import {
   unionClientBoxes,
 } from "@/lib/notationFit";
 import { chunkMidisForStaff } from "@/lib/staffChunking";
-import {
-  SCALE_CLEAR_MISS_CENTS,
-  SCALE_IN_TUNE_CENTS,
-} from "@/lib/analyzeScalePerformance";
-import { pitchCorrectionArrow, pitchCorrectionDir } from "@/lib/scaleNoteVisual";
+import { SCALE_IN_TUNE_CENTS } from "@/lib/analyzeScalePerformance";
 import {
   buildMidiToVexKeyMap,
+  clefPointForLineSpacing,
   STAVE_HEADROOM_SPACES,
   STAVE_LINE_SPACING_PX,
   staveCanvasMetrics,
@@ -25,8 +30,10 @@ import {
   vexKeysForMidisOrdered,
 } from "@/lib/vexflowScaleSpelling";
 
-/** Host inset so stems, clefs, and arrows never kiss the clip edge. */
+/** Host inset so stems and clefs never kiss the clip edge. */
 const NOTATION_HOST_INK_INSET_PX = 5;
+/** Room above the staff so string+finger labels sit clear of the stem tips. */
+const FINGER_LABEL_PAD_PX = 36;
 
 type Props = {
   ascendingMidis: number[];
@@ -54,6 +61,8 @@ type Props = {
   appearance?: "live" | "preview";
   /** @deprecated Asc/desc are drawn as one continuous piece; labels are unused. */
   showSectionLabels?: boolean;
+  /** String+finger labels (A2) above each note. Off unless the player opts in. */
+  showFingerings?: boolean;
 };
 
 /** Theme-aware engraving colours for VexFlow. */
@@ -81,14 +90,6 @@ function notationThemeColors(appearance: "live" | "preview" = "live") {
   };
 }
 
-function clamp01(x: number): number {
-  return Math.max(0, Math.min(1, x));
-}
-
-function severity01FromAbsCents(absCents: number): number {
-  return clamp01((absCents - SCALE_IN_TUNE_CENTS) / 50);
-}
-
 function cssVar(name: string, fallback: string): string {
   if (typeof window === "undefined") return fallback;
   return (
@@ -108,16 +109,10 @@ function noteInkForCents(cents: number | null): { fill: string; stroke: string }
     return { fill: ok, stroke: ok };
   }
   if (cents > 0) {
-    const high =
-      abs <= SCALE_CLEAR_MISS_CENTS
-        ? cssVar("--musai-pitch-high", cssVar("--musai-warn", "#d4891a"))
-        : cssVar("--musai-pitch-high-strong", cssVar("--musai-accent-2", "#c45c4a"));
+    const high = cssVar("--musai-pitch-high", cssVar("--musai-warn", "#d4891a"));
     return { fill: high, stroke: high };
   }
-  const low =
-    abs <= SCALE_CLEAR_MISS_CENTS
-      ? cssVar("--musai-pitch-low", "#3d6ec9")
-      : cssVar("--musai-pitch-low-strong", "#2f5aa8");
+  const low = cssVar("--musai-pitch-low", "#3d6ec9");
   return { fill: low, stroke: low };
 }
 
@@ -133,6 +128,10 @@ function drawSystem(
     lineSpacingPx?: number;
     noteHeadFontSize?: number;
     colors?: { fill: string; stroke: string; bg: string };
+    clef?: NotationClef;
+    midis?: number[];
+    instrument?: InstrumentProfile;
+    showFingerings?: boolean;
   },
 ) {
   const { Renderer, Stave, StaveNote, Formatter } = VF;
@@ -141,10 +140,10 @@ function drawSystem(
   const { fill: notationFill, stroke: notationStroke, bg: staveBg } =
     options.colors ?? notationThemeColors();
   const metricsDefaults = (VF as { MetricsDefaults?: { NoteHead?: { fontSize?: number } } }).MetricsDefaults;
-  const metrics = (VF as { Metrics?: { clear?: (key: string) => void } }).Metrics;
+  const vfMetrics = (VF as { Metrics?: { clear?: (key: string) => void } }).Metrics;
   if (metricsDefaults) {
     metricsDefaults.NoteHead = { ...metricsDefaults.NoteHead, fontSize: noteHeadFontSize };
-    metrics?.clear?.("NoteHead");
+    vfMetrics?.clear?.("NoteHead");
   }
   const BarlineType = VF.BarlineType;
   const endBar = BarlineType?.SINGLE ?? 1;
@@ -153,7 +152,14 @@ function drawSystem(
     | undefined;
 
   host.innerHTML = "";
-  const { height, staveY } = staveCanvasMetrics(vexKeys, lineSpacing);
+  const metrics = staveCanvasMetrics(
+    vexKeys,
+    lineSpacing,
+    options.clef ?? "treble",
+  );
+  const fingerPad = options.showFingerings ? FINGER_LABEL_PAD_PX : 0;
+  const height = metrics.height + fingerPad;
+  const staveY = metrics.staveY + fingerPad;
   const renderer = new Renderer(host, Renderer.Backends.SVG);
   renderer.resize(staveWidth, height);
   const ctx = renderer.getContext();
@@ -173,12 +179,33 @@ function drawSystem(
     strokeStyle: notationStroke,
     lineWidth: 2.15,
   });
-  stave.addClef("treble");
+  const clefName = options.clef ?? "treble";
+  stave.addClef(clefName, "default");
+  const clefPoint = clefPointForLineSpacing(
+    lineSpacing,
+    noteHeadFontSize,
+    clefName,
+  );
+  const beginPos =
+    (VF as { StaveModifierPosition?: { BEGIN?: number } }).StaveModifierPosition
+      ?.BEGIN ?? 5;
+  const clefCategory =
+    (VF as { Clef?: { CATEGORY?: string } }).Clef?.CATEGORY ?? "Clef";
+  for (const mod of stave.getModifiers(beginPos, clefCategory)) {
+    const sized = mod as { setFontSize?: (size: number | string) => unknown };
+    sized.setFontSize?.(clefPoint);
+  }
   stave.addKeySignature(keySig);
   if (options.endBarSingle) {
     stave.setEndBarType(endBar);
   }
   stave.setContext(ctx).draw();
+
+  for (const el of host.querySelectorAll(".vf-clef text, .vf-clef")) {
+    if (el instanceof SVGElement) {
+      el.setAttribute("font-size", `${clefPoint}pt`);
+    }
+  }
 
   // Stems + noteheads share ink — never use staff-line grey for stems.
   const noteStyle = { fillStyle: notationFill, strokeStyle: notationFill };
@@ -188,6 +215,7 @@ function drawSystem(
       keys: [k],
       duration: "q",
       autoStem: true,
+      clef: options.clef ?? "treble",
     });
     // Staff spacing is larger than VexFlow’s default; keep stems ~3.2 spaces tall.
     // setStemLength only stores an override — push it onto the Stem before draw.
@@ -209,45 +237,54 @@ function drawSystem(
       } catch {
         /* ignore */
       }
-      if (Annotation && typeof cents === "number") {
-        const fix = pitchCorrectionDir(cents);
-        if (fix) {
-          const goUp = fix === "up";
-          const ann = new Annotation(pitchCorrectionArrow(fix));
-          try {
-            ann.setFont("system-ui", 22, "800");
-          } catch {
-            /* ignore */
-          }
-          try {
-            const VJ = (Annotation as any).VerticalJustify;
-            if (VJ) ann.setVerticalJustification(goUp ? VJ.TOP : VJ.BOTTOM);
-          } catch {
-            /* ignore */
-          }
-          try {
-            const s = severity01FromAbsCents(Math.abs(cents));
-            const shift = 6 + Math.round(10 * s);
-            ann.setYShift(goUp ? -shift : shift);
-          } catch {
-            /* ignore */
-          }
-          try {
-            ann.setStyle({ fillStyle: ink.fill, strokeStyle: ink.stroke });
-          } catch {
-            /* ignore */
-          }
-          try {
-            n.addModifier(ann, 0);
-          } catch {
-            /* ignore */
-          }
-        }
-      }
     } else {
       n.setStyle(noteStyle);
       try {
         n.getStem()?.setStyle(noteStyle);
+      } catch {
+        /* ignore */
+      }
+    }
+    const midi = options.midis?.[noteIdx];
+    if (
+      options.showFingerings &&
+      Annotation &&
+      options.instrument &&
+      typeof midi === "number"
+    ) {
+      const label = stringFingerLabel(midi, options.instrument);
+      const finger = new Annotation(label);
+      try {
+        finger.setFont(
+          "system-ui, sans-serif",
+          Math.max(12, Math.round(lineSpacing * 0.78)),
+          "650",
+        );
+      } catch {
+        /* ignore */
+      }
+      try {
+        const VJ = (Annotation as any).VerticalJustify;
+        if (VJ) finger.setVerticalJustification(VJ.TOP);
+      } catch {
+        /* ignore */
+      }
+      try {
+        // Sit above the stem tip so the label stays clear of the note.
+        finger.setYShift(-10);
+      } catch {
+        /* ignore */
+      }
+      try {
+        finger.setStyle({
+          fillStyle: notationFill,
+          strokeStyle: notationFill,
+        });
+      } catch {
+        /* ignore */
+      }
+      try {
+        n.addModifier(finger, 0);
       } catch {
         /* ignore */
       }
@@ -286,7 +323,75 @@ function drawSystem(
       const sw = Number(el.getAttribute("stroke-width") || "1");
       if (sw < 1.45) el.setAttribute("stroke-width", "1.55");
     });
+    if (options.showFingerings && options.instrument) {
+      const fingerRe = fingerLabelRegex(options.instrument);
+      svg.querySelectorAll("text").forEach((el) => {
+        const text = (el.textContent || "").trim();
+        if (text.length <= 3 && fingerRe.test(text)) {
+          el.classList.add("musai-finger-label");
+        }
+      });
+    }
   }
+}
+
+/** One shared row above the staff, unless a notehead reaches that row. */
+function levelFingerLabels(svg: SVGSVGElement) {
+  const labels = [...svg.querySelectorAll<SVGTextElement>(".musai-finger-label")];
+  if (labels.length === 0) return;
+
+  const staffLines = [...svg.querySelectorAll<SVGPathElement>(".vf-stave path")]
+    .map((path) => {
+      try {
+        return path.getBBox();
+      } catch {
+        return null;
+      }
+    })
+    .filter((box): box is DOMRect => box != null && box.width > 80)
+    .sort((a, b) => a.y - b.y);
+  if (staffLines.length < 2) return;
+
+  const staffTop = staffLines[0]!.y;
+  const lineSpacing = staffLines[1]!.y - staffLines[0]!.y;
+  if (!(lineSpacing > 0)) return;
+
+  for (const label of labels) {
+    const note = label.closest(".vf-stavenote");
+    const stemPath = note?.querySelector<SVGPathElement>(".vf-stem path");
+    const stem = stemEnds(stemPath?.getAttribute("d") ?? "");
+    const placed = placeFingerLabel({
+      staffTop,
+      lineSpacing,
+      noteCenterY: stem?.noteY ?? null,
+      stemTipY: stem?.tipY ?? null,
+      stemUp: stem?.up ?? false,
+    });
+    label.setAttribute("y", String(placed.baseline));
+    if (stem && stemPath && placed.stemTipFloor != null) {
+      stemPath.setAttribute(
+        "d",
+        `M${stem.x1} ${stem.noteY}L${stem.x2} ${placed.stemTipFloor}`,
+      );
+    }
+  }
+}
+
+function stemEnds(d: string): {
+  x1: number;
+  noteY: number;
+  x2: number;
+  tipY: number;
+  up: boolean;
+} | null {
+  const nums = d.match(/-?\d+(?:\.\d+)?/g);
+  if (!nums || nums.length < 4) return null;
+  const x1 = Number(nums[0]);
+  const noteY = Number(nums[1]);
+  const x2 = Number(nums[2]);
+  const tipY = Number(nums[3]);
+  if (![x1, noteY, x2, tipY].every(Number.isFinite)) return null;
+  return { x1, noteY, x2, tipY, up: tipY < noteY };
 }
 
 /**
@@ -381,6 +486,7 @@ function cropStaffSvgs(root: HTMLElement, inkPad = 22, stroke?: string) {
   const ledgerStroke = stroke ?? notationThemeColors().stroke;
   root.querySelectorAll<SVGSVGElement>("svg").forEach((svg) => {
     reshapeLedgerLines(svg, ledgerStroke);
+    levelFingerLabels(svg);
     cropSvgViewBoxToInk(svg, inkPad);
   });
 }
@@ -491,7 +597,9 @@ export function ScaleTrebleStaff({
   density = "default",
   keepPhrasesWhole = false,
   appearance = "live",
+  showFingerings = false,
 }: Props) {
+  const { instrument } = useInstrument();
   const wrapRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
   const [usableW, setUsableW] = useState(0);
@@ -522,16 +630,22 @@ export function ScaleTrebleStaff({
     const wrap = wrapRef.current;
     const host = hostRef.current;
     if (!wrap) return;
+    let lastW = 0;
+    let lastH = 0;
     const measure = () => {
       const box = wrap.getBoundingClientRect();
-      if (box.width > 0) setUsableW(box.width);
-      if (box.height > 0) setUsableH(box.height);
+      const w = box.width;
+      const h = box.height;
+      if (Math.abs(w - lastW) < 2 && Math.abs(h - lastH) < 2) return;
+      lastW = w;
+      lastH = h;
+      if (w > 0) setUsableW(w);
+      if (h > 0) setUsableH(h);
       if (host?.firstElementChild) fitPieceIntoHost(host);
     };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(wrap);
-    if (host) ro.observe(host);
     return () => ro.disconnect();
   }, []);
 
@@ -687,6 +801,10 @@ export function ScaleTrebleStaff({
               // Preview never shows pitch-coloured feedback.
               cents: preview ? undefined : line.cents ? [...line.cents] : undefined,
               colors,
+              clef: clefForNotes(instrument, line.midis),
+              midis: line.midis,
+              instrument,
+              showFingerings,
               ...drawOpts,
             }),
         });
@@ -717,10 +835,6 @@ export function ScaleTrebleStaff({
     descMidiKey,
     ascCentsKey,
     descCentsKey,
-    ascendingMidis,
-    descendingMidis,
-    ascendingCents,
-    descendingCents,
     pad,
     bothDirections,
     keepPhrasesWhole,
@@ -732,6 +846,8 @@ export function ScaleTrebleStaff({
     themeKey,
     appearance,
     preview,
+    instrument,
+    showFingerings,
   ]);
 
   return (

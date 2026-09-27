@@ -5,7 +5,8 @@ import type {
   ScalePracticeTrend,
 } from "@/lib/scalePracticeTypes";
 import { SCALE_IN_TUNE_CENTS } from "@/lib/analyzeScalePerformance";
-import { violinStringFingerLabel } from "@/lib/violinScaleReference";
+import { instrumentForSession, stringFingerLabel } from "@/lib/instrument";
+import type { InstrumentProfile } from "@/lib/instrument";
 
 /** Human-facing strings only; keep separate from numeric session payload for AI layer. */
 
@@ -91,15 +92,21 @@ function celebrateOpener(): string {
   return toBulletFeedback("Every note was right on");
 }
 
-function stringLetterForMidi(midi: number): string {
-  return violinStringFingerLabel(midi).charAt(0);
+function stringLetterForMidi(
+  midi: number,
+  instrument: InstrumentProfile,
+): string {
+  return stringFingerLabel(midi, instrument).charAt(0);
 }
 
 /** One string where every note was off, while some other notes were OK. */
-function fullyOffStringLetter(notes: ScalePracticeNoteRow[]): string | null {
+function fullyOffStringLetter(
+  notes: ScalePracticeNoteRow[],
+  instrument: InstrumentProfile,
+): string | null {
   const groups = new Map<string, { total: number; off: number }>();
   for (const note of notes) {
-    const letter = stringLetterForMidi(note.expectedMidi);
+    const letter = stringLetterForMidi(note.expectedMidi, instrument);
     const group = groups.get(letter) ?? { total: 0, off: 0 };
     group.total += 1;
     if (note.missingData || note.intonationBucket !== "in_tune") {
@@ -176,7 +183,7 @@ function formatSignedCents(cents: number): string {
 }
 
 function headlineFor(summary: ScalePracticeSummary): string {
-  if (summary.notesAnalyzed === 0) return "Hard to hear clear pitches this take.";
+  if (summary.notesAnalyzed === 0) return "Didn’t catch that";
   if (summary.inTunePercent >= 90) return "Excellent intonation.";
   if (summary.inTunePercent >= 75) return "Strong control.";
   if (summary.inTunePercent >= 55) return "Getting steadier.";
@@ -209,10 +216,11 @@ function tipFor(
   notes: ScalePracticeNoteRow[],
   focusNotes: ScaleCoachingFocusNote[],
   summary: ScalePracticeSummary,
+  instrument: InstrumentProfile,
 ): string {
   if (summary.notesAnalyzed === 0) {
     return toBulletFeedback(
-      "Hard to hear a full scale. Play every note slowly, then try again",
+      "Play the scale again",
     );
   }
   if (isOverallOffTake(summary)) {
@@ -220,7 +228,7 @@ function tipFor(
       "This take was off. Start on the right note, then try again",
     );
   }
-  const offString = fullyOffStringLetter(notes);
+  const offString = fullyOffStringLetter(notes, instrument);
   if (offString) {
     return toBulletFeedback(
       `Every note on ${offString} was off. Check that string`,
@@ -238,6 +246,7 @@ function tipFor(
 function collectFocusNotes(
   notes: ScalePracticeNoteRow[],
   summary: ScalePracticeSummary,
+  instrument: InstrumentProfile,
 ): ScaleCoachingFocusNote[] {
   const fromWeakest = summary.weakestNoteIndices
     .map((idx) => notes[idx])
@@ -258,7 +267,7 @@ function collectFocusNotes(
 
   return source.map((row) => ({
     noteIndex: row.noteIndex,
-    label: violinStringFingerLabel(row.expectedMidi),
+    label: stringFingerLabel(row.expectedMidi, instrument),
     bucket: row.intonationBucket,
     centsLabel: row.missingData ? "—" : formatSignedCents(row.centsDifference),
     hint: noteRowHint(row),
@@ -306,13 +315,14 @@ function collectStrengths(
 export function buildScaleCoachingFeedback(
   session: Pick<
     ScalePracticeSessionV1,
-    "notes" | "summary" | "scaleLabel"
+    "notes" | "summary" | "scaleLabel" | "instrumentId"
   >,
 ): ScaleCoachingFeedback {
   const { notes, summary } = session;
-  const focusNotes = collectFocusNotes(notes, summary);
+  const instrument = instrumentForSession(session);
+  const focusNotes = collectFocusNotes(notes, summary, instrument);
   const strengths = collectStrengths(notes, summary);
-  const tip = takeCoachBullets(tipFor(notes, focusNotes, summary), 2);
+  const tip = takeCoachBullets(tipFor(notes, focusNotes, summary, instrument), 2);
 
   return {
     headline: sanitizeCoachFeedback(headlineFor(summary)),

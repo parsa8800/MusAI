@@ -15,33 +15,32 @@ const baseProps = {
   measureCount: 4,
   unavailable: null,
   onToggle: vi.fn(),
+  onPause: vi.fn(),
   onRestart: vi.fn(),
-  onSeek: vi.fn(),
   onBpm: vi.fn(),
   onSpeedPreset: vi.fn(),
   onToggleMetronome: vi.fn(),
-  onLoopChange: vi.fn(),
-  onLoopCurrentMeasure: vi.fn(),
-  onSeekToMeasure: vi.fn(),
+  onLoopPress: vi.fn(),
+  loopPick: null,
 };
 
 describe("PieceListenControls", () => {
-  it("defaults to play / restart / seek / clock with advanced tools behind More", async () => {
+  it("keeps a compact play dock without a scrubber; options pause playback", () => {
     const onToggle = vi.fn();
+    const onPause = vi.fn();
     const onRestart = vi.fn();
-    const onSeek = vi.fn();
-    const onScrubPreview = vi.fn();
     const onSpeedPreset = vi.fn();
     const onToggleMetronome = vi.fn();
+    const onBpm = vi.fn();
     const { rerender } = render(
       <PieceListenControls
         {...baseProps}
         onToggle={onToggle}
+        onPause={onPause}
         onRestart={onRestart}
-        onSeek={onSeek}
-        onScrubPreview={onScrubPreview}
         onSpeedPreset={onSpeedPreset}
         onToggleMetronome={onToggleMetronome}
+        onBpm={onBpm}
       />,
     );
 
@@ -49,49 +48,55 @@ describe("PieceListenControls", () => {
     fireEvent.click(screen.getByRole("button", { name: "Restart from beginning" }));
     expect(onToggle).toHaveBeenCalled();
     expect(onRestart).toHaveBeenCalled();
-    expect(screen.getByTestId("piece-listen-seek")).toBeInTheDocument();
+    expect(screen.queryByTestId("piece-listen-seek")).not.toBeInTheDocument();
     expect(screen.getByTestId("piece-listen-time-current")).toHaveTextContent(/0:01/);
     expect(screen.getByTestId("piece-listen-time-total")).toHaveTextContent(/0:04/);
     expect(
       screen.getByRole("button", { name: "Playback options" }),
     ).toBeInTheDocument();
-    expect(screen.queryByTestId("piece-listen-options")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "½" })).not.toBeInTheDocument();
-    expect(screen.queryByText(/Speed/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Tap a bar/i)).not.toBeInTheDocument();
-
-    const seek = screen.getByTestId("piece-listen-seek");
-    fireEvent.pointerDown(seek);
-    fireEvent.change(seek, { target: { value: "2.5" } });
-    expect(onSeek).not.toHaveBeenCalled();
-    await new Promise<void>((r) => requestAnimationFrame(() => r()));
-    expect(onScrubPreview).toHaveBeenCalledWith(2.5);
-    expect(onSeek).not.toHaveBeenCalled();
-    fireEvent.blur(seek);
-    expect(onSeek).toHaveBeenCalledWith(2.5);
+    expect(screen.queryByTestId("piece-listen-options")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Playback options" }));
-    expect(screen.getByTestId("piece-listen-options")).toBeInTheDocument();
+    const options = screen.getByTestId("piece-listen-options");
+    expect(options).toBeInTheDocument();
+    expect(options.closest(".musai-piece-listen")).not.toBeNull();
+    expect(options.querySelector(".musai-piece-listen__hint")).toBeNull();
+    expect(onPause).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Piano" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Violin" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "½" }));
     fireEvent.click(screen.getByTestId("piece-listen-metronome"));
     expect(onSpeedPreset).toHaveBeenCalledWith("slow");
     expect(onToggleMetronome).toHaveBeenCalled();
 
+    const tempo = screen.getByRole("slider", { name: /Tempo/ });
+    fireEvent.pointerDown(tempo);
+    fireEvent.change(tempo, { target: { value: "120" } });
+    expect(onBpm).not.toHaveBeenCalled();
+    fireEvent.pointerUp(tempo);
+    expect(onBpm).toHaveBeenCalledWith(120);
+
     fireEvent.click(screen.getByRole("button", { name: "Playback options" }));
-    expect(screen.queryByTestId("piece-listen-options")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("piece-listen-options")).toBeNull();
 
     rerender(
       <PieceListenControls
         {...baseProps}
         playing
         onToggle={onToggle}
+        onPause={onPause}
         onRestart={onRestart}
-        onSeek={onSeek}
-        onScrubPreview={onScrubPreview}
         onSpeedPreset={onSpeedPreset}
         onToggleMetronome={onToggleMetronome}
+        onBpm={onBpm}
       />,
     );
     expect(screen.getByRole("button", { name: "Pause" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Playback options" }));
+    expect(onPause).toHaveBeenCalled();
+    expect(screen.getByTestId("piece-listen-options")).toBeInTheDocument();
+
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByTestId("piece-listen-options")).toBeNull();
   });
 });

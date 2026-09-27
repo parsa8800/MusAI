@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect } from "react";
+import { MusaiLoadingScreen } from "@/components/MusaiLoadingMark";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   persistScalePracticeSession,
@@ -10,15 +11,7 @@ import {
 import { scaleWorkspaceHref } from "@/lib/scaleWorkspace";
 
 function ResultsLoading() {
-  return (
-    <div className="flex min-h-full flex-col items-center justify-center px-5 pb-24 pt-14 sm:px-8">
-      <div
-        className="h-12 w-12 rounded-full border-2 border-[var(--musai-border)] border-t-[var(--musai-accent)] motion-safe:animate-spin motion-reduce:animate-none"
-        aria-hidden
-      />
-      <p className="mt-6 text-sm text-[var(--musai-muted)]">Loading…</p>
-    </div>
-  );
+  return <MusaiLoadingScreen label="Loading" />;
 }
 
 function ScalePracticeResultsInner() {

@@ -140,7 +140,7 @@ describe("PieceImportReview", () => {
     expect(screen.getByTestId("piece-import-confirm")).toHaveTextContent(
       OMR_COPY.looksGood,
     );
-    expect(screen.getByText(OMR_COPY.confirmLead)).toBeInTheDocument();
+    expect(screen.queryByText("Does this look right?")).not.toBeInTheDocument();
     expect(screen.queryByTestId("piece-import-keep-original")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("piece-import-confirm"));
@@ -246,8 +246,11 @@ describe("PieceImportReview", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByAltText(/original/i)).toBeInTheDocument();
+      expect(
+        screen.getByRole("link", { name: /open original/i }),
+      ).toBeInTheDocument();
     });
+    expect(screen.queryByAltText(/original/i)).not.toBeInTheDocument();
     expect(screen.queryByTestId("piece-osmd")).not.toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: OMR_COPY.failedTitle }),
@@ -268,7 +271,30 @@ describe("PieceImportReview", () => {
     expect(onChoose).toHaveBeenCalledOnce();
   });
 
-  it("shows Reading your music without empty containers", () => {
+  it("when scanning is offline shows MusicXML hint without PDF chrome", async () => {
+    paintStateRef.next = "ready";
+    render(
+      <PieceImportReview
+        draft={failedDraft({
+          recognitionMessage: OMR_COPY.scanningUnavailable,
+        })}
+        onConfirm={vi.fn()}
+        onTryAgain={vi.fn()}
+        onChooseAnotherFile={vi.fn()}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("heading", {
+        name: OMR_COPY.scanningUnavailable,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(OMR_COPY.scanningUnavailableLead)).toBeInTheDocument();
+    expect(screen.queryByAltText(/original/i)).not.toBeInTheDocument();
+    expect(screen.queryByTestId("piece-import-confirm")).not.toBeInTheDocument();
+  });
+
+  it("shows a wordless music loading motif while reading", () => {
     paintStateRef.next = "ready";
     render(
       <PieceImportReview
@@ -284,15 +310,19 @@ describe("PieceImportReview", () => {
       "data-state",
       "reading",
     );
-    expect(screen.getByTestId("piece-import-loading")).toBeInTheDocument();
+    const loading = screen.getByTestId("piece-import-loading");
+    expect(loading).toBeInTheDocument();
+    expect(loading).toHaveAttribute("aria-busy", "true");
+    expect(loading).toHaveAttribute(
+      "aria-label",
+      expect.stringContaining(OMR_COPY.reading),
+    );
     expect(
-      screen.getByRole("heading", { name: OMR_COPY.openingScore }),
-    ).toBeInTheDocument();
-    expect(screen.getByText(OMR_COPY.reading)).toBeInTheDocument();
-    expect(screen.getByText(OMR_COPY.readingPatience)).toBeInTheDocument();
+      screen.queryByRole("heading", { name: OMR_COPY.openingScore }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(OMR_COPY.readingPatience)).not.toBeInTheDocument();
     expect(screen.queryByTestId("piece-import-confirm")).not.toBeInTheDocument();
     expect(screen.queryByText(OMR_COPY.emptyPreview)).not.toBeInTheDocument();
-    expect(screen.queryByText(/MusicXML/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/\bOMR\b/)).not.toBeInTheDocument();
+    expect(screen.queryByText(OMR_COPY.looksGood)).not.toBeInTheDocument();
   });
 });

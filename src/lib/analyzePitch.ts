@@ -1,11 +1,12 @@
 import { PitchDetector } from "pitchy";
+import { getInstrument } from "@/lib/instrument/catalog";
 
 const FRAME = 4096;
 const HOP = 2048;
 const MIN_HZ = 80;
 const MAX_HZ = 5000;
-/** Violin scale takes rarely need above ~D6; capping cuts false harmonic highs. */
-const SCALE_MAX_HZ = 1200;
+/** Practice takes cap below the instrument’s theoretical max to cut false harmonics. */
+const SCALE_MAX_HZ = getInstrument("violin").pitch.practiceMaxHz;
 /** Real violin takes often sit below the tuner’s 0.82 clarity floor. */
 const SCALE_CLARITY = 0.72;
 const SCALE_MIN_VOLUME_DB = -45;
@@ -113,6 +114,10 @@ export type CollectPitchFramesOptions = {
    * Default: `scale` (preserves existing Scale Studio callers).
    */
   mode?: "tuner" | "scale" | "piece";
+  /** Inclusive lower bound. Practice defaults to the shared 80 Hz floor. */
+  minHz?: number;
+  /** Exclusive upper bound. Practice defaults to the violin practice cap. */
+  maxHz?: number;
 };
 
 /**
@@ -128,7 +133,8 @@ export function collectPitchFrames(
   const practice = mode === "scale" || mode === "piece";
   const clarityMin = practice ? SCALE_CLARITY : TUNER_CLARITY;
   const minVol = practice ? SCALE_MIN_VOLUME_DB : TUNER_MIN_VOLUME_DB;
-  const maxHz = practice ? SCALE_MAX_HZ : MAX_HZ;
+  const minHz = options?.minHz ?? MIN_HZ;
+  const maxHz = options?.maxHz ?? (practice ? SCALE_MAX_HZ : MAX_HZ);
 
   const detector = PitchDetector.forFloat32Array(FRAME);
   detector.clarityThreshold = clarityMin;
@@ -140,7 +146,7 @@ export function collectPitchFrames(
     const [pitch, clarity] = detector.findPitch(frame, sampleRate);
     const t = (startSample + FRAME / 2) / sampleRate;
     if (
-      pitch > MIN_HZ &&
+      pitch > minHz &&
       pitch < maxHz &&
       clarity >= clarityMin &&
       Number.isFinite(pitch)
@@ -224,6 +230,13 @@ export type StablePitchRun = {
   frameCount: number;
   timeStartSec: number;
   timeEndSec: number;
+  /** Pitch-detector clarity per frame in the run, when available. */
+  clarities?: number[];
+};
+
+export type MatchedExpectedSlot = {
+  hz: number;
+  run: StablePitchRun;
 };
 
 function midiToHzFromMidi(midi: number): number {
@@ -246,6 +259,7 @@ function runFromFrames(buf: PitchFrame[]): StablePitchRun | null {
     frameCount: buf.length,
     timeStartSec: buf[0]!.timeSec,
     timeEndSec: buf[buf.length - 1]!.timeSec,
+    clarities: buf.map((f) => f.clarity),
   };
 }
 
@@ -266,6 +280,10 @@ function mergeAdjacentSamePitchRuns(runs: StablePitchRun[]): StablePitchRun[] {
     ) {
       const hz = prev.hz.concat(next.hz);
       const frameCount = prev.frameCount + next.frameCount;
+      const clarities =
+        prev.clarities || next.clarities
+          ? [...(prev.clarities ?? []), ...(next.clarities ?? [])]
+          : undefined;
       out[out.length - 1] = {
         hz,
         midiCenter:
@@ -276,6 +294,7 @@ function mergeAdjacentSamePitchRuns(runs: StablePitchRun[]): StablePitchRun[] {
         frameCount,
         timeStartSec: prev.timeStartSec,
         timeEndSec: next.timeEndSec,
+        clarities,
       };
     } else {
       out.push(next);
@@ -367,6 +386,10 @@ export function medianHzPerStableRuns(
     const midiCenter =
       (a.midiCenter * a.frameCount + b.midiCenter * b.frameCount) /
       frameCount;
+    const clarities =
+      a.clarities || b.clarities
+        ? [...(a.clarities ?? []), ...(b.clarities ?? [])]
+        : undefined;
     runs[keep] = {
       hz: mergedHz,
       midiCenter,
@@ -374,6 +397,7 @@ export function medianHzPerStableRuns(
       frameCount,
       timeStartSec: Math.min(a.timeStartSec, b.timeStartSec),
       timeEndSec: Math.max(a.timeEndSec, b.timeEndSec),
+      clarities,
     };
     runs.splice(drop, 1);
   }
@@ -446,19 +470,23 @@ export function runFitsExpectedMidi(
  * Unplayed expected notes stay `null`. Runs are never resized to the expected
  * length, and leftover audio is not painted onto later scale degrees.
  */
-export function matchDetectedRunsToExpected(
+export function matchDetectedRunsDetailed(
   runs: StablePitchRun[],
   expectedMidis: readonly number[],
-): Array<number | null> {
+): Array<MatchedExpectedSlot | null> {
   const n = expectedMidis.length;
-  const slots: Array<number | null> = Array.from({ length: n }, () => null);
+  const slots: Array<MatchedExpectedSlot | null> = Array.from(
+    { length: n },
+    () => null,
+  );
   if (n === 0 || runs.length === 0) return slots;
 
   const used = new Array<boolean>(runs.length).fill(false);
 
   let cursor = 0;
   for (let ri = 0; ri < runs.length; ri++) {
-    const hz = runs[ri]!.medianHz;
+    const run = runs[ri]!;
+    const hz = run.medianHz;
     let found = -1;
     const searchEnd = Math.min(n - 1, cursor + DETECTED_NOTE_MAX_SKIP);
     for (let j = cursor; j <= searchEnd; j++) {
@@ -477,7 +505,10 @@ export function matchDetectedRunsToExpected(
     }
     if (found >= 0) {
       const target = midiToHzFromMidi(expectedMidis[found]!);
-      slots[found] = preferFundamentalNearTargetHz(hz, target);
+      slots[found] = {
+        hz: preferFundamentalNearTargetHz(hz, target),
+        run,
+      };
       used[ri] = true;
       cursor = found + 1;
     }
@@ -487,7 +518,8 @@ export function matchDetectedRunsToExpected(
   // Do not assign a leftover C4 onto a later C in the round-trip.
   for (let ri = 0; ri < runs.length; ri++) {
     if (used[ri]) continue;
-    const hz = runs[ri]!.medianHz;
+    const run = runs[ri]!;
+    const hz = run.medianHz;
     let bestJ = -1;
     let bestCents = Infinity;
     for (let j = 0; j < cursor; j++) {
@@ -502,12 +534,31 @@ export function matchDetectedRunsToExpected(
     }
     if (bestJ >= 0) {
       const target = midiToHzFromMidi(expectedMidis[bestJ]!);
-      slots[bestJ] = preferFundamentalNearTargetHz(hz, target);
+      slots[bestJ] = {
+        hz: preferFundamentalNearTargetHz(hz, target),
+        run,
+      };
       used[ri] = true;
     }
   }
 
   return slots;
+}
+
+/**
+ * Map evidenced pitch runs onto expected scale slots.
+ *
+ * expectedScaleNotes = `expectedMidis` (what the player is supposed to play)
+ * detectedNotes      = non-null slots (runs with enough audio evidence)
+ *
+ * Unplayed expected notes stay `null`. Runs are never resized to the expected
+ * length, and leftover audio is not painted onto later scale degrees.
+ */
+export function matchDetectedRunsToExpected(
+  runs: StablePitchRun[],
+  expectedMidis: readonly number[],
+): Array<number | null> {
+  return matchDetectedRunsDetailed(runs, expectedMidis).map((s) => s?.hz ?? null);
 }
 
 /**

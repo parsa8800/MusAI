@@ -42,8 +42,8 @@ type Props = {
 };
 
 function barHeightPct(value: number): number {
-  if (value <= 0.02) return 10;
-  return Math.min(100, Math.round(10 + value * 90));
+  if (value <= 0.02) return 6;
+  return Math.min(100, Math.round(4 + value * 96));
 }
 
 function readWaveColor(el: HTMLElement): string {
@@ -82,9 +82,9 @@ function paintLiveWaveform(
   const pxPerMs = liveWaveformPxPerMs(WAVEFORM_BAR_PITCH_PX, WAVEFORM_SAMPLE_MS);
   const samples = clock.samples;
   const times = clock.times;
-  const minH = Math.max(2, cssH * 0.07);
-  const maxH = cssH * 0.92;
-  const barW = WAVEFORM_BAR_WIDTH_PX;
+  const minH = Math.max(1.5, cssH * 0.035);
+  const maxH = cssH * 0.96;
+  const barW = Math.max(WAVEFORM_BAR_WIDTH_PX, Math.min(2.75, cssH * 0.04));
 
   ctx.fillStyle = color;
   for (let i = 0; i < samples.length; i++) {

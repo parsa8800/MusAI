@@ -1,20 +1,12 @@
-import type { MusaiScoreV1, ScoreDynamic } from "@/features/piece-studio/score/musaiScore";
+import type { MusaiScoreV1 } from "@/features/piece-studio/score/musaiScore";
 
 export const DEFAULT_PLAYBACK_BPM = 100;
 
-const DYNAMIC_VELOCITY: Record<string, number> = {
-  ppp: 0.22,
-  pp: 0.32,
-  p: 0.42,
-  mp: 0.55,
-  mf: 0.68,
-  f: 0.82,
-  ff: 0.92,
-  fff: 1,
-  fp: 0.8,
-  sf: 0.9,
-  sfz: 0.92,
-};
+/**
+ * Even sampler volume for Listen (and Hear this). Written dynamics stay on
+ * the score for Practise assessment — they are not performed as loud/soft.
+ */
+export const LISTEN_PLAYBACK_VELOCITY = 0.68;
 
 export type PlaybackNote = {
   startSec: number;
@@ -56,10 +48,6 @@ export type PlaybackTimeline = {
   baseBpm: number;
   tempoSpans: TempoSpan[];
 };
-
-function velocityFor(mark: string): number {
-  return DYNAMIC_VELOCITY[mark.toLowerCase()] ?? 0.68;
-}
 
 function measureLengthQuarters(
   beats: number,
@@ -155,7 +143,6 @@ export function buildPlaybackTimeline(score: MusaiScoreV1): PlaybackTimeline {
   const notes: PlaybackNote[] = [];
 
   for (const part of score.parts) {
-    let vel = 0.68;
     let partQuarter = 0;
     let partBeats = 4;
     let partBeatType = 4;
@@ -168,9 +155,7 @@ export function buildPlaybackTimeline(score: MusaiScoreV1): PlaybackTimeline {
       const start =
         i < measureStarts.length ? measureStarts[i]! : partQuarter;
       for (const event of measure.events) {
-        if (event.kind === "dynamic") {
-          vel = velocityFor((event as ScoreDynamic).mark);
-        } else if (event.kind === "note" && event.durationQuarters > 0) {
+        if (event.kind === "note" && event.durationQuarters > 0) {
           const startQ = start + event.onsetQuarters;
           const endQ = startQ + event.durationQuarters;
           notes.push({
@@ -178,7 +163,7 @@ export function buildPlaybackTimeline(score: MusaiScoreV1): PlaybackTimeline {
             startSec: secondsAtQuarter(tempoSpans, startQ),
             endSec: secondsAtQuarter(tempoSpans, endQ),
             midi: event.pitch.midi,
-            velocity: vel,
+            velocity: LISTEN_PLAYBACK_VELOCITY,
           });
         }
       }
@@ -292,6 +277,24 @@ export function wholeNotesToSeconds(
 export function clampPlaybackTime(t: number, durationSec: number): number {
   if (!Number.isFinite(t) || durationSec <= 0) return 0;
   return Math.max(0, Math.min(durationSec, t));
+}
+
+/** One-shot Listen span for a highlighted passage. */
+export function resolvePlayRange(
+  startSec: number,
+  endSec: number,
+  durationSec: number,
+  minSpanSec = 0.45,
+): { startSec: number; endSec: number } | null {
+  if (!(durationSec > 0)) return null;
+  const start = clampPlaybackTime(startSec, durationSec);
+  let end = clampPlaybackTime(endSec, durationSec);
+  if (end < start) end = start;
+  if (end - start < minSpanSec) {
+    end = clampPlaybackTime(start + minSpanSec, durationSec);
+  }
+  if (end <= start) return null;
+  return { startSec: start, endSec: end };
 }
 
 export function formatPieceClock(sec: number): string {

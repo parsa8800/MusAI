@@ -42,3 +42,22 @@ export function masteryPercentThroughTake(
   }
   return buildLoopMastery(attemptsChronological.slice(0, idx + 1)).percent;
 }
+
+/**
+ * Highest displayed mastery this loop has ever reached.
+ * A weaker later take can move the live bar backwards without erasing this.
+ */
+export function bestMasteryPercent(
+  attemptsChronological: ScalePracticeSessionV1[],
+): number {
+  if (attemptsChronological.length === 0) return 0;
+  let best = 0;
+  for (const take of attemptsChronological) {
+    const pct = masteryPercentThroughTake(
+      attemptsChronological,
+      take.sessionId,
+    );
+    best = Math.max(best, pct);
+  }
+  return Math.round(best);
+}

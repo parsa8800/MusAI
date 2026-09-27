@@ -74,7 +74,8 @@ export function createAudiverisOmrProvider(
         step: "submitJob fetch",
         worker: base,
       });
-      throw new OmrError(OMR_COPY.unavailable, err);
+      // Worker not running / unreachable — not a bad scan of the page.
+      throw new OmrError(OMR_COPY.scanningUnavailable, err);
     }
     const raw = await res.text();
     if (!res.ok) {
@@ -118,7 +119,7 @@ export function createAudiverisOmrProvider(
         step: "getJob fetch",
         jobId,
       });
-      throw new OmrError(OMR_COPY.unavailable, err);
+      throw new OmrError(OMR_COPY.scanningUnavailable, err);
     }
     const raw = await res.text();
     if (res.status === 404) {

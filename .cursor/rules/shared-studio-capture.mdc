@@ -1,0 +1,49 @@
+---
+description: Recording and other shared studio chrome is implemented once
+globs: src/components/MusaiMic*.tsx,src/components/MusaiCapture*.tsx,src/components/MusaiRecorder*.tsx,src/components/Scale*.tsx,src/components/Intonation*.tsx,src/features/piece-studio/**,src/app/globals.css
+alwaysApply: true
+---
+
+# Shared studio capture
+
+Recording (mic, record button, live waveform, timer, discard) is **one** public control.
+
+| Use | Do not |
+|-----|--------|
+| `MusaiMicCapturePanel` / `MusaiRecorderControls` | `PieceRecorder` / `ScaleRecorder` copies |
+| `MusaiCaptureDock` when Record **and** Import are needed | A second Record/Import strip per studio |
+| `.musai-rec-bar` for studio chrome | Per-studio CSS that restacks or resizes the recorder |
+
+## Data flow
+
+```
+PiecePractiseDock / ScaleWorkspace / IntonationUpload / future RhythmStudio
+        ↓
+MusaiCaptureDock (optional Record/Import chrome)
+        ↓
+MusaiMicCapturePanel  →  .musai-rec-bar
+```
+
+A layout or UX change to recording is made **in the shared panel + `.musai-rec-bar`**. Every studio that records picks it up automatically.
+
+Idle studio bar is **mic + record**. Waveform + timer mount only while recording.
+
+## Hosts may only wrap
+
+Feature docks can:
+
+- Place the shared panel (under the score / under the staff)
+- Pass capture state (stream, elapsed, waveform, start/stop)
+- Add **domain** extras (Piece take replay + playhead, Scale analyse/import)
+
+They must **not**:
+
+- Fork `layout="bar"` / stacked variants of the same recorder
+- Override `.musai-vm-trigger`, waveform height, or mic picker in `.musai-piece-*` or `.musai-studio-stage__capture`
+- Duplicate Voice Memos chrome “just for this studio”
+
+`MusaiFloatingMiniRecorder` is the scroll-away mini control (`variant="dock"`), not a second studio recorder.
+
+## Isolation still stands
+
+Piece vs Scale **domain** stays isolated (sessions, progress keys, analyzers). Shared **chrome** is the exception, same as `StudioViewport`.

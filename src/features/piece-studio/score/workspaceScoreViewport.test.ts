@@ -46,6 +46,50 @@ describe("workspace score viewport contract", () => {
     );
   });
 
+  it("does not stretch the score paper to full stage height by default", () => {
+    const css = readFileSync(
+      path.join(process.cwd(), "src/app/globals.css"),
+      "utf8",
+    );
+    const wrapBlock = css.match(
+      /\.musai-piece-workspace__stage\s+\.musai-piece-osmd-wrap\s*\{[^}]+\}/,
+    )?.[0];
+    expect(wrapBlock).toBeTruthy();
+    expect(wrapBlock).toMatch(/height:\s*auto/);
+    expect(wrapBlock).toMatch(/flex:\s*0\s+1\s+auto/);
+    expect(wrapBlock).not.toMatch(/(?<!max-)height:\s*100%/);
+    expect(wrapBlock).toMatch(/border-radius:/);
+  });
+
+  it("keeps soft corners on the Score/Listen stage shell", () => {
+    const css = readFileSync(
+      path.join(process.cwd(), "src/app/globals.css"),
+      "utf8",
+    );
+    const listenShell = css.match(
+      /\.musai-piece-workspace__practise-stage\[data-practise="false"\]\s*\{[^}]+\}/,
+    )?.[0];
+    expect(listenShell).toBeTruthy();
+    expect(listenShell).toMatch(/border-radius:\s*calc\(/);
+    expect(listenShell).not.toMatch(/border-radius:\s*0/);
+  });
+
+  it("lets Listen hug short scores so transport sits under the music", () => {
+    const css = readFileSync(
+      path.join(process.cwd(), "src/app/globals.css"),
+      "utf8",
+    );
+    expect(css).toMatch(
+      /\.musai-piece-workspace--listen\s+\.musai-piece-workspace__practise-stage:has\(\s*\.musai-piece-osmd-wrap--compact[\s\S]*?\{[^}]*flex:\s*0\s+1\s+auto/s,
+    );
+    expect(css).toMatch(
+      /\.musai-piece-workspace--listen\s+\.musai-piece-workspace__stage:has\(\s*\.musai-piece-osmd-wrap--compact[\s\S]*?\{[^}]*flex:\s*0\s+1\s+auto/s,
+    );
+    expect(css).toMatch(
+      /\.musai-piece-workspace--listen\s+\.musai-piece-workspace__dock\s*\{[^}]*margin-top:/s,
+    );
+  });
+
   it("refuses OSMD paint below the shared min viewport", () => {
     expect(canPaintScoreViewport(0, 400)).toBe(false);
     expect(canPaintScoreViewport(400, 0)).toBe(false);

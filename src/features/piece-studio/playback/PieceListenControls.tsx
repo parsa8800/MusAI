@@ -1,7 +1,7 @@
 "use client";
 
 import { animate } from "animejs";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatPieceClock } from "@/features/piece-studio/playback/playbackTimeline";
 import type { PiecePlaybackTimeListener } from "@/features/piece-studio/playback/playbackTime";
 import type {
@@ -13,10 +13,15 @@ import { MUSAI_DUR, MUSAI_EASE, prefersReducedMotion } from "@/lib/motion";
 
 const UI_TIME_MS = 100;
 
+function progressRatio(currentSec: number, durationSec: number): number {
+  if (!(durationSec > 0) || !Number.isFinite(currentSec)) return 0;
+  return Math.min(100, Math.max(0, (currentSec / durationSec) * 100));
+}
+
 function IconPlay({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden>
-      <path d="M8.2 5.4a1 1 0 0 1 1.52-.86l10.1 6.1a1 1 0 0 1 0 1.72l-10.1 6.1A1 1 0 0 1 8 17.6V6.4a1 1 0 0 1 .2-1z" />
+      <path d="M8.4 5.55a.9.9 0 0 1 1.37-.77l9.05 5.45a.9.9 0 0 1 0 1.54l-9.05 5.45a.9.9 0 0 1-1.37-.77V5.55z" />
     </svg>
   );
 }
@@ -24,8 +29,8 @@ function IconPlay({ className }: { className?: string }) {
 function IconPause({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden>
-      <rect x="6.5" y="5" width="3.6" height="14" rx="1.1" />
-      <rect x="13.9" y="5" width="3.6" height="14" rx="1.1" />
+      <rect x="6.75" y="5.5" width="3.4" height="13" rx="1.2" />
+      <rect x="13.85" y="5.5" width="3.4" height="13" rx="1.2" />
     </svg>
   );
 }
@@ -37,13 +42,13 @@ function IconRestart({ className }: { className?: string }) {
       className={className}
       fill="none"
       stroke="currentColor"
-      strokeWidth={2.1}
+      strokeWidth={1.85}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
     >
-      <path d="M4.5 12a7.5 7.5 0 1 0 2.1-5.2" />
-      <path d="M4.5 4.8v4.4H9" />
+      <path d="M4.6 12a7.4 7.4 0 1 0 2-5.15" />
+      <path d="M4.6 4.9v4.2H8.8" />
     </svg>
   );
 }
@@ -51,9 +56,9 @@ function IconRestart({ className }: { className?: string }) {
 function IconMore({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden>
-      <circle cx="5" cy="12" r="1.7" />
-      <circle cx="12" cy="12" r="1.7" />
-      <circle cx="19" cy="12" r="1.7" />
+      <circle cx="6" cy="12" r="1.45" />
+      <circle cx="12" cy="12" r="1.45" />
+      <circle cx="18" cy="12" r="1.45" />
     </svg>
   );
 }
@@ -77,9 +82,30 @@ function IconMetronome({ className }: { className?: string }) {
   );
 }
 
+function IconLoop({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.85}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M17.2 7.2H9.2a3.4 3.4 0 0 0-3.4 3.4v.6" />
+      <path d="M6.8 16.8h8a3.4 3.4 0 0 0 3.4-3.4v-.6" />
+      <path d="M15 5.1 17.2 7.2 15 9.3" />
+      <path d="M9 18.9 6.8 16.8 9 14.7" />
+    </svg>
+  );
+}
+
 /**
- * Listen transport — floating playback dock tied to the score width.
- * Speed, tempo, metronome, and section stay behind the options control.
+ * Listen transport — compact secondary chrome under the score.
+ * Position lives on the green playhead; tap a note to start from there.
+ * Opening options pauses so tempo/speed edits cannot re-attack notes.
  */
 export function PieceListenControls({
   ready,
@@ -97,15 +123,13 @@ export function PieceListenControls({
   subscribeTime,
   getCurrentSec,
   onToggle,
+  onPause,
   onRestart,
-  onSeek,
-  onScrubPreview,
   onBpm,
   onSpeedPreset,
   onToggleMetronome,
-  onLoopChange,
-  onLoopCurrentMeasure,
-  onSeekToMeasure,
+  onLoopPress,
+  loopPick = null,
 }: {
   ready: boolean;
   playing: boolean;
@@ -122,44 +146,40 @@ export function PieceListenControls({
   subscribeTime?: (listener: PiecePlaybackTimeListener) => () => void;
   getCurrentSec?: () => number;
   onToggle: () => void;
+  /** Pause without toggling — used when opening playback options. */
+  onPause: () => void;
   onRestart: () => void;
-  onSeek: (sec: number) => void;
-  /** Live preview while dragging — updates playhead without re-arming audio. */
-  onScrubPreview?: (sec: number) => void;
   onBpm: (bpm: number) => void;
   onSpeedPreset: (preset: PieceSpeedPreset) => void;
   onToggleMetronome: () => void;
-  onLoopChange: (loop: PieceLoopRange | null) => void;
-  onLoopCurrentMeasure: () => void;
-  onSeekToMeasure: (measureNumber: number) => void;
+  /** Starts a start-bar / end-bar pick on the score, or clears the current loop. */
+  onLoopPress: () => void;
+  loopPick?: "start" | "end" | null;
 }) {
   void baseBpm;
   const [liveSec, setLiveSec] = useState(currentSec);
-  const [scrubSec, setScrubSec] = useState<number | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
-  const [sectionOpen, setSectionOpen] = useState(false);
-  const scrubbingRef = useRef(false);
-  const scrubRafRef = useRef<number | null>(null);
-  const pendingScrubRef = useRef<number | null>(null);
+  const [draftBpm, setDraftBpm] = useState(bpm);
+  const bpmDraggingRef = useRef(false);
   const playBtnRef = useRef<HTMLButtonElement>(null);
   const playGlyphRef = useRef<HTMLSpanElement>(null);
+  const moreBtnRef = useRef<HTMLButtonElement>(null);
   const morePanelRef = useRef<HTMLDivElement>(null);
-  const displaySec =
-    scrubSec != null ? scrubSec : subscribeTime ? liveSec : currentSec;
+  const displaySec = subscribeTime ? liveSec : currentSec;
+
+  useEffect(() => {
+    if (!bpmDraggingRef.current) setDraftBpm(bpm);
+  }, [bpm]);
 
   useEffect(() => {
     if (!subscribeTime) return;
     let cancelled = false;
 
-    // While playing: rAF clock so the timeline thumb glides continuously
-    // (YouTube-style) instead of jumping every ~100ms.
     if (playing) {
       let raf = 0;
       const tick = () => {
         if (cancelled) return;
-        if (!scrubbingRef.current) {
-          setLiveSec(getCurrentSec?.() ?? 0);
-        }
+        setLiveSec(getCurrentSec?.() ?? 0);
         raf = window.requestAnimationFrame(tick);
       };
       raf = window.requestAnimationFrame(tick);
@@ -172,7 +192,7 @@ export function PieceListenControls({
     let lastUi = 0;
     let trailing: number | null = null;
     const flush = (t: number) => {
-      if (cancelled || scrubbingRef.current) return;
+      if (cancelled) return;
       lastUi = performance.now();
       setLiveSec(t);
     };
@@ -180,7 +200,6 @@ export function PieceListenControls({
       flush(getCurrentSec?.() ?? 0);
     }, 0);
     const unsub = subscribeTime((t) => {
-      if (scrubbingRef.current) return;
       const now = performance.now();
       if (now - lastUi >= UI_TIME_MS) {
         if (trailing != null) {
@@ -205,14 +224,6 @@ export function PieceListenControls({
   }, [subscribeTime, getCurrentSec, playing]);
 
   useEffect(() => {
-    return () => {
-      if (scrubRafRef.current != null) {
-        window.cancelAnimationFrame(scrubRafRef.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
     const glyph = playGlyphRef.current;
     if (!glyph || prefersReducedMotion()) return;
     animate(glyph, {
@@ -235,6 +246,29 @@ export function PieceListenControls({
     });
   }, [moreOpen]);
 
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const t = event.target;
+      if (!(t instanceof Node)) return;
+      if (moreBtnRef.current?.contains(t)) return;
+      if (morePanelRef.current?.contains(t)) return;
+      if (
+        loopPick &&
+        t instanceof Element &&
+        t.closest(".musai-piece-score-viewer, .musai-piece-osmd-wrap")
+      ) {
+        return;
+      }
+      setMoreOpen(false);
+    };
+    // Capture so outside taps close before score seek / other handlers run.
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+    };
+  }, [moreOpen, loopPick]);
+
   if (unavailable) {
     return (
       <div className="musai-piece-dock musai-piece-listen musai-piece-listen--unavailable">
@@ -245,36 +279,23 @@ export function PieceListenControls({
 
   const loadingSamples = instrumentStatus === "loading";
   const sampleError = instrumentStatus === "error";
+  const sampleName = "piano";
   const canControl = ready && !loadingSamples && !sampleError;
-  const seekMax = Math.max(durationSec, 0.01);
   const loopActive = loop != null;
-  const progress = durationSec > 0 ? Math.min(1, displaySec / durationSec) : 0;
-  const scrubbing = scrubSec != null;
-
-  const flushScrubPreview = (value: number) => {
-    pendingScrubRef.current = value;
-    if (scrubRafRef.current != null) return;
-    scrubRafRef.current = window.requestAnimationFrame(() => {
-      scrubRafRef.current = null;
-      const next = pendingScrubRef.current;
-      if (next == null) return;
-      (onScrubPreview ?? onSeek)(next);
-    });
-  };
-
-  const commitSeek = (value: number) => {
-    scrubbingRef.current = false;
-    if (scrubRafRef.current != null) {
-      window.cancelAnimationFrame(scrubRafRef.current);
-      scrubRafRef.current = null;
-    }
-    pendingScrubRef.current = null;
-    setScrubSec(null);
-    setLiveSec(value);
-    onSeek(value);
-  };
+  const loopCue =
+    loopPick === "start"
+      ? "Tap the first bar"
+      : loopPick === "end"
+        ? "Tap the last bar"
+        : loop
+          ? loop.fromMeasure === loop.toMeasure
+            ? `Bar ${loop.fromMeasure}`
+            : `Bars ${loop.fromMeasure}–${loop.toMeasure}`
+          : null;
 
   const handleToggle = () => {
+    // Pause/play first — button animation must not delay the cut.
+    onToggle();
     const btn = playBtnRef.current;
     if (btn && !prefersReducedMotion()) {
       animate(btn, {
@@ -283,11 +304,22 @@ export function PieceListenControls({
         ease: MUSAI_EASE.out,
       });
     }
-    onToggle();
   };
 
-  const handleRestart = () => {
-    onRestart();
+  const openOptions = () => {
+    // Pause while editing so tempo/speed cannot re-attack the current note.
+    if (playing) onPause();
+    setMoreOpen(true);
+  };
+
+  const closeOptions = () => {
+    setMoreOpen(false);
+  };
+
+  const commitBpm = (value: number) => {
+    bpmDraggingRef.current = false;
+    setDraftBpm(value);
+    onBpm(value);
   };
 
   return (
@@ -296,14 +328,14 @@ export function PieceListenControls({
       data-testid="piece-listen-transport"
       data-more={moreOpen ? "true" : "false"}
       data-playing={playing ? "true" : "false"}
-      data-scrubbing={scrubbing ? "true" : "false"}
     >
       <div className="musai-piece-listen__shell">
         <div className="musai-piece-listen__transport">
+          <div className="musai-piece-listen__cluster">
           <button
             type="button"
             className="musai-pressable musai-piece-listen__icon-btn musai-piece-listen__icon-btn--restart"
-            onClick={handleRestart}
+            onClick={onRestart}
             disabled={!canControl}
             data-testid="piece-listen-restart"
             aria-label="Restart from beginning"
@@ -322,73 +354,33 @@ export function PieceListenControls({
             aria-label={playing ? "Pause" : "Play"}
             title={playing ? "Pause" : "Play"}
           >
-            {loadingSamples ? (
-              <span className="musai-piece-listen__loading-dot" aria-hidden />
-            ) : (
-              <span ref={playGlyphRef} className="musai-piece-listen__play-glyph">
-                {playing ? (
-                  <IconPause className="musai-piece-listen__glyph musai-piece-listen__glyph--pause" />
-                ) : (
-                  <IconPlay className="musai-piece-listen__glyph musai-piece-listen__glyph--play" />
-                )}
-              </span>
-            )}
+            <span ref={playGlyphRef} className="musai-piece-listen__play-glyph">
+              {playing ? (
+                <IconPause className="musai-piece-listen__glyph musai-piece-listen__glyph--pause" />
+              ) : (
+                <IconPlay className="musai-piece-listen__glyph musai-piece-listen__glyph--play" />
+              )}
+            </span>
           </button>
+          </div>
 
-          <div className="musai-piece-listen__timeline">
+          <div
+            className="musai-piece-listen__timeline"
+            data-testid="piece-listen-clock"
+            aria-label={`${formatPieceClock(displaySec)} of ${formatPieceClock(durationSec)}`}
+          >
             <span
-              className="musai-piece-listen__time musai-piece-listen__time--elapsed"
+              className="musai-piece-listen__time"
               data-testid="piece-listen-time-current"
             >
               {formatPieceClock(displaySec)}
             </span>
-            <label className="musai-piece-listen__seek">
-              <span className="sr-only">Seek</span>
-              <input
-                type="range"
-                min={0}
-                max={seekMax}
-                step="any"
-                value={Math.min(displaySec, seekMax)}
-                disabled={!canControl}
-                aria-label="Seek"
-                data-testid="piece-listen-seek"
-                data-scrubbing={scrubbing ? "true" : "false"}
-                style={
-                  {
-                    "--musai-listen-progress": `${progress * 100}%`,
-                  } as CSSProperties
-                }
-                onPointerDown={() => {
-                  scrubbingRef.current = true;
-                  setScrubSec(displaySec);
-                }}
-                onChange={(e) => {
-                  const value = Number(e.target.value);
-                  scrubbingRef.current = true;
-                  setScrubSec(value);
-                  flushScrubPreview(value);
-                }}
-                onPointerUp={(e) => {
-                  commitSeek(Number((e.target as HTMLInputElement).value));
-                }}
-                onKeyUp={(e) => {
-                  if (
-                    e.key === "ArrowLeft" ||
-                    e.key === "ArrowRight" ||
-                    e.key === "Home" ||
-                    e.key === "End"
-                  ) {
-                    commitSeek(Number((e.target as HTMLInputElement).value));
-                  }
-                }}
-                onBlur={(e) => {
-                  if (scrubbingRef.current) {
-                    commitSeek(Number(e.target.value));
-                  }
-                }}
+            <span className="musai-piece-listen__track" aria-hidden>
+              <span
+                className="musai-piece-listen__track-fill"
+                style={{ width: `${progressRatio(displaySec, durationSec)}%` }}
               />
-            </label>
+            </span>
             <span
               className="musai-piece-listen__time musai-piece-listen__time--total"
               data-testid="piece-listen-time-total"
@@ -397,8 +389,9 @@ export function PieceListenControls({
             </span>
           </div>
 
-          <div className="musai-piece-listen__more-wrap">
+          <div className="musai-piece-listen__more-wrap musai-piece-listen__cluster musai-piece-listen__cluster--end">
             <button
+              ref={moreBtnRef}
               type="button"
               className="musai-pressable musai-piece-listen__more"
               data-active={moreOpen}
@@ -408,218 +401,136 @@ export function PieceListenControls({
               aria-label="Playback options"
               title="Playback options"
               onClick={() => {
-                setMoreOpen((open) => {
-                  if (open) setSectionOpen(false);
-                  return !open;
-                });
+                if (moreOpen) closeOptions();
+                else openOptions();
               }}
             >
               <IconMore className="musai-piece-listen__glyph musai-piece-listen__glyph--more" />
             </button>
-
-            {moreOpen ? (
-              <div
-                ref={morePanelRef}
-                id="piece-listen-options"
-                className="musai-piece-listen__popover"
-                data-testid="piece-listen-options"
-                role="dialog"
-                aria-label="Playback options"
-              >
-                <div
-                  className="musai-piece-listen__group"
-                  role="group"
-                  aria-label="Speed"
-                >
-                  <span className="musai-piece-listen__group-label">Speed</span>
-                  <div className="musai-piece-listen__seg">
-                    <button
-                      type="button"
-                      className="musai-pressable musai-piece-listen__seg-btn"
-                      data-active={speedPreset === "slow"}
-                      disabled={!canControl}
-                      aria-pressed={speedPreset === "slow"}
-                      onClick={() => onSpeedPreset("slow")}
-                    >
-                      ½
-                    </button>
-                    <button
-                      type="button"
-                      className="musai-pressable musai-piece-listen__seg-btn"
-                      data-active={speedPreset === "normal"}
-                      disabled={!canControl}
-                      aria-pressed={speedPreset === "normal"}
-                      onClick={() => onSpeedPreset("normal")}
-                    >
-                      1×
-                    </button>
-                  </div>
-                </div>
-
-                <div
-                  className="musai-piece-listen__group"
-                  role="group"
-                  aria-label="Tempo"
-                >
-                  <span className="musai-piece-listen__group-label">Tempo</span>
-                  <label className="musai-piece-listen__tempo">
-                    <span className="sr-only">Tempo</span>
-                    <input
-                      type="range"
-                      min={40}
-                      max={208}
-                      step={1}
-                      value={bpm}
-                      disabled={!canControl}
-                      aria-label={`Tempo ${bpm}`}
-                      onChange={(e) => onBpm(Number(e.target.value))}
-                    />
-                    <span className="musai-piece-listen__tempo-readout" aria-hidden>
-                      {bpm}
-                      <span> bpm</span>
-                    </span>
-                  </label>
-                </div>
-
-                <div
-                  className="musai-piece-listen__group"
-                  role="group"
-                  aria-label="Metronome"
-                >
-                  <span className="musai-piece-listen__group-label">Click</span>
-                  <button
-                    type="button"
-                    className="musai-pressable musai-piece-listen__icon-btn musai-piece-listen__icon-btn--tool"
-                    data-active={metronomeOn}
-                    disabled={!canControl}
-                    aria-pressed={metronomeOn}
-                    data-testid="piece-listen-metronome"
-                    aria-label={metronomeOn ? "Metronome on" : "Metronome off"}
-                    onClick={onToggleMetronome}
-                  >
-                    <IconMetronome className="musai-piece-listen__glyph" />
-                  </button>
-                </div>
-
-                {measureCount > 0 ? (
-                  <div
-                    className="musai-piece-listen__group"
-                    role="group"
-                    aria-label="Section"
-                  >
-                    <span className="musai-piece-listen__group-label">Section</span>
-                    <button
-                      type="button"
-                      className="musai-pressable musai-piece-listen__section-btn"
-                      data-active={sectionOpen || loopActive}
-                      disabled={!canControl}
-                      aria-expanded={sectionOpen}
-                      aria-controls="piece-listen-section"
-                      data-testid="piece-listen-section-toggle"
-                      onClick={() => setSectionOpen((open) => !open)}
-                    >
-                      {loopActive
-                        ? loop.fromMeasure === loop.toMeasure
-                          ? `Bar ${loop.fromMeasure}`
-                          : `${loop.fromMeasure}–${loop.toMeasure}`
-                        : "Select"}
-                    </button>
-                  </div>
-                ) : null}
-
-                {sectionOpen && measureCount > 0 ? (
-                  <div
-                    id="piece-listen-section"
-                    className="musai-piece-listen__section"
-                    data-testid="piece-listen-section"
-                  >
-                    <div className="musai-piece-listen__section-row">
-                      <label>
-                        <span className="sr-only">From bar</span>
-                        <input
-                          type="number"
-                          min={1}
-                          max={measureCount}
-                          value={loop?.fromMeasure ?? 1}
-                          disabled={!canControl}
-                          aria-label="From bar"
-                          onChange={(e) => {
-                            const from = Number(e.target.value);
-                            const to = loop?.toMeasure ?? from;
-                            onLoopChange({
-                              fromMeasure: from,
-                              toMeasure: Math.max(from, to),
-                            });
-                          }}
-                        />
-                      </label>
-                      <span className="musai-piece-listen__section-sep" aria-hidden>
-                        –
-                      </span>
-                      <label>
-                        <span className="sr-only">To bar</span>
-                        <input
-                          type="number"
-                          min={1}
-                          max={measureCount}
-                          value={loop?.toMeasure ?? 1}
-                          disabled={!canControl}
-                          aria-label="To bar"
-                          onChange={(e) => {
-                            const to = Number(e.target.value);
-                            const from = loop?.fromMeasure ?? 1;
-                            onLoopChange({
-                              fromMeasure: Math.min(from, to),
-                              toMeasure: to,
-                            });
-                          }}
-                        />
-                      </label>
-                      <button
-                        type="button"
-                        className="musai-pressable musai-piece-listen__section-action"
-                        disabled={!canControl}
-                        onClick={() => onSeekToMeasure(loop?.fromMeasure ?? 1)}
-                      >
-                        Go
-                      </button>
-                      <button
-                        type="button"
-                        className="musai-pressable musai-piece-listen__section-action"
-                        disabled={!canControl}
-                        onClick={onLoopCurrentMeasure}
-                      >
-                        This bar
-                      </button>
-                      {loopActive ? (
-                        <button
-                          type="button"
-                          className="musai-pressable musai-piece-listen__section-action"
-                          disabled={!canControl}
-                          onClick={() => onLoopChange(null)}
-                        >
-                          Clear
-                        </button>
-                      ) : null}
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
           </div>
         </div>
 
-        {loadingSamples ? (
-          <p className="musai-piece-listen__status" role="status">
-            Loading piano…
-          </p>
-        ) : null}
         {sampleError ? (
           <p className="musai-piece-listen__status" role="status">
-            Couldn’t load piano samples.
+            Couldn’t load {sampleName} samples.
           </p>
         ) : null}
       </div>
+
+      {moreOpen ? (
+        <div
+          ref={morePanelRef}
+          id="piece-listen-options"
+          className="musai-piece-listen__popover"
+          data-testid="piece-listen-options"
+          role="dialog"
+          aria-label="Playback options"
+        >
+          <div className="musai-piece-listen__toolbar">
+            <div className="musai-piece-listen__opt">
+              <span className="musai-piece-listen__opt-label">Speed</span>
+              <div className="musai-piece-listen__seg" role="group" aria-label="Speed">
+                <button
+                  type="button"
+                  className="musai-pressable musai-piece-listen__seg-btn"
+                  data-active={speedPreset === "slow"}
+                  disabled={!canControl}
+                  aria-pressed={speedPreset === "slow"}
+                  onClick={() => onSpeedPreset("slow")}
+                >
+                  ½
+                </button>
+                <button
+                  type="button"
+                  className="musai-pressable musai-piece-listen__seg-btn"
+                  data-active={speedPreset === "normal"}
+                  disabled={!canControl}
+                  aria-pressed={speedPreset === "normal"}
+                  onClick={() => onSpeedPreset("normal")}
+                >
+                  1×
+                </button>
+              </div>
+            </div>
+
+            <label className="musai-piece-listen__tempo">
+              <span className="musai-piece-listen__opt-label">Tempo</span>
+              <input
+                type="range"
+                min={40}
+                max={208}
+                step={1}
+                value={draftBpm}
+                disabled={!canControl}
+                aria-label={`Tempo ${draftBpm}`}
+                onPointerDown={() => {
+                  bpmDraggingRef.current = true;
+                }}
+                onChange={(e) => {
+                  bpmDraggingRef.current = true;
+                  setDraftBpm(Number(e.target.value));
+                }}
+                onPointerUp={(e) => {
+                  commitBpm(Number((e.target as HTMLInputElement).value));
+                }}
+                onBlur={(e) => {
+                  if (bpmDraggingRef.current) {
+                    commitBpm(Number(e.target.value));
+                  }
+                }}
+              />
+              <span className="musai-piece-listen__tempo-readout" aria-hidden>
+                {draftBpm}
+              </span>
+            </label>
+
+            <div className="musai-piece-listen__actions">
+              <button
+                type="button"
+                className="musai-pressable musai-piece-listen__opt-btn"
+                data-active={metronomeOn}
+                disabled={!canControl}
+                aria-pressed={metronomeOn}
+                data-testid="piece-listen-metronome"
+                aria-label={metronomeOn ? "Metronome on" : "Metronome off"}
+                onClick={onToggleMetronome}
+              >
+                <IconMetronome className="musai-piece-listen__glyph" />
+                Click
+              </button>
+
+              {measureCount > 0 ? (
+                <button
+                  type="button"
+                  className="musai-pressable musai-piece-listen__opt-btn"
+                  data-active={loopPick != null || loopActive}
+                  disabled={!canControl}
+                  data-testid="piece-listen-loop"
+                  aria-pressed={loopPick != null || loopActive}
+                  aria-label={
+                    loopPick === "start"
+                      ? "Choosing the first bar"
+                      : loopPick === "end"
+                        ? "Choosing the last bar"
+                        : loopActive
+                          ? "Clear loop"
+                          : "Loop"
+                  }
+                  onClick={onLoopPress}
+                >
+                  <IconLoop className="musai-piece-listen__glyph" />
+                  Loop
+                </button>
+              ) : null}
+            </div>
+            {loopCue ? (
+              <p className="musai-piece-listen__loop-hint" role="status">
+                {loopCue}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

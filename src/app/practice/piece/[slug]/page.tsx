@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { PracticeHubBackLink } from "@/components/PracticeHubBackLink";
 import { StudioViewport } from "@/components/StudioViewport";
+import { MusaiLoadingMark } from "@/components/MusaiLoadingMark";
 import { PieceWorkspaceView } from "@/features/piece-studio/PieceWorkspaceView";
 import { PIECE_STUDIO_HREF } from "@/features/piece-studio/pieceStudioRoutes";
 
@@ -17,12 +18,14 @@ function WorkspaceFallback() {
             ariaLabel="Back to Piece studio"
           />
         </header>
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
-          <div
-            className="h-10 w-10 rounded-full border-2 border-[var(--musai-border)] border-t-[var(--musai-accent)] motion-safe:animate-spin motion-reduce:animate-none"
-            aria-hidden
-          />
-          <p className="text-sm text-[var(--musai-muted)]">Opening piece…</p>
+        <div
+          className="musai-piece-workspace__opening"
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+          aria-label="Preparing the score"
+        >
+          <MusaiLoadingMark />
         </div>
       </div>
     </StudioViewport>

@@ -33,17 +33,26 @@ function slotOrder(container: HTMLElement) {
 }
 
 describe("MusaiRecorderControls studio layout", () => {
-  it("keeps the same slot order from idle to recording", () => {
+  it("keeps idle studio bar to record until capture starts", () => {
     const { container, rerender } = renderStudio(false);
-    const idleSlots = slotOrder(container);
-    expect(idleSlots).toEqual(["status", "button", "wave", "timer", "action"]);
+    expect(slotOrder(container)).toEqual(["button", "action"]);
+    expect(container.querySelector("[data-rec-stage]")).toHaveAttribute(
+      "data-layout",
+      "bar",
+    );
     expect(screen.getByTestId("musai-rec-anchor")).toBeInTheDocument();
-    expect(screen.getByText("Record")).toBeInTheDocument();
-    expect(container.querySelector('[data-rec-slot="action"]')).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Discard" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Take 1")).not.toBeInTheDocument();
+    expect(screen.queryByText("Play the scale")).not.toBeInTheDocument();
     expect(
-      screen.getByRole("img", { name: /recording volume history/i }),
-    ).toBeInTheDocument();
+      screen.queryByText("Record", { selector: ".musai-rec-stage__caption" }),
+    ).not.toBeInTheDocument();
+    expect(container.querySelector('[data-rec-slot="action"]')).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Discard take" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("img", { name: /recording volume history/i }),
+    ).not.toBeInTheDocument();
+    expect(container.querySelector(".musai-rec-wave-well")).toBeNull();
+    expect(screen.queryByText("00:00.00")).not.toBeInTheDocument();
 
     rerender(
       <MusaiRecorderControls
@@ -60,20 +69,26 @@ describe("MusaiRecorderControls studio layout", () => {
         startAriaLabel="Record take 1"
       />,
     );
-    expect(slotOrder(container)).toEqual(idleSlots);
+    expect(slotOrder(container)).toEqual(["button", "wave", "timer", "action"]);
     expect(screen.getByTestId("musai-rec-anchor")).toHaveAttribute(
       "aria-label",
       "Stop recording",
     );
-    expect(screen.getByText("Stop")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Discard" })).toBeInTheDocument();
+    expect(
+      screen.queryByText("Stop", { selector: ".musai-rec-stage__caption" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Discard take" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", { name: /live recording volume history/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("00:08.15")).toBeInTheDocument();
   });
 
-  it("keeps the same slot order from recording to a completed take", () => {
+  it("hides the tape after a completed take", () => {
     const { container, rerender } = renderStudio(true, {
       waveform: [0.1, 0.9, 0.3, 0.6],
     });
-    const recSlots = slotOrder(container);
+    expect(slotOrder(container)).toEqual(["button", "wave", "timer", "action"]);
     rerender(
       <MusaiRecorderControls
         isRecording={false}
@@ -91,31 +106,27 @@ describe("MusaiRecorderControls studio layout", () => {
         startAriaLabel="Record take 1"
       />,
     );
-    expect(slotOrder(container)).toEqual(recSlots);
+    expect(slotOrder(container)).toEqual(["button", "action"]);
     expect(
-      screen.getByRole("img", { name: /recorded take volume history/i }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("00:08.15")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Discard" })).not.toBeInTheDocument();
+      screen.queryByRole("img", { name: /recorded take volume history/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("00:08.15")).not.toBeInTheDocument();
+    expect(screen.queryByText("00:00.00")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Discard take" })).not.toBeInTheDocument();
   });
 
   it("does not unmount the record control when discard is shown", () => {
     renderStudio(true, { waveform: [0.4] });
-    expect(screen.getByRole("button", { name: "Discard" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Discard take" })).toBeInTheDocument();
     expect(screen.getByTestId("musai-rec-anchor")).toBeInTheDocument();
   });
 
-  it("asks to confirm discard and only then throws the take away", () => {
+  it("discards the take from the cancel control", () => {
     const onDiscard = vi.fn();
     renderStudio(true, { discard: onDiscard });
-    fireEvent.click(screen.getByRole("button", { name: "Discard" }));
-    expect(onDiscard).not.toHaveBeenCalled();
-    expect(screen.getByText("Discard take?")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Keep recording" }));
-    expect(onDiscard).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Discard" }));
-    fireEvent.click(screen.getByRole("button", { name: "Discard" }));
+    fireEvent.click(screen.getByRole("button", { name: "Discard take" }));
     expect(onDiscard).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText("Discard take?")).not.toBeInTheDocument();
   });
 
   it("keeps the record control anchored while analysing", () => {
@@ -125,15 +136,15 @@ describe("MusaiRecorderControls studio layout", () => {
     expect(anchor).toHaveAttribute("aria-label", "Analysing take");
     expect(anchor).toHaveAttribute("data-analysing", "true");
     expect(
-      screen.getByText("Analysing", { selector: ".musai-rec-stage__caption" }),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Discard" })).not.toBeInTheDocument();
+      screen.queryByText("Analysing", { selector: ".musai-rec-stage__caption" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Discard take" })).not.toBeInTheDocument();
     expect(slotOrder(anchor.closest("[data-rec-stage]") as HTMLElement)).toEqual([
-      "status",
       "button",
-      "wave",
-      "timer",
       "action",
     ]);
+    expect(
+      screen.queryByRole("img", { name: /recording volume history/i }),
+    ).not.toBeInTheDocument();
   });
 });

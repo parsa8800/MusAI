@@ -15,6 +15,8 @@ import {
   downsampleAmplitudes,
   WAVEFORM_STORE_MAX,
 } from "@/lib/recordingWaveform";
+import { getActiveInstrument } from "@/lib/instrument/storage";
+import type { InstrumentId } from "@/lib/instrument/types";
 
 export type BuildScaleSessionParams = {
   tonicPitchClass: number;
@@ -27,6 +29,7 @@ export type BuildScaleSessionParams = {
   expectedNotesMidi?: readonly number[];
   scaleSource?: "selected" | "detected";
   waveformAmplitudes?: readonly number[];
+  instrumentId?: InstrumentId;
 };
 
 export function buildScalePracticeSession(
@@ -55,6 +58,7 @@ export function buildScalePracticeSession(
       ascending[ascending.length - 1]!,
     ),
     rootMidi: p.rootMidi,
+    instrumentId: p.instrumentId ?? getActiveInstrument().id,
     expectedNotesMidi,
     audioSourceType: p.audioSourceType,
     sampleRateHz: p.sampleRateHz,

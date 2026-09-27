@@ -1,5 +1,8 @@
 import { formatNoteLabel } from "@/lib/intonation";
-import { VIOLIN_MIDI_MAX, VIOLIN_MIDI_MIN } from "@/lib/intonation";
+import { getActiveInstrument } from "@/lib/instrument/storage";
+import { instrumentForSession } from "@/lib/instrument/helpers";
+import { scaleFitsRange } from "@/lib/instrument/scale";
+import type { InstrumentProfile } from "@/lib/instrument/types";
 import type { ScaleAnalysisResult } from "@/lib/analyzeScalePerformance";
 
 type DetectedNoteOctaveHint = {
@@ -16,14 +19,12 @@ function median(values: number[]): number | null {
     : sorted[mid]!;
 }
 
-function shiftFitsViolinRange(
+function shiftFitsPlayableRange(
   expectedMidis: readonly number[],
   k: number,
+  instrument: InstrumentProfile,
 ): boolean {
-  return expectedMidis.every((m) => {
-    const shifted = m + 12 * k;
-    return shifted >= VIOLIN_MIDI_MIN && shifted <= VIOLIN_MIDI_MAX;
-  });
+  return scaleFitsRange(expectedMidis, k, instrument);
 }
 
 /**
@@ -34,6 +35,7 @@ function shiftFitsViolinRange(
 export function bestOctaveShiftSemitones(
   expectedMidis: readonly number[],
   notes: readonly DetectedNoteOctaveHint[],
+  instrument: InstrumentProfile = getActiveInstrument(),
 ): number {
   const pairs: { e: number; d: number }[] = [];
   const n = Math.min(expectedMidis.length, notes.length);
@@ -51,7 +53,7 @@ export function bestOctaveShiftSemitones(
   type Candidate = { k: number; cost: number };
   const candidates: Candidate[] = [];
   for (let k = -3; k <= 2; k++) {
-    if (!shiftFitsViolinRange(expectedMidis, k)) continue;
+    if (!shiftFitsPlayableRange(expectedMidis, k, instrument)) continue;
     let cost = 0;
     for (const p of pairs) {
       cost += Math.abs(p.e + 12 * k - p.d);
@@ -95,10 +97,11 @@ export function shiftMidiSequence(
 export function alignExpectedMidisToDetectedOctave(
   expectedMidis: readonly number[],
   notes: readonly DetectedNoteOctaveHint[],
+  instrument: InstrumentProfile = getActiveInstrument(),
 ): number[] {
   return shiftMidiSequence(
     expectedMidis,
-    bestOctaveShiftSemitones(expectedMidis, notes),
+    bestOctaveShiftSemitones(expectedMidis, notes, instrument),
   );
 }
 
@@ -110,12 +113,13 @@ export function alignAnalysisToDetectedOctave(
   expectedMidis: readonly number[],
   rootMidi: number,
   analysis: ScaleAnalysisResult,
+  instrument: InstrumentProfile = getActiveInstrument(),
 ): {
   expectedMidis: number[];
   rootMidi: number;
   analysis: ScaleAnalysisResult;
 } {
-  const k = bestOctaveShiftSemitones(expectedMidis, analysis.notes);
+  const k = bestOctaveShiftSemitones(expectedMidis, analysis.notes, instrument);
   if (k === 0) {
     return {
       expectedMidis: [...expectedMidis],
@@ -149,6 +153,7 @@ export function staffFeedbackFromSession(session: {
     missingData: boolean;
     centsDifference: number;
   }>;
+  instrumentId?: string;
 }): {
   displayMidis: number[];
   ascendingCents: (number | null)[];
@@ -157,6 +162,7 @@ export function staffFeedbackFromSession(session: {
   const displayMidis = alignExpectedMidisToDetectedOctave(
     session.expectedNotesMidi,
     session.notes,
+    instrumentForSession(session),
   );
   const n = displayMidis.length;
   const looksRoundTrip = n >= 3 && displayMidis[0] === displayMidis[n - 1];

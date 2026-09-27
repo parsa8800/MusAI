@@ -15,6 +15,7 @@ RUN apt-get update \
     curl \
     ca-certificates \
     poppler-utils \
+    imagemagick \
     unzip \
   && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
   && apt-get install -y --no-install-recommends nodejs \

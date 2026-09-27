@@ -198,6 +198,21 @@ export function removePieceWorkspace(pieceId: string): void {
   writeCatalog(listPieceWorkspaces().filter((p) => p.pieceId !== pieceId));
 }
 
+export function renamePieceTitle(
+  pieceId: string,
+  title: string,
+): PieceWorkspaceV1 | null {
+  const nextTitle = title.replace(/\s+/g, " ").trim();
+  if (!nextTitle) return null;
+  const current = getPieceWorkspaceById(pieceId);
+  if (!current) return null;
+  return upsertPieceWorkspace({
+    ...current,
+    title: nextTitle,
+    score: { ...current.score, title: nextTitle },
+  });
+}
+
 export function touchPieceWorkspace(
   pieceId: string,
   lastView?: PieceWorkspaceView,

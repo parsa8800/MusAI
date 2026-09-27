@@ -71,7 +71,10 @@ export async function POST(req: Request) {
     pieceImportFail("OMR", "provider unavailable on job submit", {
       providerId: provider.id,
     });
-    return NextResponse.json({ error: OMR_COPY.unavailable }, { status: 503 });
+    return NextResponse.json(
+      { error: OMR_COPY.scanningUnavailable },
+      { status: 503 },
+    );
   }
   if (!isOmrJobCapable(provider)) {
     pieceImportFail("OMR", "provider has no job API", {

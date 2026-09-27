@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ScaleCandidate } from "@/lib/detectScale";
 import {
   candidateMatchesIdentity,
+  sessionFromActiveIdentity,
   sessionFromDetectedCandidate,
   workspaceHrefForCandidate,
 } from "@/lib/scaleDetectSession";
@@ -47,6 +48,22 @@ describe("scaleDetectSession", () => {
     expect(session.scaleId).toBe("C_major");
     expect(session.scaleSource).toBe("detected");
     expect(session.octaveSpan).toBe(1);
+  });
+
+  it("scores a locked identity as selected, not detected", () => {
+    const identity = identityFromSelection(0, "major", 1);
+    const analysis = fakeCandidate().analysis;
+    const session = sessionFromActiveIdentity(identity, {
+      rootMidi: 60,
+      expectedMidis: fakeCandidate().expectedMidis,
+      analysis,
+      sampleRateHz: 48000,
+      audioSourceType: "recorded",
+      instrumentId: "viola",
+    });
+    expect(session.scaleSource).toBe("selected");
+    expect(session.instrumentId).toBe("viola");
+    expect(session.scaleId).toBe("C_major");
   });
 
   it("matches workspace identity by scale + octave span", () => {

@@ -34,6 +34,10 @@ import { omrUserMessage, OMR_COPY } from "@/features/piece-studio/omr/omrProvide
 import { validateRecognizedMusicXml } from "@/features/piece-studio/omr/validateRecognizedMusicXml";
 import { importDigitalScoreFromFile } from "@/features/piece-studio/pieceStudioDigitalImport";
 import { isMusicXmlInterchangeFile } from "@/features/piece-studio/score/musicXmlSource";
+import {
+  isMachinePieceTitle,
+  recommendedPieceTitle,
+} from "@/features/piece-studio/pieceTitle";
 import { PIECE_STUDIO_SCHEMA_VERSION } from "@/features/piece-studio/pieceStudioTypes";
 import type {
   PieceRecognitionHint,
@@ -135,6 +139,19 @@ function newPieceId(): string {
     return crypto.randomUUID();
   }
   return `piece-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function titleForCommit(chosen: string | undefined, draft: PieceImportDraft): string {
+  const typed = chosen?.replace(/\s+/g, " ").trim() ?? "";
+  if (typed && !isMachinePieceTitle(typed)) return typed;
+  const suggested = recommendedPieceTitle({
+    fileName: draft.sourceFileName,
+    scoreTitle: draft.structured?.title ?? draft.title,
+    musicXml: draft.musicXml,
+  });
+  if (suggested) return suggested;
+  if (!isMachinePieceTitle(draft.title)) return draft.title.trim();
+  return "Untitled piece";
 }
 
 async function persistPermanentPiece(args: {
@@ -336,6 +353,7 @@ export async function importPieceFromFile(
 export async function commitPieceImport(
   draft: PieceImportDraft,
   now = new Date(),
+  chosenTitle?: string,
 ): Promise<PieceWorkspaceV1> {
   if (draft.recognitionStatus !== "ready" || !draft.musicXml || !draft.structured) {
     throw new Error(OMR_COPY.invalidScore);
@@ -347,6 +365,9 @@ export async function commitPieceImport(
     if (already) return already;
   }
 
+  const title = titleForCommit(chosenTitle, draft);
+  draft.title = title;
+
   // Legacy unconfirmed catalog row: just flip confirmed (files already saved).
   if (draft.existingPieceId) {
     const existing = listPieceWorkspaces().find(
@@ -355,7 +376,11 @@ export async function commitPieceImport(
     if (!existing) {
       throw new Error("That piece is no longer in your library.");
     }
-    const confirmed = confirmImportedPiece(existing);
+    const confirmed = confirmImportedPiece({
+      ...existing,
+      title,
+      score: { ...existing.score, title },
+    });
     draft.committedPieceId = confirmed.pieceId;
     return confirmed;
   }
@@ -363,7 +388,7 @@ export async function commitPieceImport(
   const piece = await persistPermanentPiece({
     file: draft.file,
     musicXml: draft.musicXml,
-    structured: draft.structured,
+    structured: { ...draft.structured, title },
     sourceKind: draft.sourceKind,
     recognitionHints: draft.recognitionHints,
     recognitionFocusMeasure: draft.recognitionFocusMeasure,

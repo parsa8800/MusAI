@@ -142,5 +142,26 @@ describe("buildScalePracticeSession", () => {
     expect(session.waveformAmplitudes!.length).toBeGreaterThan(0);
     expect(Math.max(...session.waveformAmplitudes!)).toBeGreaterThan(0.8);
   });
+
+  it("stamps viola C major from C3 without changing the key", () => {
+    const session = buildScalePracticeSession({
+      tonicPitchClass: 0,
+      scaleKind: "major",
+      rootMidi: 48,
+      octaveSpan: 1,
+      audioSourceType: "recorded",
+      sampleRateHz: 48000,
+      analysis: fakeAnalysis(15),
+      expectedNotesMidi: [
+        48, 50, 52, 53, 55, 57, 59, 60, 59, 57, 55, 53, 52, 50, 48,
+      ],
+      instrumentId: "viola",
+    });
+    expect(session.scaleLabel).toBe("C major");
+    expect(session.instrumentId).toBe("viola");
+    expect(session.rootMidi).toBe(48);
+    expect(session.expectedNotesMidi[0]).toBe(48);
+    expect(session.octaveRangeLabel).toBe("C3–C4");
+  });
 });
 

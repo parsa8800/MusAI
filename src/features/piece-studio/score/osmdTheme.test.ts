@@ -52,5 +52,7 @@ describe("piece OSMD theme + sizing", () => {
     expect(rules.ColoringEnabled).toBe(true);
     expect(rules.ExpressionsUseXMLColor).toBe(false);
     expect(rules.PageBackgroundColor).toBe("transparent");
+    expect(rules.MetronomeMarkXShift).toBeGreaterThan(0);
+    expect(rules.InstantaneousTempoTextHeight).toBeLessThan(2);
   });
 });

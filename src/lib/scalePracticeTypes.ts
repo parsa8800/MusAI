@@ -40,6 +40,14 @@ export type ScalePracticeNoteRow = {
    * Feedback is only valid when this is false.
    */
   missingData: boolean;
+  /** How long the matched pitch run lasted (seconds). Older sessions omit this. */
+  durationSec?: number;
+  /** Start time of the matched pitch run (seconds). Older sessions omit this. */
+  onsetSec?: number;
+  /** Mean pitch-detector clarity for the matched run. Older sessions omit this. */
+  meanClarity?: number;
+  /** Intra-note pitch wobble in cents. Older sessions omit this. */
+  pitchStabilityCents?: number;
 };
 
 export type ScalePracticeSummary = {
@@ -52,6 +60,11 @@ export type ScalePracticeSummary = {
   meanSignedCents: number;
   notesAnalyzed: number;
   notesMissing: number;
+  /**
+   * Five-category take quality (0–100) used for mastery.
+   * Older sessions omit this and fall back to overall/in-tune scoring.
+   */
+  progressScore0to100?: number;
 };
 
 export type ScalePracticeSessionV1 = {
@@ -67,6 +80,8 @@ export type ScalePracticeSessionV1 = {
   octaveSpan: 1 | 2;
   octaveRangeLabel: string;
   rootMidi: number;
+  /** Written before instrument-aware Scale Studio; treat as violin. */
+  instrumentId?: "violin" | "viola";
   expectedNotesMidi: number[];
   audioSourceType: ScalePracticeAudioSource;
   sampleRateHz: number;

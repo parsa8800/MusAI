@@ -33,7 +33,7 @@ describe("piece import pipeline diagnosis helpers", () => {
   });
 
   it("logs failures with the real message", () => {
-    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const error = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     pieceImportFail("OMR", new Error("provider unavailable / not configured"), {
       providerId: "unavailable",
     });

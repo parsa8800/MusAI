@@ -27,6 +27,15 @@ export type PieceOsmdEngravingRules = {
   PageTopMargin?: number;
   PageBottomMargin?: number;
   PageTopMarginNarrow?: number;
+  /**
+   * OSMD enum: 0=No, 1=YesVisible, 2=YesInvisible.
+   * OMR merges often leave empty bars that crash engraving when left as No.
+   */
+  FillEmptyMeasuresWithWholeRest?: number;
+  /** OSMD units. Default −6 parks the tempo in the left margin. */
+  MetronomeMarkXShift?: number;
+  MetronomeMarkYShift?: number;
+  InstantaneousTempoTextHeight?: number;
 };
 
 export type PieceOsmdThemable = {
@@ -103,6 +112,11 @@ export function applyPieceOsmdTheme(
   }
   // Prefer theme ink over MusicXML-embedded expression colors in dark mode.
   rules.ExpressionsUseXMLColor = theme === "light";
+  // Default X of −6 parks the tempo in the margin. Nudge it onto the
+  // first measure, clear of the clef and time signature.
+  rules.MetronomeMarkXShift = 6.5;
+  rules.MetronomeMarkYShift = -0.4;
+  rules.InstantaneousTempoTextHeight = 1.65;
 }
 
 /**

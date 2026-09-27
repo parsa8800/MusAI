@@ -106,6 +106,6 @@ describe("pieceLibraryCardModel", () => {
     expect(model.bestPercent).toBe(82);
     expect(model.attempts).toBe(2);
     expect(model.progressFill).toBe(82);
-    expect(model.metaLine).toBe("Best 82%");
+    expect(model.metaLine).toBe("82%");
   });
 });

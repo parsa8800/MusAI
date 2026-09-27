@@ -8,10 +8,10 @@ export type PieceMetronome = {
 };
 
 export function createPieceMetronome(ctx: AudioContext): PieceMetronome {
-  const active: OscillatorNode[] = [];
+  const active: Array<{ osc: OscillatorNode; gain: GainNode }> = [];
 
   const click = (when: number, accent: boolean) => {
-    const t = Math.max(when, ctx.currentTime + 0.01);
+    const t = Math.max(when, ctx.currentTime + 0.005);
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = "sine";
@@ -24,9 +24,10 @@ export function createPieceMetronome(ctx: AudioContext): PieceMetronome {
     gain.connect(ctx.destination);
     osc.start(t);
     osc.stop(t + 0.055);
-    active.push(osc);
+    const entry = { osc, gain };
+    active.push(entry);
     osc.onended = () => {
-      const i = active.indexOf(osc);
+      const i = active.indexOf(entry);
       if (i >= 0) active.splice(i, 1);
       try {
         osc.disconnect();
@@ -40,9 +41,16 @@ export function createPieceMetronome(ctx: AudioContext): PieceMetronome {
   return {
     click,
     silence: () => {
-      for (const osc of active) {
+      const now = ctx.currentTime;
+      for (const { osc, gain } of active) {
         try {
-          osc.stop();
+          gain.gain.cancelScheduledValues(now);
+          gain.gain.setValueAtTime(0, now);
+        } catch {
+          /* ignore */
+        }
+        try {
+          osc.stop(now);
         } catch {
           /* ignore */
         }

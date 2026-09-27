@@ -20,8 +20,9 @@ describe("score presentation layout", () => {
     const overview = pieceOsmdZoomForPresentation(900, 700, "overview");
     const page = pieceOsmdZoomForPresentation(900, 700, "page");
     expect(overview).toBeLessThan(0.5);
-    expect(continuous).toBeLessThanOrEqual(1.08);
-    expect(page).toBeGreaterThan(continuous);
+    expect(continuous).toBeGreaterThan(1.2);
+    expect(continuous).toBeLessThanOrEqual(1.62);
+    expect(page).toBeLessThanOrEqual(continuous);
   });
 
   it("packs import-preview at staff zoom ≤ 1 so short pieces stay one line", () => {
@@ -33,8 +34,8 @@ describe("score presentation layout", () => {
       "import-preview",
     );
     expect(preview).toBeLessThanOrEqual(1);
-    expect(workspace).toBeLessThanOrEqual(1.08);
-    expect(preview).toBeLessThanOrEqual(workspace);
+    expect(workspace).toBeGreaterThan(1.2);
+    expect(preview).toBeLessThan(workspace);
   });
 
   it("does not OSMD-zoom-boost workspace Continuous (display scale keeps one line)", () => {
@@ -218,10 +219,25 @@ describe("score presentation layout", () => {
     ).toBe("compact");
   });
 
-  it("classifies multi-system or tall scores as scroll", () => {
+  it("keeps multi-system scores compact when they still fit the stage", () => {
     expect(
       classifyScoreScrollDensity(
         { pageCount: 1, systemCount: 4, contentHeightPx: 400 },
+        700,
+      ),
+    ).toBe("compact");
+    expect(
+      classifyScoreScrollDensity(
+        { pageCount: 1, systemCount: 3, contentHeightPx: 500 },
+        700,
+      ),
+    ).toBe("compact");
+  });
+
+  it("classifies over-tall or multi-page scores as scroll", () => {
+    expect(
+      classifyScoreScrollDensity(
+        { pageCount: 1, systemCount: 4, contentHeightPx: 680 },
         700,
       ),
     ).toBe("scroll");

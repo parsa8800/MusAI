@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { analyzeScalePerformance } from "@/lib/analyzeScalePerformance";
 import { detectScaleFromAudio } from "@/lib/detectScale";
 import { midiToHz } from "@/lib/intonation";
+import { getInstrument } from "@/lib/instrument";
 import { buildExerciseScaleMidis } from "@/lib/scales";
 
 function synthScaleMono(
@@ -66,6 +67,32 @@ describe("detectScaleFromAudio", () => {
     expect(detected.best.octaveSpan).toBe(1);
     expect(detected.best.rootMidi).toBe(60);
     expect(detected.best.expectedMidis[0]).toBe(60);
+  });
+
+  it("detects synthesised viola C major from C3, not C4", () => {
+    const viola = getInstrument("viola");
+    const expected = buildExerciseScaleMidis(48, "major", 1);
+    const { mono, sampleRateHz } = synthScaleMono(expected);
+    const detected = detectScaleFromAudio(mono, sampleRateHz, viola);
+    expect(detected.ok).toBe(true);
+    if (!detected.ok) return;
+    expect(detected.best.tonicPitchClass).toBe(0);
+    expect(detected.best.scaleKind).toBe("major");
+    expect(detected.best.octaveSpan).toBe(1);
+    expect(detected.best.rootMidi).toBe(48);
+    expect(detected.best.expectedMidis[0]).toBe(48);
+  });
+
+  it("upgrades a clear ascent-then-descent take to round-trip", () => {
+    const up = buildExerciseScaleMidis(60, "major", 1).slice(0, 8);
+    const down = [71, 69, 67, 65];
+    const { mono, sampleRateHz } = synthScaleMono([...up, ...down]);
+    const detected = detectScaleFromAudio(mono, sampleRateHz);
+    expect(detected.ok).toBe(true);
+    if (!detected.ok) return;
+    expect(detected.best.tonicPitchClass).toBe(0);
+    expect(detected.best.scaleKind).toBe("major");
+    expect(detected.best.pattern).toBe("round_trip");
   });
 
   it("still scores an explicit expected sequence highly", () => {

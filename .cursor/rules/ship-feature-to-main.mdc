@@ -7,7 +7,7 @@ alwaysApply: true
 
 Do **not** automatically push, open a pull request, or merge after each change.
 
-Keep work on the correct `feature/<area>-<short-goal>` branch (see feature-branch rule). Implement and iterate locally unless the user asks otherwise.
+Stay on the **current** branch. Do not switch, stash, or branch from `main` unless the user asks. Implement and iterate locally.
 
 ## Commits and push
 

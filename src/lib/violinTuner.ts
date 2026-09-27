@@ -1,19 +1,32 @@
 import {
+  centsFromTarget,
   formatNoteLabel,
   matchHzToPitchClass,
+  midiToHz,
   pitchClassLabel,
 } from "@/lib/intonation";
+import { getInstrument } from "@/lib/instrument/catalog";
+import { tunerStringsFor } from "@/lib/instrument/helpers";
+import { OPEN_STRINGS } from "@/lib/instrument/openStrings";
+import { getActiveInstrument } from "@/lib/instrument/storage";
+import type { InstrumentProfile, OpenStringId } from "@/lib/instrument/types";
 import type { NoteVisualTone } from "@/lib/scaleNoteVisual";
 
-/** Open-string references at A=440: G3, D4, A4, E5. */
-export const VIOLIN_STRINGS = [
-  { id: "G", pitchClass: 7, refMidi: 55 },
-  { id: "D", pitchClass: 2, refMidi: 62 },
-  { id: "A", pitchClass: 9, refMidi: 69 },
-  { id: "E", pitchClass: 4, refMidi: 76 },
-] as const;
+/** Shared open-string pitches. Layout comes from the instrument profile. */
+export const TUNER_STRINGS = {
+  C: { id: "C" as const, pitchClass: OPEN_STRINGS.C.pitchClass, refMidi: OPEN_STRINGS.C.midi },
+  G: { id: "G" as const, pitchClass: OPEN_STRINGS.G.pitchClass, refMidi: OPEN_STRINGS.G.midi },
+  D: { id: "D" as const, pitchClass: OPEN_STRINGS.D.pitchClass, refMidi: OPEN_STRINGS.D.midi },
+  A: { id: "A" as const, pitchClass: OPEN_STRINGS.A.pitchClass, refMidi: OPEN_STRINGS.A.midi },
+  E: { id: "E" as const, pitchClass: OPEN_STRINGS.E.pitchClass, refMidi: OPEN_STRINGS.E.midi },
+} as const;
 
-export type ViolinStringId = (typeof VIOLIN_STRINGS)[number]["id"];
+export type TunerStringId = OpenStringId;
+export type ViolinStringId = TunerStringId;
+export type TunerOpenString = ReturnType<typeof tunerStringsFor>[number];
+
+export const VIOLIN_STRINGS = tunerStringsFor(getInstrument("violin"));
+export const VIOLA_STRINGS = tunerStringsFor(getInstrument("viola"));
 
 export type TunerReading = {
   heardHz: number;
@@ -23,7 +36,7 @@ export type TunerReading = {
   targetLabel: string;
   pitchClass: number;
   pitchClassName: string;
-  stringId: ViolinStringId | null;
+  stringId: TunerStringId | null;
   cents: number;
   score: number;
   tone: NoteVisualTone;
@@ -41,8 +54,8 @@ const SWITCH_MARGIN_CENTS = 35;
 export const TUNER_IN_TUNE_CENTS = 12;
 /** Outside this, the pitch is clearly sharp or flat. */
 const TUNER_NEAR_CENTS = 32;
-/** Continuous in-tune time before a string locks green. */
-export const IN_TUNE_HOLD_MS = 1800;
+/** About a second of steady in-tune time before a string locks green. */
+export const IN_TUNE_HOLD_MS = 1000;
 /** Ignore brief pitch dropouts so bow changes do not reset the hold. */
 export const HOLD_DROPOUT_MS = 180;
 /** Clear the live reading after this much silence. */
@@ -51,7 +64,7 @@ export const PITCH_SILENCE_MS = 280;
 export const ALL_TUNED_RESET_MS = 2800;
 
 export type TunerHoldState = {
-  stringId: ViolinStringId;
+  stringId: TunerStringId;
   startedAt: number;
   lastInTuneAt: number;
 };
@@ -79,10 +92,10 @@ export function advanceTunerHold(
   prev: TunerHoldState | null,
   reading: TunerReading | null,
   now: number,
-  alreadyTuned: ReadonlySet<ViolinStringId>,
+  alreadyTuned: ReadonlySet<TunerStringId>,
 ): {
   hold: TunerHoldState | null;
-  lock: ViolinStringId | null;
+  lock: TunerStringId | null;
   progress: number;
 } {
   const id = reading?.stringId ?? null;
@@ -120,22 +133,74 @@ export function advanceTunerHold(
   return { hold: null, lock: null, progress: 0 };
 }
 
-function rankOpenStrings(heardHz: number) {
-  return VIOLIN_STRINGS.map((s) => {
-    const match = matchHzToPitchClass(heardHz, s.pitchClass);
-    return { string: s, match, abs: Math.abs(match.cents) };
-  }).sort(
-    (a, b) => a.abs - b.abs || a.string.refMidi - b.string.refMidi,
+function rankOpenStrings(heardHz: number, instrument: InstrumentProfile) {
+  return tunerStringsFor(instrument)
+    .map((s) => {
+      const match = matchHzToPitchClass(heardHz, s.pitchClass);
+      return { string: s, match, abs: Math.abs(match.cents) };
+    })
+    .sort((a, b) => a.abs - b.abs || a.string.refMidi - b.string.refMidi);
+}
+
+export function pruneTunedToInstrument(
+  tuned: ReadonlySet<TunerStringId>,
+  instrument: InstrumentProfile,
+): Set<TunerStringId> {
+  const allowed = new Set(tunerStringsFor(instrument).map((s) => s.id));
+  return new Set([...tuned].filter((id) => allowed.has(id)));
+}
+
+/** Letters in layout order; unknown slots stay empty regardless of play order. */
+export function revealedSlots(
+  instrument: InstrumentProfile,
+  revealed: ReadonlySet<TunerStringId>,
+): Array<TunerStringId | null> {
+  return tunerStringsFor(instrument).map((s) =>
+    revealed.has(s.id) ? s.id : null,
   );
+}
+
+function chromaticReading(
+  heardHz: number,
+  instrument: InstrumentProfile,
+): TunerReading | null {
+  const raw = Math.round(69 + 12 * Math.log2(heardHz / 440));
+  if (!Number.isFinite(raw)) return null;
+  const targetMidi = Math.min(instrument.midiMax, Math.max(instrument.midiMin, raw));
+  const targetHz = midiToHz(targetMidi);
+  const cents = Math.round(centsFromTarget(heardHz, targetHz) * 10) / 10;
+  const abs = Math.abs(cents);
+  const pitchClass = ((targetMidi % 12) + 12) % 12;
+  const tone = tunerTone(abs);
+  const direction: TunerReading["direction"] =
+    abs <= TUNER_IN_TUNE_CENTS ? "in_tune" : cents > 0 ? "high" : "low";
+  return {
+    heardHz,
+    heardLabel: formatNoteLabel(targetMidi),
+    targetMidi,
+    targetHz,
+    targetLabel: formatNoteLabel(targetMidi),
+    pitchClass,
+    pitchClassName: pitchClassLabel(pitchClass),
+    stringId: null,
+    cents,
+    score: abs <= TUNER_IN_TUNE_CENTS ? 1 : Math.max(0, 1 - abs / 100),
+    tone,
+    direction,
+  };
 }
 
 export function identifyTunerPitch(
   heardHz: number,
-  previousStringId: ViolinStringId | null = null,
+  previousStringId: TunerStringId | null = null,
+  instrument: InstrumentProfile = getActiveInstrument(),
 ): TunerReading | null {
   if (!Number.isFinite(heardHz) || heardHz <= 0) return null;
+  if (instrument.openStrings.length === 0) {
+    return chromaticReading(heardHz, instrument);
+  }
 
-  const ranked = rankOpenStrings(heardHz);
+  const ranked = rankOpenStrings(heardHz, instrument);
   const nearest = ranked[0];
   if (!nearest) return null;
 
@@ -177,21 +242,26 @@ export function identifyTunerPitch(
   };
 }
 
-export function tunerCueCopy(reading: TunerReading | null): {
+export function tunerCueCopy(
+  reading: TunerReading | null,
+  instrument: InstrumentProfile = getActiveInstrument(),
+): {
   headline: string;
   hint: string;
 } {
+  const waiting =
+    instrument.openStrings.length === 0 ? "Play a note" : "Play a string";
   if (!reading) {
-    return { headline: "Play a string", hint: "G, D, A, or E" };
+    return { headline: waiting, hint: "" };
   }
   if (reading.direction === "in_tune") {
-    return { headline: "In tune", hint: "Hold it there" };
+    return { headline: "In tune", hint: "" };
   }
   if (reading.direction === "low") {
-    return { headline: "Too low", hint: "Go higher" };
+    return { headline: "Too low", hint: "" };
   }
   if (reading.direction === "high") {
-    return { headline: "Too high", hint: "Go lower" };
+    return { headline: "Too high", hint: "" };
   }
-  return { headline: "Play a string", hint: "G, D, A, or E" };
+  return { headline: waiting, hint: "" };
 }

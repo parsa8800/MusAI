@@ -1,11 +1,13 @@
+import { formatNoteLabel, splitMidi } from "@/lib/intonation";
+import { getInstrument } from "@/lib/instrument/catalog";
 import {
-  formatNoteLabel,
-  isViolinRangeMidi,
-  midiFromOctavePitch,
-  splitMidi,
-  VIOLIN_MIDI_MAX,
-  VIOLIN_MIDI_MIN,
-} from "@/lib/intonation";
+  defaultRootMidi,
+  rootsForTonic,
+  tonicOptionsFor,
+  validateScaleMidisInRange,
+} from "@/lib/instrument/scale";
+import { getActiveInstrument } from "@/lib/instrument/storage";
+import type { InstrumentProfile } from "@/lib/instrument/types";
 
 export type ScaleKind = "major" | "natural_minor";
 
@@ -101,6 +103,24 @@ export function buildScaleExerciseMidis(
   return buildExerciseScaleMidis(rootMidi, kind, octaveSpan);
 }
 
+/** 2-octave only when the written run stays inside this instrument. */
+export function availableOctaveSpans(
+  rootMidi: number,
+  kind: ScaleKind,
+  instrument: InstrumentProfile,
+): Array<1 | 2> {
+  const spans: Array<1 | 2> = [1];
+  if (
+    validateScaleMidisInRange(
+      buildExerciseScaleMidis(rootMidi, kind, 2),
+      instrument,
+    )
+  ) {
+    spans.push(2);
+  }
+  return spans;
+}
+
 /** Stable id for storage / future AI routing, e.g. `G_major`, `Bb_natural_minor`. */
 export function scaleIdFor(tonicPitchClass: number, kind: ScaleKind): string {
   const names = [
@@ -131,39 +151,24 @@ export function octaveRangeLabel(lowMidi: number, highMidi: number): string {
   return `${formatNoteLabel(lowMidi)}–${formatNoteLabel(highMidi)}`;
 }
 
-/** Violin-range MIDI candidates that match this tonic (any octave). */
+/** Playable MIDI candidates that match this tonic (any octave) on violin. */
 export function violinRootsForTonic(tonicPitchClass: number): number[] {
-  const out: number[] = [];
-  for (let m = VIOLIN_MIDI_MIN; m <= VIOLIN_MIDI_MAX; m++) {
-    if (((m % 12) + 12) % 12 === ((tonicPitchClass % 12) + 12) % 12) {
-      out.push(m);
-    }
-  }
-  return out;
+  return rootsForTonic(tonicPitchClass, getInstrument("violin"));
 }
 
 /**
- * Pick a default root in violin range for the tonic.
- * Prefers the first octave around C4 (MIDI 60 neighbourhood) — not high starts.
+ * Pick a default root in the given instrument's range for the tonic.
+ * Violin prefers the octave around C4; viola prefers the octave around C3.
  */
-export function defaultRootMidiForTonic(tonicPitchClass: number): number {
-  const roots = violinRootsForTonic(tonicPitchClass);
-  if (roots.length === 0) return VIOLIN_MIDI_MIN;
-  const prefer = midiFromOctavePitch(4, tonicPitchClass);
-  let best = roots[0]!;
-  let bestDist = 999;
-  for (const r of roots) {
-    const d = Math.abs(r - prefer);
-    if (d < bestDist) {
-      bestDist = d;
-      best = r;
-    }
-  }
-  return best;
+export function defaultRootMidiForTonic(
+  tonicPitchClass: number,
+  instrument: InstrumentProfile = getActiveInstrument(),
+): number {
+  return defaultRootMidi(tonicPitchClass, instrument);
 }
 
 export function validateScaleMidisInViolinRange(midis: number[]): boolean {
-  return midis.every((m) => isViolinRangeMidi(m));
+  return validateScaleMidisInRange(midis, getInstrument("violin"));
 }
 
 export function pitchClassName(pitchClass: number): string {
@@ -185,16 +190,7 @@ export function pitchClassName(pitchClass: number): string {
 }
 
 export function tonicOptionsForViolin(): { pitchClass: number; label: string }[] {
-  const seen = new Set<number>();
-  const out: { pitchClass: number; label: string }[] = [];
-  for (let m = VIOLIN_MIDI_MIN; m <= VIOLIN_MIDI_MAX; m++) {
-    const pc = ((m % 12) + 12) % 12;
-    if (seen.has(pc)) continue;
-    seen.add(pc);
-    out.push({ pitchClass: pc, label: pitchClassName(pc) });
-  }
-  out.sort((a, b) => a.pitchClass - b.pitchClass);
-  return out;
+  return tonicOptionsFor(getInstrument("violin"));
 }
 
 export type TonicAccidentalKind = "natural" | "sharp" | "flat";

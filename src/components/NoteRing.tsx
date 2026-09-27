@@ -9,17 +9,20 @@ import {
   useRef,
   useState,
 } from "react";
+import { useInstrument } from "@/components/InstrumentProvider";
+import {
+  chromaticNeighborMidi,
+  isPlayableMidi,
+  midiForPlayableCircleStep,
+  nearestPlayableMidiInOctave,
+  playableOctaveBounds,
+  playablePitchClassesInOctave,
+} from "@/lib/instrument";
 import {
   formatNoteLabel,
-  isViolinRangeMidi,
-  midiForChromaticCircleStep,
   midiToHz,
-  nearestViolinMidiInOctave,
   pitchClassLabel,
   splitMidi,
-  validPitchClassesInOctave,
-  violinChromaticNeighborMidi,
-  violinOctaveBounds,
 } from "@/lib/intonation";
 import {
   NOTE_RING_CX,
@@ -122,6 +125,7 @@ function useAnimatedDeg(target: number, ms = 240): number {
 }
 
 export function NoteRing({ value, onChange, className }: NoteRingProps) {
+  const { instrument } = useInstrument();
   const uid = useId().replace(/:/g, "");
   const annulusClipId = `annulus-${uid}`;
   const selectClipId = `sel-${uid}`;
@@ -129,8 +133,8 @@ export function NoteRing({ value, onChange, className }: NoteRingProps) {
   const glassSheenId = `sheen-${uid}`;
 
   const { min: OCTAVE_MIN, max: OCTAVE_MAX } = useMemo(
-    () => violinOctaveBounds(),
-    [],
+    () => playableOctaveBounds(instrument),
+    [instrument],
   );
 
   const prevMidiRef = useRef(value);
@@ -155,18 +159,18 @@ export function NoteRing({ value, onChange, className }: NoteRingProps) {
   const glassMid = useAnimatedDeg(midAngleForPitchClass(pitchClass));
 
   const validSet = useMemo(
-    () => new Set(validPitchClassesInOctave(octave)),
-    [octave],
+    () => new Set(playablePitchClassesInOctave(octave, instrument)),
+    [instrument, octave],
   );
 
   const wedgeInteractive = useMemo(() => {
     const out = new Set<number>();
     for (let i = 0; i < 12; i++) {
       if (validSet.has(i)) out.add(i);
-      else if (violinChromaticNeighborMidi(value, i) !== null) out.add(i);
+      else if (chromaticNeighborMidi(value, i, instrument) !== null) out.add(i);
     }
     return out;
-  }, [validSet, value]);
+  }, [instrument, validSet, value]);
 
   const canOctDown = octave > OCTAVE_MIN;
   const canOctUp = octave < OCTAVE_MAX;
@@ -237,15 +241,15 @@ export function NoteRing({ value, onChange, className }: NoteRingProps) {
     setHoldMidi(null);
     const next = octave + delta;
     if (next < OCTAVE_MIN || next > OCTAVE_MAX) return;
-    const m = nearestViolinMidiInOctave(next, pitchClass);
+    const m = nearestPlayableMidiInOctave(next, pitchClass, instrument);
     onChange(m);
     preview(m);
   };
 
   const resolveWedgeMidi = (pc: number): number | null => {
     const prev = prevMidiRef.current;
-    const m = midiForChromaticCircleStep(prev, pc);
-    if (m === null || !isViolinRangeMidi(m)) return null;
+    const m = midiForPlayableCircleStep(prev, pc, instrument);
+    if (m === null || !isPlayableMidi(m, instrument)) return null;
     return m;
   };
 

@@ -161,6 +161,8 @@ describe("ScalePracticeResultsView", () => {
       await vi.advanceTimersByTimeAsync(50);
     });
 
+    expect(screen.queryByTestId("coach-chat")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /open coach/i }));
     expect(screen.getByTestId("coach-chat")).toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalled();
   });
@@ -366,8 +368,77 @@ describe("ScalePracticeResultsView", () => {
     const heading = screen.getByRole("heading", { name: "C major" });
     expect(heading).toHaveClass("sr-only");
     expect(heading.className).not.toMatch(/musai-scale-staff-heading__title/);
+    expect(
+      screen.getByRole("button", { name: /fingering on scales/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("hides the Tips column on the home staff until the coach tab opens", () => {
+    render(
+      <ScalePracticeResultsView
+        quietHome
+        capture={<div data-testid="studio-capture">Record</div>}
+        readyTitle="Play a scale"
+        readyStaff="draft"
+        showStaffHeading
+      />,
+    );
+
+    expect(screen.queryByRole("heading", { name: "Tips" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Play a scale" })).toBeVisible();
+    expect(screen.getByTestId("studio-capture")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /open coach/i }));
+    expect(screen.getByRole("heading", { name: "Tips" })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Ask your coach/i)).toBeInTheDocument();
+    expect(screen.getByTestId("studio-capture")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /close coach/i }));
+    expect(screen.queryByRole("heading", { name: "Tips" })).not.toBeInTheDocument();
+  });
+
+  it("hides fingering until a specific scale is on the staff", () => {
+    render(
+      <ScalePracticeResultsView
+        capture={<div data-testid="studio-capture">Record</div>}
+        readyTitle="Play a scale"
+        readyStaff="draft"
+        showStaffHeading
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "Play a scale" })).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: /fingering on scales/i }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText(/1 octave/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Ascending/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Up & down/i)).not.toBeInTheDocument();
+  });
+
+  it("shows Listening while a take is being read", () => {
+    render(
+      <ScalePracticeResultsView
+        phase="analysing"
+        capture={<div data-testid="studio-capture">Record</div>}
+      />,
+    );
+
+    expect(screen.getAllByText("Listening…").length).toBeGreaterThan(0);
+  });
+
+  it("does not place a take failure on the staff", () => {
+    render(
+      <ScalePracticeResultsView
+        phase="ready"
+        capture={<div data-testid="studio-capture">Record</div>}
+        readyTitle="Play a scale"
+        readyStaff="draft"
+      />,
+    );
+
+    expect(screen.queryByText(/mic was quiet/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/couldn’t hear a full scale/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Play a scale" })).toBeVisible();
   });
 });

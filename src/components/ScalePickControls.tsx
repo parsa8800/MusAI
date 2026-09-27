@@ -38,6 +38,8 @@ type Props = {
   onScaleKind: (kind: ScaleKind) => void;
   octaveSpan: 1 | 2;
   onOctaveSpan: (span: 1 | 2) => void;
+  /** Hide 2 oct when that run leaves the instrument. */
+  octaveSpans?: Array<1 | 2>;
   scaleMotion: ScaleMotion;
   onScaleMotion: (motion: ScaleMotion) => void;
 };
@@ -155,6 +157,7 @@ export function ScalePickControls({
   onScaleKind,
   octaveSpan,
   onOctaveSpan,
+  octaveSpans = [1, 2],
   scaleMotion,
   onScaleMotion,
 }: Props) {
@@ -205,12 +208,16 @@ export function ScalePickControls({
       const originY = vv?.offsetTop ?? 0;
       const margin = 10;
       const gap = 6;
+      // Hug the row content; centre under the trigger instead of stretching
+      // to a wide empty panel.
+      const preferred = Math.min(18.75 * 16, vw - margin * 2);
       const width = Math.min(
-        Math.max(rect.width, Math.min(22 * 16, vw - margin * 2)),
+        Math.max(preferred, Math.min(rect.width, preferred)),
         vw - margin * 2,
       );
+      const idealLeft = rect.left + (rect.width - width) / 2;
       const left = Math.min(
-        Math.max(originX + margin, rect.left),
+        Math.max(originX + margin, idealLeft),
         originX + vw - width - margin,
       );
       const spaceBelow = originY + vh - rect.bottom - margin - gap;
@@ -375,12 +382,12 @@ export function ScalePickControls({
         <div className="musai-scale-pick__row">
           <MusaiSegmentedControl<1 | 2>
             ariaLabel="Octaves"
-            value={octaveSpan}
+            value={octaveSpans.includes(octaveSpan) ? octaveSpan : 1}
             onChange={onOctaveSpan}
-            options={[
-              { value: 1, label: "1 oct" },
-              { value: 2, label: "2 oct" },
-            ]}
+            options={octaveSpans.map((span) => ({
+              value: span,
+              label: span === 2 ? "2 oct" : "1 oct",
+            }))}
             className="musai-scale-pick__control"
             size="compact"
           />

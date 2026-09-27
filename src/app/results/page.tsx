@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { IntonationResultsView } from "@/components/IntonationResultsView";
+import { MusaiLoadingScreen } from "@/components/MusaiLoadingMark";
 import { PracticeHubBackLink } from "@/components/PracticeHubBackLink";
 import {
   clearIntonationResult,
@@ -35,13 +36,7 @@ export default function ResultsPage() {
 
   if (!ready || !result) {
     return (
-      <div className="flex min-h-full flex-col items-center justify-center px-5 pb-24 pt-14 sm:px-8">
-        <div
-          className="h-12 w-12 rounded-full border-2 border-[var(--musai-border)] border-t-[var(--musai-accent)] motion-safe:animate-spin motion-reduce:animate-none"
-          aria-hidden
-        />
-        <p className="mt-6 text-sm text-[var(--musai-muted)]">Loading…</p>
-      </div>
+      <MusaiLoadingScreen label="Loading" />
     );
   }
 

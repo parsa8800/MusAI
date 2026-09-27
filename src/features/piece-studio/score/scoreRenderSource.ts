@@ -8,6 +8,11 @@ export type ScoreRenderSource = {
   content: string;
 };
 
+/** OSMD / browsers can hang or fail when a DOCTYPE points at an external DTD. */
+function stripMusicXmlDoctype(musicXml: string): string {
+  return musicXml.replace(/<!DOCTYPE[^>]*>/i, "");
+}
+
 export function musicXmlRenderSource(musicXml: string): ScoreRenderSource {
-  return { format: "musicxml", content: musicXml };
+  return { format: "musicxml", content: stripMusicXmlDoctype(musicXml) };
 }

@@ -2,7 +2,10 @@ import { createFeedbackEvent } from "@/features/piece-studio/feedback/createFeed
 import type { PieceFeedbackAnalyzer } from "@/features/piece-studio/feedback/analyzers/PieceFeedbackAnalyzer";
 import type { PieceFeedbackKind } from "@/features/piece-studio/feedback/pieceFeedbackTypes";
 import { centsFromMatchedHz } from "@/features/piece-studio/pitch/centsFromMatchedHz";
-import { matchPiecePitch } from "@/features/piece-studio/pitch/piecePitchMatch";
+import {
+  activePiecePitchWindow,
+  matchPiecePitch,
+} from "@/features/piece-studio/pitch/piecePitchMatch";
 import {
   PRACTICE_CLEAR_MISS_CENTS,
   PRACTICE_IN_TUNE_CENTS,
@@ -42,6 +45,7 @@ export const PitchAnalyzer: PieceFeedbackAnalyzer = {
             mono: input.audio.mono,
             sampleRateHz: input.audio.sampleRateHz,
             expectedMidis: expected.map((n) => n.midi),
+            ...activePiecePitchWindow(),
           })
         : null);
     if (!match) {

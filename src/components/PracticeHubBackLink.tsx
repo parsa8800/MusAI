@@ -1,6 +1,22 @@
 import Link from "next/link";
 import type { MouseEventHandler } from "react";
 
+function HubNote({ className }: { className: string }) {
+  return (
+    <svg viewBox="0 0 52 32" className={className}>
+      <ellipse
+        cx="34"
+        cy="20.75"
+        rx="4.35"
+        ry="2.85"
+        transform="rotate(-18 34 20.75)"
+      />
+      <path d="M37.6 18.7V6.1" />
+      <path d="M37.6 6.1c5.4 1.7 7.1 5.1 4.6 8.6" />
+    </svg>
+  );
+}
+
 type Props = {
   /** Destination for the back control. Defaults to practice hub. */
   href?: string;
@@ -27,30 +43,26 @@ export function PracticeHubBackLink({
       <Link
         href={href}
         onClick={onClick}
-        className="group musai-pressable musai-glass inline-flex min-h-10 items-center gap-2.5 rounded-[var(--musai-radius)] py-1.5 pl-1.5 pr-3.5 text-[13px] font-medium text-[var(--musai-muted)] hover:border-[color-mix(in_srgb,var(--musai-accent)_28%,var(--musai-glass-stroke))] hover:text-[var(--musai-ink)]"
+        className="musai-pressable musai-hub-back"
         aria-label={ariaLabel ?? `Back to ${label}`}
       >
-        <span
-          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[max(0.375rem,calc(var(--musai-radius)-0.35rem))] border border-[var(--musai-glass-stroke)] bg-[color-mix(in_srgb,var(--musai-surface-2)_70%,transparent)] text-[var(--musai-muted)] transition-colors duration-200 group-hover:text-[var(--musai-ink)]"
-          aria-hidden
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="currentColor"
-            className="h-4 w-4"
-            aria-hidden
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M15.75 19.5 8.25 12l7.5-7.5"
-            />
-          </svg>
+        <span className="musai-hub-back__mark" aria-hidden>
+          <span className="musai-hub-back__arrow-wrap">
+            <svg viewBox="0 0 24 24" className="musai-hub-back__arrow">
+              <path d="M14.5 5.5 6.2 12l8.3 6.5" />
+            </svg>
+          </span>
+          <span className="musai-hub-back__stage">
+            <svg viewBox="0 0 52 32" className="musai-hub-back__note">
+              <g className="musai-hub-back__staff">
+                <path d="M1 6.5h50M1 11.25h50M1 16h50M1 20.75h50M1 25.5h50" />
+              </g>
+            </svg>
+            <HubNote className="musai-hub-back__note musai-hub-back__ghost" />
+            <HubNote className="musai-hub-back__note musai-hub-back__mover" />
+          </span>
         </span>
-        <span className="max-sm:hidden">{label}</span>
+        <span className="musai-hub-back__label">{label}</span>
       </Link>
     </div>
   );

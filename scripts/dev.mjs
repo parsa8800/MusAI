@@ -5,6 +5,39 @@ import { fileURLToPath } from "node:url";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const nextBin = path.join(root, "node_modules", ".bin", "next");
+const omrWorker = path.join(root, "services", "omr-worker", "src", "server.mjs");
+
+function portOpenOn(port) {
+  return new Promise((resolve) => {
+    const socket = createConnection({ port, host: "127.0.0.1" }, () => {
+      socket.end();
+      resolve(true);
+    });
+    socket.on("error", () => resolve(false));
+  });
+}
+
+/** Local Audiveris reader for photo / PDF scores. Next never starts Java itself. */
+let omrChild = null;
+if (!(await portOpenOn(8090))) {
+  const javaHome = "/opt/homebrew/opt/openjdk@17/bin";
+  omrChild = spawn(process.execPath, [omrWorker], {
+    cwd: root,
+    stdio: "inherit",
+    env: {
+      ...process.env,
+      PATH: `${javaHome}:/opt/homebrew/bin:${process.env.PATH || ""}`,
+      AUDIVERIS_BIN:
+        process.env.AUDIVERIS_BIN ||
+        "/Applications/Audiveris.app/Contents/MacOS/Audiveris",
+    },
+  });
+  omrChild.on("exit", (code) => {
+    if (code && code !== 0) {
+      console.error(`[dev] score reader exited (${code})`);
+    }
+  });
+}
 
 const child = spawn(nextBin, ["dev", "--hostname", "127.0.0.1"], {
   stdio: "inherit",
@@ -42,7 +75,10 @@ waitForServer().then((ready) => {
   ).unref();
 });
 
-child.on("exit", (code) => process.exit(code ?? 0));
+child.on("exit", (code) => {
+  omrChild?.kill();
+  process.exit(code ?? 0);
+});
 child.on("error", (err) => {
   console.error(err);
   process.exit(1);

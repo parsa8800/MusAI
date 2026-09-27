@@ -1,6 +1,11 @@
 import type { ScalePracticeSessionV1 } from "@/lib/scalePracticeTypes";
 import { parseScalePracticeSession } from "@/lib/parseScalePracticeSession";
 import { withMasteryAfterTake } from "@/lib/scaleMasteryTimeline";
+import {
+  instrumentIdFromProgressKey,
+  parseInstrumentId,
+} from "@/lib/instrument";
+import type { InstrumentId } from "@/lib/instrument";
 import { progressKeyFor } from "@/lib/scaleWorkspace";
 
 export const MUSAI_SCALE_PROGRESS_KEY = "musai-scale-progress-v1";
@@ -13,7 +18,7 @@ export const SCALE_PROGRESS_MAX_ATTEMPTS = 24;
 
 export type ScaleProgressJourneyV1 = {
   schemaVersion: typeof SCALE_PROGRESS_SCHEMA_VERSION;
-  /** Groups practice by scaleId + octave span. */
+  /** Groups practice by instrument + scaleId + octave span. */
   progressKey: string;
   scaleId: string;
   scaleLabel: string;
@@ -33,11 +38,35 @@ function isScaleKind(v: unknown): v is "major" | "natural_minor" {
 }
 
 export function progressKeyForSession(session: ScalePracticeSessionV1): string {
-  return progressKeyFor(session.scaleId, session.octaveSpan);
+  return progressKeyFor(
+    session.scaleId,
+    session.octaveSpan,
+    parseInstrumentId(session.instrumentId),
+  );
 }
 
 function isOctaveAwareKey(progressKey: string): boolean {
   return /__(1|2)$/.test(progressKey);
+}
+
+function isInstrumentAwareKey(progressKey: string): boolean {
+  return /^(violin|viola)__/.test(progressKey);
+}
+
+function withInstrumentProgressKey(
+  journey: ScaleProgressJourneyV1,
+): ScaleProgressJourneyV1 {
+  if (isInstrumentAwareKey(journey.progressKey)) return journey;
+  const last = journey.attempts[journey.attempts.length - 1];
+  const instrumentId = parseInstrumentId(last?.instrumentId);
+  return {
+    ...journey,
+    progressKey: progressKeyFor(
+      journey.scaleId,
+      journey.lastOctaveSpan,
+      instrumentId,
+    ),
+  };
 }
 
 export function parseScaleProgressJourney(
@@ -166,42 +195,56 @@ function readLegacyFlatSessions(): ScalePracticeSessionV1[] {
   }
 }
 
-/** Load journeys, migrating legacy flat / pre-octave keys if needed. */
-export function listScaleProgressJourneys(): ScaleProgressJourneyV1[] {
+/** Load journeys, migrating legacy flat / pre-octave / pre-instrument keys if needed. */
+export function listScaleProgressJourneys(
+  instrumentId?: InstrumentId,
+): ScaleProgressJourneyV1[] {
   const existing = readProgressRaw();
+  let journeys: ScaleProgressJourneyV1[] = [];
   if (existing.length > 0) {
     const needsOctaveSplit = existing.some(
       (j) => !isOctaveAwareKey(j.progressKey),
     );
-    if (!needsOctaveSplit) return existing;
-
-    const flat: ScalePracticeSessionV1[] = [];
-    for (const j of existing) {
-      for (let i = j.attempts.length - 1; i >= 0; i--) {
-        flat.push(j.attempts[i]!);
+    const needsInstrumentPrefix = existing.some(
+      (j) => !isInstrumentAwareKey(j.progressKey),
+    );
+    if (needsOctaveSplit) {
+      const flat: ScalePracticeSessionV1[] = [];
+      for (const j of existing) {
+        for (let i = j.attempts.length - 1; i >= 0; i--) {
+          flat.push(j.attempts[i]!);
+        }
+      }
+      flat.sort((a, b) => (a.recordedAt < b.recordedAt ? 1 : -1));
+      journeys = groupSessionsIntoJourneys(flat).slice(
+        0,
+        SCALE_PROGRESS_MAX_JOURNEYS,
+      );
+      writeProgress(journeys);
+    } else if (needsInstrumentPrefix) {
+      journeys = existing.map(withInstrumentProgressKey);
+      writeProgress(journeys);
+    } else {
+      journeys = existing;
+    }
+  } else {
+    const legacy = readLegacyFlatSessions();
+    if (legacy.length > 0) {
+      journeys = groupSessionsIntoJourneys(legacy).slice(
+        0,
+        SCALE_PROGRESS_MAX_JOURNEYS,
+      );
+      writeProgress(journeys);
+      if (typeof localStorage !== "undefined") {
+        localStorage.removeItem(MUSAI_SCALE_HISTORY_LEGACY_KEY);
       }
     }
-    flat.sort((a, b) => (a.recordedAt < b.recordedAt ? 1 : -1));
-    const migrated = groupSessionsIntoJourneys(flat).slice(
-      0,
-      SCALE_PROGRESS_MAX_JOURNEYS,
-    );
-    writeProgress(migrated);
-    return migrated;
   }
 
-  const legacy = readLegacyFlatSessions();
-  if (legacy.length === 0) return [];
-
-  const migrated = groupSessionsIntoJourneys(legacy).slice(
-    0,
-    SCALE_PROGRESS_MAX_JOURNEYS,
+  if (!instrumentId) return journeys;
+  return journeys.filter(
+    (j) => instrumentIdFromProgressKey(j.progressKey) === instrumentId,
   );
-  writeProgress(migrated);
-  if (typeof localStorage !== "undefined") {
-    localStorage.removeItem(MUSAI_SCALE_HISTORY_LEGACY_KEY);
-  }
-  return migrated;
 }
 
 export function getScaleProgressJourney(
@@ -278,8 +321,19 @@ export function pushScaleProgressAttempt(session: ScalePracticeSessionV1): Scale
   }
 
   const others = journeys.filter((j) => j.progressKey !== key);
+  const instrumentId = instrumentIdFromProgressKey(key);
+  const sameInstrument = others.filter(
+    (j) => instrumentIdFromProgressKey(j.progressKey) === instrumentId,
+  );
+  const otherInstruments = others.filter(
+    (j) => instrumentIdFromProgressKey(j.progressKey) !== instrumentId,
+  );
   writeProgress(
-    [nextJourney, ...others].slice(0, SCALE_PROGRESS_MAX_JOURNEYS),
+    [
+      nextJourney,
+      ...sameInstrument.slice(0, SCALE_PROGRESS_MAX_JOURNEYS - 1),
+      ...otherInstruments,
+    ],
   );
   return stamped;
 }

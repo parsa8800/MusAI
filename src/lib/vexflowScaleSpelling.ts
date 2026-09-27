@@ -1,4 +1,6 @@
 import { preferredTonicOption, type ScaleKind } from "@/lib/scales";
+import { CLEF_STAFF } from "@/lib/instrument/notation";
+import type { NotationClef } from "@/lib/instrument/types";
 
 const LETTER_ORDER = ["C", "D", "E", "F", "G", "A", "B"] as const;
 const LETTER_STEP: Record<string, number> = {
@@ -203,10 +205,6 @@ export function staffStepFromVexKey(key: string): number {
   return oct * 7 + (LETTER_STEP[letter] ?? 0);
 }
 
-const TREBLE_BOTTOM_STEP = 4 * 7 + 2; // E4
-const TREBLE_TOP_STEP = 5 * 7 + 3; // F5
-const TREBLE_MID_STEP = 4 * 7 + 6; // B4
-
 export const STAVE_LINE_SPACING_PX = 17;
 /** VexFlow `Stave` y is the top staff line when these are 0. */
 export const STAVE_HEADROOM_SPACES = 0;
@@ -214,8 +212,54 @@ export const STAVE_HEADROOM_SPACES = 0;
 const STAVE_PAD_PX = 16;
 const STEM_SPACES = 4;
 const NOTEHEAD_SPACES = 0.55;
-const CLEF_ABOVE_SPACES = 1.2;
-const CLEF_BELOW_SPACES = 1.75;
+/** Treble G-clef ink above/below the staff (staff spaces). */
+const TREBLE_CLEF_ABOVE_SPACES = 2.55;
+const TREBLE_CLEF_BELOW_SPACES = 2.85;
+/** Alto C-clef ink above/below the staff (staff spaces). */
+const ALTO_CLEF_ABOVE_SPACES = 2.15;
+const ALTO_CLEF_BELOW_SPACES = 2.15;
+const BASS_CLEF_ABOVE_SPACES = 2.15;
+const BASS_CLEF_BELOW_SPACES = 2.85;
+/** VexFlow’s default staff spacing; used to scale clef point size. */
+export const VEX_DEFAULT_LINE_SPACING_PX = 10;
+/** VexFlow default clef point size when size === "default". */
+export const VEX_DEFAULT_CLEF_POINT = 30;
+
+/**
+ * Clef font size matched to custom `spacingBetweenLinesPx`.
+ * Treble and alto share the same point scale — VexFlow’s C-clef already
+ * sits correctly on the staff without an extra boost.
+ */
+export function clefPointForLineSpacing(
+  lineSpacingPx: number,
+  noteHeadFontSize?: number,
+  _clef: NotationClef = "treble",
+): number {
+  void _clef;
+  const fromSpacing =
+    VEX_DEFAULT_CLEF_POINT * (lineSpacingPx / VEX_DEFAULT_LINE_SPACING_PX);
+  const fromHeads =
+    noteHeadFontSize != null
+      ? noteHeadFontSize * (VEX_DEFAULT_CLEF_POINT / 33)
+      : fromSpacing;
+  return Math.round(Math.max(12, fromSpacing, fromHeads));
+}
+
+/**
+ * Key-list chip clef — sized to fill the five-line staff (≈ engraving
+ * 3× spacing), not the undersized 2.15× that left C-/G-clefs looking tiny.
+ */
+export function keySignatureMiniClefPoint(lineSpacingPx: number): number {
+  return Math.round(Math.max(12, Math.min(20, lineSpacingPx * 2.9)));
+}
+
+/**
+ * Key-list accidentals — a little over 2× a staff space so sharps and flats
+ * read clearly, still under the clef (default VexFlow 30pt overflows the chip).
+ */
+export function keySignatureMiniAccidentalPoint(lineSpacingPx: number): number {
+  return Math.round(Math.max(12, Math.min(15, lineSpacingPx * 2.75)));
+}
 
 /**
  * Vertical ink of the staff + notes (ledgers, stems, clef), relative to the
@@ -224,22 +268,36 @@ const CLEF_BELOW_SPACES = 1.75;
 export function notationInkRelativeToTopLine(
   vexKeys: string[],
   spacingPx = STAVE_LINE_SPACING_PX,
+  clef: NotationClef = "treble",
 ): { top: number; bottom: number } {
+  const geo = CLEF_STAFF[clef];
   const pxPerStep = spacingPx / 2;
   const staffBottom = 4 * spacingPx;
-  let top = -CLEF_ABOVE_SPACES * spacingPx;
-  let bottom = staffBottom + CLEF_BELOW_SPACES * spacingPx;
+  const above =
+    clef === "alto"
+      ? ALTO_CLEF_ABOVE_SPACES
+      : clef === "bass"
+        ? BASS_CLEF_ABOVE_SPACES
+        : TREBLE_CLEF_ABOVE_SPACES;
+  const below =
+    clef === "alto"
+      ? ALTO_CLEF_BELOW_SPACES
+      : clef === "bass"
+        ? BASS_CLEF_BELOW_SPACES
+        : TREBLE_CLEF_BELOW_SPACES;
+  let top = -above * spacingPx;
+  let bottom = staffBottom + below * spacingPx;
 
   const steps =
-    vexKeys.length > 0 ? vexKeys.map(staffStepFromVexKey) : [TREBLE_BOTTOM_STEP];
+    vexKeys.length > 0 ? vexKeys.map(staffStepFromVexKey) : [geo.bottomStep];
   const headR = NOTEHEAD_SPACES * spacingPx;
   const stemLen = STEM_SPACES * spacingPx;
 
   for (const step of steps) {
-    const y = (TREBLE_TOP_STEP - step) * pxPerStep;
+    const y = (geo.topStep - step) * pxPerStep;
     top = Math.min(top, y - headR);
     bottom = Math.max(bottom, y + headR);
-    if (step < TREBLE_MID_STEP) {
+    if (step < geo.midStep) {
       top = Math.min(top, y - stemLen);
     } else {
       bottom = Math.max(bottom, y + stemLen);
@@ -256,8 +314,9 @@ export function notationInkRelativeToTopLine(
 export function staveCanvasMetrics(
   vexKeys: string[],
   spacingPx = STAVE_LINE_SPACING_PX,
+  clef: NotationClef = "treble",
 ): { height: number; staveY: number } {
-  const { top, bottom } = notationInkRelativeToTopLine(vexKeys, spacingPx);
+  const { top, bottom } = notationInkRelativeToTopLine(vexKeys, spacingPx, clef);
   const height = Math.ceil(bottom - top + 2 * STAVE_PAD_PX);
   const staveY = Math.ceil(STAVE_PAD_PX - top);
   return { height, staveY };

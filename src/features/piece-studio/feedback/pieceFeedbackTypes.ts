@@ -68,12 +68,28 @@ export type PieceSkillReportV1 = {
   events: PieceFeedbackEventV1[];
 };
 
+/**
+ * One expected note after a take. `cents` is null when that note was not heard.
+ * Positive cents are sharp. This is what paints the score; it is not coach copy.
+ */
+export type PiecePitchNoteV1 = {
+  noteIndex: number;
+  cents: number | null;
+  /**
+   * When this note was heard in the recording. Null when it was missed.
+   * Drives last-take playhead alignment. Absent on reports saved earlier.
+   */
+  heardSec?: number | null;
+};
+
 export type PieceFeedbackReportV1 = {
   schemaVersion: typeof PIECE_FEEDBACK_SCHEMA_VERSION;
   pieceId: string;
   attemptId: string;
   skills: PieceSkillReportV1[];
   events: PieceFeedbackEventV1[];
+  /** Every expected note from this take, including ones that were in tune. */
+  pitchNotes?: PiecePitchNoteV1[];
 };
 
 export type PieceFeedbackSkillMap = Record<
