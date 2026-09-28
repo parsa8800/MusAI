@@ -137,6 +137,7 @@ export function createAudiverisOmrProvider(
       status?: unknown;
       musicXml?: unknown;
       error?: unknown;
+      progress?: unknown;
     } = {};
     try {
       parsed = JSON.parse(raw) as typeof parsed;
@@ -152,11 +153,16 @@ export function createAudiverisOmrProvider(
         : status === "failed"
           ? OMR_COPY.failed
           : undefined;
+    const progress =
+      typeof parsed.progress === "number" && Number.isFinite(parsed.progress)
+        ? Math.max(0, Math.min(100, parsed.progress))
+        : undefined;
     return {
       id: typeof parsed.id === "string" ? parsed.id : jobId,
       status,
       musicXml,
       error,
+      progress,
     };
   }
 

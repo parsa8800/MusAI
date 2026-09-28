@@ -96,6 +96,8 @@ export type ImportPiecePhase = "uploading" | "processing" | "validating";
 export type ImportPieceDeps = {
   recognizeSheet?: (file: File) => Promise<string>;
   onPhase?: (phase: ImportPiecePhase) => void;
+  /** Whole-file conversion, 0–100. Callers should ignore a lower number. */
+  onProgress?: (percent: number) => void;
 };
 
 /**
@@ -243,6 +245,7 @@ export async function importPieceFromFile(
     ? "musicxml"
     : sourceKindFromFile(file.name, file.type);
   deps.onPhase?.("uploading");
+  deps.onProgress?.(8);
   pieceImportLog("UPLOAD", "start", {
     where: "importPieceFromFile",
     fileName: file.name,
@@ -286,15 +289,18 @@ export async function importPieceFromFile(
   }
 
   deps.onPhase?.("processing");
+  deps.onProgress?.(16);
   const recognize =
     deps.recognizeSheet ??
     ((f: File) =>
       recognizeSheetMusic(f, {
         onPhase: (phase) => deps.onPhase?.(phase),
+        onProgress: (percent) => deps.onProgress?.(percent),
       }));
   try {
     const recognized = await recognize(file);
     deps.onPhase?.("validating");
+    deps.onProgress?.(96);
     pieceImportLog("PARSE", "start", {
       where: "validateRecognizedMusicXml after OMR",
     });

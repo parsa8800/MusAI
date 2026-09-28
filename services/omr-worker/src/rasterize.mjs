@@ -20,6 +20,10 @@ export async function rasterizePdfToPngs(opts) {
   const dpi = opts.dpi ?? 300;
   const bin = opts.pdftoppmBin || process.env.PDFTOPPM_BIN || "pdftoppm";
   const prefix = path.join(opts.outDir, "page");
+  // Long edge in pixels. 300 DPI on letter paper is about this size.
+  // Phone photos saved as PDF are often one point per pixel (a 40-inch page),
+  // and `-r 300` would blow those up until pdftoppm times out.
+  const longEdge = opts.longEdge ?? Math.round((11 * dpi));
 
   const available = await commandExists(bin);
   if (!available) {
@@ -29,9 +33,11 @@ export async function rasterizePdfToPngs(opts) {
     return null;
   }
 
-  await run(bin, ["-png", "-r", String(dpi), opts.pdfPath, prefix], {
-    timeoutMs: 120_000,
-  });
+  await run(
+    bin,
+    ["-png", "-scale-to", String(longEdge), opts.pdfPath, prefix],
+    { timeoutMs: 120_000 },
+  );
 
   const names = (await readdir(opts.outDir))
     .filter((n) => /^page-\d+\.png$/i.test(n))
@@ -41,6 +47,40 @@ export async function rasterizePdfToPngs(opts) {
     throw new Error("PDF rasterise produced no page images");
   }
   return names.map((n) => path.join(opts.outDir, n));
+}
+
+/**
+ * Printed music is letter or tabloid. A phone photo saved as PDF is often
+ * one point per pixel, so the page is tens of inches and Audiveris ignores it.
+ */
+export const PDF_PHOTO_LONG_EDGE_PT = 18 * 72;
+
+export function pdfPageIsPhotoScale(longEdgePt) {
+  return (
+    typeof longEdgePt === "number" &&
+    Number.isFinite(longEdgePt) &&
+    longEdgePt > PDF_PHOTO_LONG_EDGE_PT
+  );
+}
+
+/**
+ * @param {string} pdfPath
+ * @returns {Promise<number | null>} Longest page edge in points
+ */
+export async function pdfMaxLongEdgePoints(pdfPath) {
+  const bin = process.env.PDFINFO_BIN || "pdfinfo";
+  try {
+    const { stdout } = await run(bin, [pdfPath], { timeoutMs: 15_000 });
+    let max = 0;
+    for (const line of String(stdout).split("\n")) {
+      const match = line.match(/([\d.]+)\s*x\s*([\d.]+)\s*pts/i);
+      if (!match) continue;
+      max = Math.max(max, Number(match[1]), Number(match[2]));
+    }
+    return max > 0 ? max : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Keep multi-page PDF raster order stable (page-1, page-2, … page-10). */

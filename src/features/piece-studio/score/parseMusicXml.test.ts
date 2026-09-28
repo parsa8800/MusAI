@@ -114,6 +114,55 @@ describe("musicXmlFromBytes", () => {
   });
 });
 
+function markedScore(direction: string): string {
+  return `<?xml version="1.0"?>
+<score-partwise version="3.1">
+  <part-list><score-part id="P1"><part-name>Music</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>1</divisions>
+        <time><beats>4</beats><beat-type>4</beat-type></time>
+      </attributes>
+      ${direction}
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+    </measure>
+  </part>
+</score-partwise>`;
+}
+
+describe("written tempo", () => {
+  it("plays an eighth-note mark as quarter-note bpm", () => {
+    const score = parseMusicXmlToScore(
+      markedScore(`<direction><direction-type><metronome>
+        <beat-unit>eighth</beat-unit><per-minute>120</per-minute>
+      </metronome></direction-type><sound tempo="120"/></direction>`),
+      "Etude",
+    );
+    expect(score.tempoBpm).toBe(60);
+  });
+
+  it("uses a word such as Adagio when the page has no number", () => {
+    const score = parseMusicXmlToScore(
+      markedScore(
+        `<direction><direction-type><words>Adagio</words></direction-type></direction>`,
+      ),
+      "Sonata",
+    );
+    expect(score.tempoBpm).toBe(66);
+  });
+
+  it("prefers a printed number over a nearby tempo word", () => {
+    const score = parseMusicXmlToScore(
+      markedScore(`<direction><direction-type>
+        <words>Adagio</words>
+        <metronome><beat-unit>quarter</beat-unit><per-minute>48</per-minute></metronome>
+      </direction-type></direction>`),
+      "Sonata",
+    );
+    expect(score.tempoBpm).toBe(48);
+  });
+});
+
 describe("piece score isolation", () => {
   it("keeps OSMD behind ScoreRenderer and out of Scale Studio notation", () => {
     const root = path.join(process.cwd(), "src");

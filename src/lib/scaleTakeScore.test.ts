@@ -13,7 +13,6 @@ function row(
   const missing = partial.missingData === true;
   return {
     noteIndex: partial.noteIndex ?? 0,
-    expectedMidi: partial.expectedMidi,
     expectedNoteLabel: "N",
     detectedMidi: missing ? 0 : (partial.detectedMidi ?? partial.expectedMidi),
     detectedNoteLabel: missing ? "—" : "N",

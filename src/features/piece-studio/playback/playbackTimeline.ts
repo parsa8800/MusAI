@@ -2,6 +2,18 @@ import type { MusaiScoreV1 } from "@/features/piece-studio/score/musaiScore";
 
 export const DEFAULT_PLAYBACK_BPM = 100;
 
+/** Practice range. Grave sits near 20; prestissimo and faster practice reach 320. */
+export const PIECE_TEMPO_MIN_BPM = 20;
+export const PIECE_TEMPO_MAX_BPM = 320;
+
+export function clampPieceTempoBpm(bpm: number): number {
+  if (!Number.isFinite(bpm)) return DEFAULT_PLAYBACK_BPM;
+  return Math.max(
+    PIECE_TEMPO_MIN_BPM,
+    Math.min(PIECE_TEMPO_MAX_BPM, Math.round(bpm)),
+  );
+}
+
 /**
  * Even sampler volume for Listen (and Hear this). Written dynamics stay on
  * the score for Practise assessment — they are not performed as loud/soft.

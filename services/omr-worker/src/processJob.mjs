@@ -7,7 +7,11 @@ import path from "node:path";
 import { runAudiverisExport } from "./audiveris.mjs";
 import { updateJob } from "./jobs.mjs";
 import { prepareSheetImageForOmr } from "./prepareSheetImage.mjs";
-import { rasterizePdfToPngs } from "./rasterize.mjs";
+import {
+  pdfMaxLongEdgePoints,
+  pdfPageIsPhotoScale,
+  rasterizePdfToPngs,
+} from "./rasterize.mjs";
 
 const USER_FAIL = "We couldn’t read the notes from this page.";
 const USER_NO_MUSIC = "We couldn’t find music on that page.";
@@ -31,7 +35,7 @@ export async function processRecognitionJob(opts) {
   const rasterDir = path.join(workDir, "raster");
   const outDir = path.join(workDir, "out");
 
-  updateJob(jobId, { status: "processing" });
+  updateJob(jobId, { status: "processing", progress: 8 });
 
   try {
     await mkdir(inputDir, { recursive: true });
@@ -49,8 +53,12 @@ export async function processRecognitionJob(opts) {
     let audiverisInputs = [inputPath];
 
     if (isPdf) {
+      updateJob(jobId, { progress: 16 });
       console.info(
         `[omr-worker] job ${jobId}: PDF_RASTERISE start dpi=${dpi}`,
+      );
+      const photoScale = pdfPageIsPhotoScale(
+        await pdfMaxLongEdgePoints(inputPath),
       );
       try {
         const pages = await rasterizePdfToPngs({
@@ -64,6 +72,13 @@ export async function processRecognitionJob(opts) {
           console.info(
             `[omr-worker] job ${jobId}: PDF_RASTERISE ok pages=1`,
           );
+        } else if (pages && pages.length > 1 && photoScale) {
+          // The original media box is a phone photo. Audiveris ignores that
+          // PDF ("Sheet ignored"). Page images stay in order and are merged.
+          audiverisInputs = pages;
+          console.info(
+            `[omr-worker] job ${jobId}: PDF_RASTERISE ok pages=${pages.length} — photo PDF, feeding page images`,
+          );
         } else if (pages && pages.length > 1) {
           // Separate PNGs become separate books; keep the PDF so Audiveris
           // builds one multi-sheet book with page order preserved.
@@ -71,12 +86,24 @@ export async function processRecognitionJob(opts) {
           console.info(
             `[omr-worker] job ${jobId}: PDF_RASTERISE ok pages=${pages.length} — feeding PDF as one book`,
           );
+        } else if (photoScale) {
+          throw new Error("PDF rasterise produced no page images");
         } else {
           console.info(
             `[omr-worker] job ${jobId}: PDF_RASTERISE skipped — feeding PDF to Audiveris`,
           );
         }
       } catch (err) {
+        const timedOut = /timed out/i.test(
+          err instanceof Error ? err.message : String(err),
+        );
+        if (photoScale || timedOut) {
+          console.warn(
+            `[omr-worker] job ${jobId}: PDF_RASTERISE failed, not sending the original PDF`,
+            err,
+          );
+          throw err;
+        }
         console.warn(
           `[omr-worker] job ${jobId}: PDF_RASTERISE failed, falling back to PDF`,
           err,
@@ -104,6 +131,7 @@ export async function processRecognitionJob(opts) {
       }
     }
 
+    updateJob(jobId, { progress: 38 });
     console.info(
       `[omr-worker] job ${jobId}: OMR start inputs=${audiverisInputs.length}`,
     );
@@ -123,6 +151,7 @@ export async function processRecognitionJob(opts) {
 
     updateJob(jobId, {
       status: "completed",
+      progress: 100,
       musicXml,
       error: undefined,
       internalError: undefined,

@@ -14,6 +14,7 @@ import { randomUUID } from "node:crypto";
  * @property {string} [musicXml]
  * @property {string} [error] User-facing message
  * @property {string} [internalError] Logged only
+ * @property {number} [progress] 0–100 while the score is being read
  * @property {number} createdAt
  * @property {number} updatedAt
  * @property {string} workDir
@@ -73,6 +74,7 @@ export function publicJobView(job) {
   return {
     id: job.id,
     status: job.status,
+    ...(typeof job.progress === "number" ? { progress: job.progress } : {}),
     ...(job.status === "completed" && job.musicXml
       ? { musicXml: job.musicXml }
       : {}),

@@ -38,6 +38,12 @@ describe("score presentation layout", () => {
     expect(preview).toBeLessThan(workspace);
   });
 
+  it("keeps a library snippet at the card zoom", () => {
+    expect(
+      pieceOsmdZoomForPresentation(420, 160, "continuous", "library-snippet"),
+    ).toBe(0.86);
+  });
+
   it("does not OSMD-zoom-boost workspace Continuous (display scale keeps one line)", () => {
     expect(
       continuousZoomBoost(

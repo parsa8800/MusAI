@@ -9,7 +9,7 @@ const baseProps = {
   durationSec: 4.8,
   bpm: 100,
   baseBpm: 100,
-  speedPreset: "normal" as const,
+  speedPreset: "written" as const,
   metronomeOn: false,
   loop: null,
   measureCount: 4,
@@ -64,17 +64,19 @@ describe("PieceListenControls", () => {
     expect(onPause).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Piano" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Violin" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "½" }));
+    fireEvent.click(screen.getByRole("button", { name: "Half tempo" }));
     fireEvent.click(screen.getByTestId("piece-listen-metronome"));
-    expect(onSpeedPreset).toHaveBeenCalledWith("slow");
+    expect(onSpeedPreset).toHaveBeenCalledWith("half");
     expect(onToggleMetronome).toHaveBeenCalled();
 
     const tempo = screen.getByRole("slider", { name: /Tempo/ });
+    expect(tempo).toHaveAttribute("min", "20");
+    expect(tempo).toHaveAttribute("max", "320");
     fireEvent.pointerDown(tempo);
-    fireEvent.change(tempo, { target: { value: "120" } });
+    fireEvent.change(tempo, { target: { value: "20" } });
     expect(onBpm).not.toHaveBeenCalled();
     fireEvent.pointerUp(tempo);
-    expect(onBpm).toHaveBeenCalledWith(120);
+    expect(onBpm).toHaveBeenCalledWith(20);
 
     fireEvent.click(screen.getByRole("button", { name: "Playback options" }));
     expect(screen.queryByTestId("piece-listen-options")).toBeNull();
@@ -98,5 +100,36 @@ describe("PieceListenControls", () => {
 
     fireEvent.pointerDown(document.body);
     expect(screen.queryByTestId("piece-listen-options")).toBeNull();
+  });
+
+  it("shows a click volume slider only while the metronome is on", () => {
+    const onClickLevel = vi.fn();
+    const onPreviewClick = vi.fn();
+    const { rerender } = render(
+      <PieceListenControls
+        {...baseProps}
+        onClickLevel={onClickLevel}
+        onPreviewClick={onPreviewClick}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Playback options" }));
+    expect(screen.queryByRole("slider", { name: /Click volume/ })).toBeNull();
+
+    rerender(
+      <PieceListenControls
+        {...baseProps}
+        metronomeOn
+        clickLevel={72}
+        onClickLevel={onClickLevel}
+        onPreviewClick={onPreviewClick}
+      />,
+    );
+    const volume = screen.getByRole("slider", { name: "Click volume 72" });
+    expect(volume).toHaveAttribute("min", "0");
+    expect(volume).toHaveAttribute("max", "100");
+    fireEvent.change(volume, { target: { value: "40" } });
+    expect(onClickLevel).toHaveBeenCalledWith(40);
+    fireEvent.pointerUp(volume);
+    expect(onPreviewClick).toHaveBeenCalled();
   });
 });

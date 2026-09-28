@@ -27,7 +27,7 @@ describe("ScalePracticeResultsPage", () => {
   it("renders a hydration-safe loading shell first", () => {
     readScalePracticeSessionMock.mockReturnValue(null);
     render(<ScalePracticeResultsPage />);
-    expect(screen.getByText(/Loading…/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Loading$/i)).toBeInTheDocument();
   });
 
   it("sends an empty session back to Scale studio", async () => {

@@ -12,6 +12,8 @@ export type RecognizeSheetPhase = "uploading" | "processing";
 
 export type RecognizeSheetMusicOptions = {
   onPhase?: (phase: RecognizeSheetPhase) => void;
+  /** 0–100 for the whole file → MusicXML conversion. Only moves forward. */
+  onProgress?: (percent: number) => void;
 };
 
 /**
@@ -24,6 +26,7 @@ export async function recognizeSheetMusic(
   options: RecognizeSheetMusicOptions = {},
 ): Promise<string> {
   options.onPhase?.("uploading");
+  options.onProgress?.(8);
   pieceImportLog("UPLOAD", "start", {
     where: "client→/api/piece-omr/jobs",
     fileName: file.name,
@@ -63,7 +66,8 @@ export async function recognizeSheetMusic(
       status: submitRes.status,
     });
     options.onPhase?.("processing");
-    return pollRecognitionJob(jobId);
+    options.onProgress?.(16);
+    return pollRecognitionJob(jobId, options.onProgress);
   }
 
   // Job API unavailable for this provider — try legacy sync recognize.
@@ -139,7 +143,10 @@ async function recognizeSheetMusicSync(file: File): Promise<string> {
   );
 }
 
-async function pollRecognitionJob(jobId: string): Promise<string> {
+async function pollRecognitionJob(
+  jobId: string,
+  onProgress?: (percent: number) => void,
+): Promise<string> {
   const deadline = Date.now() + OMR_JOB_DEFAULT_MAX_WAIT_MS;
   while (Date.now() < deadline) {
     let res: Response;
@@ -153,6 +160,7 @@ async function pollRecognitionJob(jobId: string): Promise<string> {
       status?: unknown;
       musicXml?: unknown;
       error?: unknown;
+      progress?: unknown;
     } = {};
     try {
       data = (await res.json()) as typeof data;
@@ -160,6 +168,9 @@ async function pollRecognitionJob(jobId: string): Promise<string> {
       data = {};
     }
     const status = typeof data.status === "string" ? data.status : "";
+    if (typeof data.progress === "number" && Number.isFinite(data.progress)) {
+      onProgress?.(Math.max(0, Math.min(100, data.progress)));
+    }
     pieceImportLog("OMR", "ok", {
       where: "client poll",
       jobId,

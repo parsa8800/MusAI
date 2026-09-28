@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   clefPointForLineSpacing,
+  keySignaturePointForStaff,
   keySignatureMiniAccidentalPoint,
   keySignatureMiniClefPoint,
   letterAndMidiToVexKey,
@@ -197,6 +198,18 @@ describe("clefPointForLineSpacing", () => {
   it("shrinks the clef for compact key-signature previews", () => {
     expect(clefPointForLineSpacing(5)).toBeLessThan(18);
     expect(clefPointForLineSpacing(4.85)).toBeLessThan(16);
+  });
+});
+
+describe("keySignaturePointForStaff", () => {
+  it("lifts the signature just above the noteheads it sits beside", () => {
+    expect(keySignaturePointForStaff(33)).toBeGreaterThan(30);
+    expect(keySignaturePointForStaff(33)).toBeLessThanOrEqual(36);
+    expect(keySignaturePointForStaff(38)).toBeGreaterThan(34);
+    expect(keySignaturePointForStaff(38)).toBeLessThan(40);
+    expect(keySignaturePointForStaff(42)).toBeGreaterThan(
+      keySignaturePointForStaff(38),
+    );
   });
 });
 

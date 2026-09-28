@@ -3,7 +3,10 @@ import { parseMusicXmlToScore } from "@/features/piece-studio/score/parseMusicXm
 import { TWINKLE_XML } from "@/features/piece-studio/score/musicXmlFixtures";
 import {
   buildPlaybackTimeline,
+  clampPieceTempoBpm,
   clampPlaybackTime,
+  PIECE_TEMPO_MAX_BPM,
+  PIECE_TEMPO_MIN_BPM,
   formatPieceClock,
   LISTEN_PLAYBACK_VELOCITY,
   loopBoundsSec,
@@ -12,6 +15,17 @@ import {
   secondsAtQuarter,
   snapToMeasureStart,
 } from "@/features/piece-studio/playback/playbackTimeline";
+
+describe("clampPieceTempoBpm", () => {
+  it("keeps slow and fast practice tempos inside a wide range", () => {
+    expect(PIECE_TEMPO_MIN_BPM).toBe(20);
+    expect(PIECE_TEMPO_MAX_BPM).toBe(320);
+    expect(clampPieceTempoBpm(40)).toBe(40);
+    expect(clampPieceTempoBpm(12)).toBe(20);
+    expect(clampPieceTempoBpm(400)).toBe(320);
+    expect(clampPieceTempoBpm(72.4)).toBe(72);
+  });
+});
 
 describe("buildPlaybackTimeline", () => {
   it("times Twinkle notes from score tempo, not a CSS duration", () => {

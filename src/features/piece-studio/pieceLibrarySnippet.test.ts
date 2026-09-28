@@ -148,4 +148,77 @@ describe("cropSvgToFirstSystem", () => {
     expect(svg.querySelector("text")).toBeNull();
     expect(svg.querySelector("path")).toBeTruthy();
   });
+
+  it("does not let a beam stretch the opening across the rest of the line", () => {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 800 200");
+    svg.innerHTML = [40, 50, 60, 70, 80]
+      .map((y) => `<path d="M30 ${y} L700 ${y}"/>`)
+      .join("");
+    const beam = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    beam.setAttribute("class", "vf-beam");
+    svg.appendChild(beam);
+    const rect = (left: number, top: number, width: number, height: number) =>
+      ({
+        left,
+        top,
+        width,
+        height,
+        right: left + width,
+        bottom: top + height,
+        x: left,
+        y: top,
+        toJSON() {
+          return {};
+        },
+      }) as DOMRect;
+    svg.getBoundingClientRect = () => rect(0, 0, 800, 200);
+    beam.getBoundingClientRect = () => rect(40, 28, 520, 18);
+    expect(cropSvgToFirstSystem(svg)).toBe(true);
+    const box = svg.getAttribute("viewBox")?.split(/\s+/).map(Number) ?? [];
+    expect((box[0] ?? 0) + (box[2] ?? 0)).toBeLessThan(360);
+  });
+
+  it("keeps only the opening when the first line is crowded with noteheads", () => {
+    const widthFor = (count: number, step: number) => {
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("viewBox", "0 0 800 200");
+      svg.innerHTML = [40, 50, 60, 70, 80]
+        .map((y) => `<path d="M30 ${y} L700 ${y}"/>`)
+        .join("");
+      const notes: SVGElement[] = [];
+      for (let i = 0; i < count; i += 1) {
+        const note = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        note.setAttribute("class", "vf-stavenote");
+        svg.appendChild(note);
+        notes.push(note);
+      }
+      const rect = (left: number, top: number, width: number, height: number) =>
+        ({
+          left,
+          top,
+          width,
+          height,
+          right: left + width,
+          bottom: top + height,
+          x: left,
+          y: top,
+          toJSON() {
+            return {};
+          },
+        }) as DOMRect;
+      svg.getBoundingClientRect = () => rect(0, 0, 800, 200);
+      notes.forEach((note, i) => {
+        note.getBoundingClientRect = () => rect(70 + i * step, 52, 8, 8);
+      });
+      expect(cropSvgToFirstSystem(svg)).toBe(true);
+      const box = svg.getAttribute("viewBox")?.split(/\s+/).map(Number) ?? [];
+      return box[2] ?? 0;
+    };
+
+    const crowded = widthFor(20, 12);
+    const sparse = widthFor(4, 40);
+    expect(crowded).toBeLessThan(230);
+    expect(sparse).toBeGreaterThan(280);
+  });
 });

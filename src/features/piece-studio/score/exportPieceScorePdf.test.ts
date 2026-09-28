@@ -210,7 +210,7 @@ describe("exportPieceScorePdf", () => {
     const result = await openPieceScorePdf({ title: "Twinkle" });
     expect(result).toEqual({ ok: true, mode: "view" });
     expect(open).toHaveBeenCalled();
-    const openedUrl = String(open.mock.calls[0]?.[0] ?? "");
+    const openedUrl = String((open.mock.calls as unknown[][])[0]?.[0] ?? "");
     expect(openedUrl).toMatch(/^blob:/);
     expect(print).not.toHaveBeenCalled();
   });

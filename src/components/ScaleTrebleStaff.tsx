@@ -23,6 +23,7 @@ import { SCALE_IN_TUNE_CENTS } from "@/lib/analyzeScalePerformance";
 import {
   buildMidiToVexKeyMap,
   clefPointForLineSpacing,
+  keySignaturePointForStaff,
   STAVE_HEADROOM_SPACES,
   STAVE_LINE_SPACING_PX,
   staveCanvasMetrics,
@@ -195,6 +196,22 @@ function drawSystem(
     const sized = mod as { setFontSize?: (size: number | string) => unknown };
     sized.setFontSize?.(clefPoint);
   }
+  const keySigPoint = keySignaturePointForStaff(noteHeadFontSize);
+  const metricsDefaultsKs = (
+    VF as {
+      MetricsDefaults?: { KeySignature?: { fontSize?: number } };
+    }
+  ).MetricsDefaults;
+  const hadKeySig = metricsDefaultsKs
+    ? Object.prototype.hasOwnProperty.call(metricsDefaultsKs, "KeySignature")
+    : false;
+  const prevKeySig = metricsDefaultsKs?.KeySignature
+    ? { ...metricsDefaultsKs.KeySignature }
+    : undefined;
+  if (metricsDefaultsKs) {
+    metricsDefaultsKs.KeySignature = { fontSize: keySigPoint };
+    vfMetrics?.clear?.("KeySignature");
+  }
   stave.addKeySignature(keySig);
   if (options.endBarSingle) {
     stave.setEndBarType(endBar);
@@ -205,6 +222,18 @@ function drawSystem(
     if (el instanceof SVGElement) {
       el.setAttribute("font-size", `${clefPoint}pt`);
     }
+  }
+  for (const el of host.querySelectorAll(
+    ".vf-keysignature text, g.vf-keysignature text",
+  )) {
+    if (el instanceof SVGElement) {
+      el.setAttribute("font-size", `${keySigPoint}pt`);
+    }
+  }
+  if (metricsDefaultsKs) {
+    if (!hadKeySig) delete metricsDefaultsKs.KeySignature;
+    else if (prevKeySig) metricsDefaultsKs.KeySignature = prevKeySig;
+    vfMetrics?.clear?.("KeySignature");
   }
 
   // Stems + noteheads share ink — never use staff-line grey for stems.

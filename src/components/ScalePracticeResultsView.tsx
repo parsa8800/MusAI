@@ -16,9 +16,10 @@ import {
   ScaleAttemptProgressStrip,
   ScaleProgressReadyBar,
 } from "@/components/ScaleAttemptProgressStrip";
+import { CoachChatPanel } from "@/components/CoachChatPanel";
 import { ScaleInlineFeedback } from "@/components/ScaleInlineFeedback";
 import { ScalePitchCueKey } from "@/components/ScalePitchCueKey";
-import { DraftNotesFrame, DraftTipsFrame } from "@/components/ScaleStudioHomeDraft";
+import { DraftNotesFrame } from "@/components/ScaleStudioHomeDraft";
 import { ScaleTakeHistoryStrip } from "@/components/ScaleTakeHistoryStrip";
 import {
   ScaleFingeringToggle,
@@ -456,7 +457,28 @@ export function ScalePracticeResultsView({
                       </p>
                     </div>
                   ) : (
-                    <DraftTipsFrame className="musai-glass-panel h-full min-h-0" />
+                    <div className="flex h-full min-h-0 w-full flex-1 flex-col">
+                      <CoachChatPanel
+                        embed
+                        start
+                        title="Coach · Parsa"
+                        trendLine=""
+                        tip=""
+                        source="template"
+                        preview={{
+                          scaleLabel:
+                            readyStaff && readyStaff !== "draft"
+                              ? readyTitle
+                              : undefined,
+                          scaleKind:
+                            readyStaff && readyStaff !== "draft"
+                              ? readyStaff.scaleKind
+                              : undefined,
+                          octaveLabel: readyCaption || undefined,
+                          instrumentId: instrument.id,
+                        }}
+                      />
+                    </div>
                   )}
                 </aside>
               ) : null}

@@ -9,6 +9,7 @@ import {
   mergePartwiseScores,
   movementIndex,
   normalizeDivisions,
+  pageFileIndex,
   pickOrMergeExportedScores,
   prepareMergedScoreForEngraving,
 } from "./mergePartwiseMusicXml.mjs";
@@ -170,6 +171,22 @@ test("prepareMergedScoreForEngraving drops unmatched octave-shift", () => {
 </score-partwise>`;
   const out = prepareMergedScoreForEngraving(withOctave);
   assert.ok(!/<octave-shift/i.test(out));
+});
+
+test("pickOrMergeExportedScores joins photo-PDF pages in order", () => {
+  const merged = pickOrMergeExportedScores([
+    { name: "page-2.mxl", text: tinyScore("P1", [3]) },
+    { name: "page-10.mxl", text: tinyScore("P1", [4]) },
+    { name: "page-1.mxl", text: tinyScore("P1", [1, 2]) },
+  ]);
+  assert.equal(pageFileIndex("raster/page-10.mxl"), 10);
+  assert.equal(pageFileIndex("twinkle.mxl"), null);
+  assert.match(merged, /<measure number="1"/);
+  assert.match(merged, /<measure number="4"/);
+  const numbers = [...merged.matchAll(/<measure number="(\d+)"/g)].map((m) =>
+    Number(m[1]),
+  );
+  assert.deepEqual(numbers, [1, 2, 3, 4]);
 });
 
 test("pickOrMergeExportedScores prepares a single unbroken export for OSMD", () => {

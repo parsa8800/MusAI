@@ -17,6 +17,8 @@ export type OmrJobSnapshot = {
   musicXml?: string;
   /** User-facing message when status === "failed". */
   error?: string;
+  /** 0–100 while a score file is being turned into MusicXML. */
+  progress?: number;
 };
 
 export type OmrJobSubmitResult = {

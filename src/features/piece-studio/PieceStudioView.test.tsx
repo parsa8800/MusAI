@@ -216,13 +216,10 @@ describe("PieceStudioView", () => {
     );
     fireEvent.click(screen.getByTestId("piece-remove-menu-item"));
     expect(screen.getByTestId("piece-remove-dialog")).toBeInTheDocument();
-    expect(screen.getByRole("dialog")).toHaveTextContent("Remove this piece?");
     expect(screen.getByRole("dialog")).toHaveTextContent("Canon in D");
-    expect(
-      screen.getByText(/removes the piece and the practice saved with it/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Saved practice goes with it.")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.click(screen.getByRole("button", { name: "Keep" }));
     expect(screen.queryByTestId("piece-remove-dialog")).not.toBeInTheDocument();
     expect(screen.getByText("Canon in D")).toBeInTheDocument();
 

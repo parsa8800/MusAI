@@ -245,6 +245,25 @@ export function clefPointForLineSpacing(
   return Math.round(Math.max(12, fromSpacing, fromHeads));
 }
 
+/** VexFlow's default key-signature glyph size. */
+export const VEX_DEFAULT_KEY_SIGNATURE_POINT = 30;
+/** Notehead size that 30pt signature was drawn to sit beside. */
+const VEX_SIGNATURE_NOTEHEAD_POINT = 33;
+
+/**
+ * Scale-staff key signature. The glyphs stay at 30pt unless told otherwise,
+ * while these noteheads are larger, so the signature looks light. Match the
+ * notes, then a small step so sharps and flats sit with the rest of the line.
+ */
+export function keySignaturePointForStaff(noteHeadFontSize: number): number {
+  const matched =
+    noteHeadFontSize *
+    (VEX_DEFAULT_KEY_SIGNATURE_POINT / VEX_SIGNATURE_NOTEHEAD_POINT);
+  return Math.round(
+    Math.max(VEX_DEFAULT_KEY_SIGNATURE_POINT, matched * 1.06),
+  );
+}
+
 /**
  * Key-list chip clef — sized to fill the five-line staff (≈ engraving
  * 3× spacing), not the undersized 2.15× that left C-/G-clefs looking tiny.

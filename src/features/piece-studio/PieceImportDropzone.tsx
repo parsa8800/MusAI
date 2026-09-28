@@ -1,7 +1,8 @@
 "use client";
 
-import type { RefObject } from "react";
+import { useEffect, useState, type RefObject } from "react";
 import { MusaiFileImport } from "@/components/MusaiFileImport";
+import { PiecePageScan } from "@/features/piece-studio/PiecePageScan";
 import {
   PIECE_STUDIO_UPLOAD_ACCEPT,
   PIECE_UPLOAD_MAX_BYTES,
@@ -32,6 +33,13 @@ export function PieceImportDropzone({
   /** Smaller target once the library already has pieces. */
   compact?: boolean;
 }) {
+  const [cameraOn, setCameraOn] = useState(false);
+  const [canScan, setCanScan] = useState(false);
+
+  useEffect(() => {
+    setCanScan(typeof navigator !== "undefined" && Boolean(navigator.mediaDevices?.getUserMedia));
+  }, []);
+
   return (
     <>
       <MusaiFileImport
@@ -59,6 +67,31 @@ export function PieceImportDropzone({
         }}
         motif={<DropzoneStaffMotif />}
       />
+      {canScan && !busy && !disabled ? (
+        <button
+          type="button"
+          className="musai-page-scan-open"
+          onClick={() => setCameraOn(true)}
+        >
+          Take a photo
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path
+              d="M3.2 5.2h2l.7-1.2h3.2l.7 1.2h2.8v6.6H3.2V5.2Z"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.3"
+              strokeLinejoin="round"
+            />
+            <circle cx="8" cy="8.2" r="1.7" fill="none" stroke="currentColor" strokeWidth="1.3" />
+          </svg>
+        </button>
+      ) : null}
+      {cameraOn ? (
+        <PiecePageScan
+          onClose={() => setCameraOn(false)}
+          onCapture={(file) => onFile(file)}
+        />
+      ) : null}
       <span className="sr-only">{OMR_COPY.dropFormats}</span>
     </>
   );

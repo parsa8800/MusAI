@@ -17,6 +17,7 @@ import {
   writeCoachMessages,
   type CoachMemoryMessage,
 } from "@/lib/coachThreadMemory";
+import { formatCoachReadability } from "@/lib/coachReadability";
 import { tapFeedback } from "@/lib/motion";
 
 function usePrefersReducedMotion(): boolean {
@@ -116,16 +117,13 @@ export function coachBubbleSize(
 
 function UserBubble({ text, compact }: { text: string; compact?: boolean }) {
   return (
-    <div className="flex justify-end">
-      <div
-        className={`max-w-[90%] rounded-[1.15rem] bg-[var(--musai-surface-2)] text-[var(--musai-ink)] ${
-          compact
-            ? "px-3 py-2 text-[14.5px] leading-6"
-            : "px-3.5 py-2.5 text-[15px] leading-6 sm:max-w-[70%]"
-        }`}
-      >
-        {text}
-      </div>
+    <div
+      className={`musai-coach-turn musai-coach-turn--you${
+        compact ? " musai-coach-turn--compact" : ""
+      }`}
+    >
+      <p className="musai-coach-turn__who">You</p>
+      <div className="musai-coach-turn__bubble">{text}</div>
     </div>
   );
 }
@@ -237,6 +235,41 @@ function PreviewCoachDot() {
   );
 }
 
+type CoachMessageRow =
+  | {
+      type: "line";
+      kind: "lead" | "practise" | "next" | "aside" | "point" | "body";
+      body: string;
+    }
+  | { type: "list"; variant: "dots" | "steps"; items: string[] };
+
+function coachMessageRows(display: string): CoachMessageRow[] {
+  const lines = display.split("\n").filter(Boolean);
+  const rows: CoachMessageRow[] = [];
+  for (const line of lines) {
+    const bullet = /^•\s*(.*)$/.exec(line);
+    const step = /^\d+\.\s*(.*)$/.exec(line);
+    if (bullet) {
+      const last = rows[rows.length - 1];
+      if (last?.type === "list" && last.variant === "dots") last.items.push(bullet[1]);
+      else rows.push({ type: "list", variant: "dots", items: [bullet[1]] });
+      continue;
+    }
+    if (step) {
+      const last = rows[rows.length - 1];
+      if (last?.type === "list" && last.variant === "steps") last.items.push(step[1]);
+      else rows.push({ type: "list", variant: "steps", items: [step[1]] });
+      continue;
+    }
+    rows.push({
+      type: "line",
+      kind: coachMessageLineKind(line),
+      body: line.replace(/^•\s*/, ""),
+    });
+  }
+  return rows;
+}
+
 function coachMessageLineKind(line: string): "lead" | "practise" | "next" | "aside" | "point" | "body" {
   const trimmed = line.replace(/^•\s*/, "").trim();
   if (/^start here:/i.test(trimmed)) return "lead";
@@ -261,10 +294,11 @@ function AssistantTurn({
   onStreamDone?: () => void;
 }) {
   const reduce = usePrefersReducedMotion();
+  const readable = formatCoachReadability(text);
   const [phase, setPhase] = useState<"thinking" | "typing" | "done">(
     showThinking && !reduce ? "thinking" : stream && !reduce ? "typing" : "done",
   );
-  const shown = useTypedText(text, phase === "typing" || phase === "done");
+  const shown = useTypedText(readable, phase === "typing" || phase === "done");
   const doneRef = useRef(false);
 
   useEffect(() => {
@@ -275,10 +309,10 @@ function AssistantTurn({
 
   useEffect(() => {
     if (phase !== "typing") return;
-    if (reduce || shown.length >= text.length) {
+    if (reduce || shown.length >= readable.length) {
       setPhase("done");
     }
-  }, [phase, shown, text, reduce]);
+  }, [phase, shown, readable, reduce]);
 
   useEffect(() => {
     if (phase !== "done" || doneRef.current) return;
@@ -286,31 +320,51 @@ function AssistantTurn({
     onStreamDone?.();
   }, [phase, onStreamDone]);
 
-  const typing = phase === "typing" && shown.length < text.length && !reduce;
-  const display = reduce || phase === "done" ? text : shown;
-  const lines = display.split("\n").filter(Boolean);
+  const typing = phase === "typing" && shown.length < readable.length && !reduce;
+  const display = reduce || phase === "done" ? readable : shown;
+  const rows = coachMessageRows(display);
 
   return (
-    <div className="min-w-0">
+    <div className="musai-coach-turn musai-coach-turn--coach">
+      <p className="musai-coach-turn__who">Coach</p>
       {phase === "thinking" ? (
         <ThinkingIndicator />
       ) : (
-        <div className="musai-coach-msg">
-          {lines.map((line, i) => {
-            const body = line.replace(/^•\s*/, "");
-            const isLast = i === lines.length - 1;
-            const kind = coachMessageLineKind(line);
-            return (
-              <p
-                key={`${i}-${body.slice(0, 12)}`}
-                className={`musai-coach-msg__line musai-coach-msg__line--${kind}`}
-                data-coach-line={kind}
-              >
-                {body}
-                {typing && isLast ? <StreamingCaret /> : null}
-              </p>
-            );
-          })}
+        <div className="musai-coach-turn__bubble">
+          <div className="musai-coach-msg">
+            {rows.map((row, i) => {
+              const isLast = i === rows.length - 1;
+              if (row.type === "list") {
+                const ListTag = row.variant === "steps" ? "ol" : "ul";
+                return (
+                  <ListTag
+                    key={`${row.variant}-${i}`}
+                    className={`musai-coach-msg__list musai-coach-msg__list--${row.variant}`}
+                  >
+                    {row.items.map((item, itemIndex) => {
+                      const lastItem = isLast && itemIndex === row.items.length - 1;
+                      return (
+                        <li key={`${itemIndex}-${item.slice(0, 12)}`}>
+                          {item}
+                          {typing && lastItem ? <StreamingCaret /> : null}
+                        </li>
+                      );
+                    })}
+                  </ListTag>
+                );
+              }
+              return (
+                <p
+                  key={`${i}-${row.body.slice(0, 12)}`}
+                  className={`musai-coach-msg__line musai-coach-msg__line--${row.kind}`}
+                  data-coach-line={row.kind}
+                >
+                  {row.body}
+                  {typing && isLast ? <StreamingCaret /> : null}
+                </p>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
@@ -739,19 +793,24 @@ export function CoachParsaChat({
           );
         })}
 
-        {awaitingReply ? <ThinkingIndicator /> : null}
-
-        {showSuggestions ? (
-          <PromptChips
-            questions={visibleSuggestions}
-            disabled={!bootDone || busy}
-            onPick={(q) => void sendUserMessage(q)}
-            pad={embed ? "embed" : "page"}
-          />
+        {awaitingReply ? (
+          <div className="musai-coach-turn musai-coach-turn--coach">
+            <p className="musai-coach-turn__who">Coach</p>
+            <ThinkingIndicator />
+          </div>
         ) : null}
 
         <div ref={bottomRef} />
       </div>
+
+      {showSuggestions ? (
+        <PromptChips
+          questions={visibleSuggestions}
+          disabled={!bootDone || busy}
+          onPick={(q) => void sendUserMessage(q)}
+          pad={embed ? "embed" : "page"}
+        />
+      ) : null}
 
       <form
         id={formId}
