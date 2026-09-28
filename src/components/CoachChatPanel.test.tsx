@@ -105,6 +105,10 @@ describe("CoachChatPanel", () => {
     expect(
       screen.getByText(/Trending sharp/i).closest(".musai-coach-msg"),
     ).toBeTruthy();
+    expect(
+      screen.getByText(/Trending sharp/i).closest(".musai-coach-turn--coach"),
+    ).toBeTruthy();
+    expect(screen.getAllByText("Coach").length).toBeGreaterThan(0);
     expect(screen.getByTestId("coach-chat")).toHaveAttribute(
       "data-coach-size",
       "seed",
@@ -155,6 +159,10 @@ describe("CoachChatPanel", () => {
     });
 
     expect(screen.getByText(/that well/i)).toBeInTheDocument();
+    expect(screen.getByText("You")).toBeInTheDocument();
+    expect(
+      screen.getByText("how do I fill the bar").closest(".musai-coach-turn--you"),
+    ).toBeTruthy();
   });
 
   it("picks a bigger bubble as the thread grows", () => {

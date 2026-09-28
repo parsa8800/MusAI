@@ -193,20 +193,92 @@ function dynamicMark(directionEl: Element): string | null {
   return mark ? mark.toLowerCase() : null;
 }
 
-function tempoFrom(el: Element): number | null {
-  const fromSelf = el.tagName === "sound" ? el.getAttribute("tempo") : null;
-  const sound = el.querySelector("sound[tempo]");
-  const fromSound = fromSelf ?? sound?.getAttribute("tempo");
-  if (fromSound) {
-    const n = Number.parseFloat(fromSound);
-    if (Number.isFinite(n)) return Math.round(n);
+/** Quarters in one beat, so an eighth-note mark becomes quarter-note bpm. */
+const BEAT_IN_QUARTERS: Record<string, number> = {
+  whole: 4,
+  half: 2,
+  quarter: 1,
+  eighth: 0.5,
+  "16th": 0.25,
+  "32nd": 0.125,
+};
+
+/**
+ * Italian marks, longest first. Used only when the page has no number.
+ * Midpoints of the usual ranges, in quarter notes per minute.
+ */
+const TEMPO_WORDS: ReadonlyArray<readonly [RegExp, number]> = [
+  [/\bprestissimo\b/i, 200],
+  [/\bpresto\b/i, 176],
+  [/\bvivace\b/i, 152],
+  [/\ballegro\s+assai\b/i, 144],
+  [/\ballegro\s+molto\b/i, 138],
+  [/\ballegretto\b/i, 108],
+  [/\ballegro\b/i, 120],
+  [/\bmoderato\b/i, 96],
+  [/\bandantino\b/i, 84],
+  [/\bandante\b/i, 76],
+  [/\badagietto\b/i, 70],
+  [/\badagio\b/i, 66],
+  [/\blarghetto\b/i, 60],
+  [/\blento\b/i, 52],
+  [/\blargo\b/i, 46],
+  [/\bgrave\b/i, 36],
+];
+
+function beatQuarters(unit: string, dots: number): number {
+  const base = BEAT_IN_QUARTERS[unit] ?? 1;
+  let factor = base;
+  let extra = base / 2;
+  for (let i = 0; i < dots; i++) {
+    factor += extra;
+    extra /= 2;
   }
-  const perMinute = text(el.querySelector("per-minute"));
-  if (perMinute) {
-    const n = Number.parseFloat(perMinute);
-    if (Number.isFinite(n)) return Math.round(n);
+  return factor;
+}
+
+/** Metronome mark → quarter-note bpm. An eighth = 120 is 60. */
+function metronomeQuarterBpm(el: Element): number | null {
+  const metro = el.tagName === "metronome" ? el : el.querySelector("metronome");
+  if (!metro) return null;
+  const raw = text(metro.querySelector("per-minute"));
+  const perMinute = Number.parseFloat(raw);
+  if (!Number.isFinite(perMinute) || perMinute <= 0) return null;
+  const unit = (text(metro.querySelector("beat-unit")) || "quarter").toLowerCase();
+  const dots = metro.querySelectorAll("beat-unit-dot").length;
+  return Math.round(perMinute * beatQuarters(unit, dots));
+}
+
+function soundTempoBpm(el: Element): number | null {
+  const fromSelf = el.tagName === "sound" ? el.getAttribute("tempo") : null;
+  const fromSound = fromSelf ?? el.querySelector("sound[tempo]")?.getAttribute("tempo");
+  if (!fromSound) return null;
+  const n = Number.parseFloat(fromSound);
+  return Number.isFinite(n) && n > 0 ? Math.round(n) : null;
+}
+
+function wordsTempoBpm(el: Element): number | null {
+  const chunks = [...el.querySelectorAll("words")].map((node) => text(node));
+  if (el.tagName === "words") chunks.unshift(text(el));
+  const raw = chunks.filter(Boolean).join(" ");
+  if (!raw) return null;
+  const numbered = raw.match(/=\s*(\d{2,3})\b/);
+  if (numbered) {
+    const n = Number.parseInt(numbered[1] ?? "", 10);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  for (const [pattern, bpm] of TEMPO_WORDS) {
+    if (pattern.test(raw)) return bpm;
   }
   return null;
+}
+
+/**
+ * Written tempo in quarter notes per minute.
+ * A printed metronome mark wins, then a sound tempo, then a word such as Adagio.
+ */
+function tempoFrom(el: Element): number | null {
+  return metronomeQuarterBpm(el) ?? soundTempoBpm(el) ?? wordsTempoBpm(el);
 }
 
 function parseMeasure(

@@ -39,7 +39,7 @@ export function PracticeHubBackLink({
   onClick,
 }: Props) {
   return (
-    <div className={`mb-5 w-fit max-w-full sm:mb-6 ${className}`.trim()}>
+    <div className={`musai-hub-back-wrap mb-5 w-fit max-w-full sm:mb-6 ${className}`.trim()}>
       <Link
         href={href}
         onClick={onClick}

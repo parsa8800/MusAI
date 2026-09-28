@@ -50,6 +50,12 @@ export function useAnimeEntrance<T extends HTMLElement>(
     }
 
     const handles: AnimeHandle[] = [];
+    const releaseTransform = () => {
+      for (const el of targets) {
+        el.style.transform = "";
+        el.style.opacity = "";
+      }
+    };
 
     if (targets.length === 1) {
       handles.push(
@@ -74,7 +80,12 @@ export function useAnimeEntrance<T extends HTMLElement>(
       handles.push(tl as unknown as AnimeHandle);
     }
 
+    const settleMs =
+      delay + MUSAI_DUR.enter + Math.max(0, targets.length - 1) * 42 + 48;
+    const settle = window.setTimeout(releaseTransform, settleMs);
+
     return () => {
+      window.clearTimeout(settle);
       for (const h of handles) {
         try {
           h.pause();

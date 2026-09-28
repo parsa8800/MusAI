@@ -795,6 +795,7 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
           baseBpm={playback.baseBpm}
           speedPreset={playback.speedPreset}
           metronomeOn={playback.metronomeOn}
+          clickLevel={playback.clickLevel}
           loop={playback.loop}
           measureCount={playback.measureCount}
           unavailable={listenUnavailable(
@@ -811,6 +812,10 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
           onBpm={playback.setBpm}
           onSpeedPreset={playback.setSpeedPreset}
           onToggleMetronome={playback.toggleMetronome}
+          onClickLevel={playback.setClickLevel}
+          onPreviewClick={() => {
+            void playback.previewClick();
+          }}
           onLoopPress={onLoopPress}
           loopPick={loopPick}
         />

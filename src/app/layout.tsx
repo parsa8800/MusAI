@@ -9,6 +9,7 @@ import {
   THEME_BOOT_SCRIPT,
 } from "@/components/ThemeProvider";
 import "./globals.css";
+import "./device.css";
 
 const fraunces = Fraunces({
   variable: "--font-fraunces",
@@ -33,6 +34,25 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+/**
+ * iPhone and iPad only. A Mac browser stays unmarked, so these layouts
+ * never apply on the desktop site. iPadOS reports a Mac user agent, but
+ * it is the only Mac-platform browser with a real touch screen.
+ */
+const DEVICE_BOOT_SCRIPT = `(() => {
+  try {
+    var ua = navigator.userAgent || "";
+    var phone = /iPhone|iPod/.test(ua);
+    var tablet =
+      /iPad/.test(ua) ||
+      (!phone && navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    if (!phone && !tablet) return;
+    var shortSide = Math.min(screen.width, screen.height);
+    document.documentElement.dataset.musaiDevice =
+      phone || shortSide < 520 ? "phone" : "tablet";
+  } catch (_) {}
+})();`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -49,6 +69,11 @@ export default function RootLayout({
           id="musai-theme-boot"
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }}
+        />
+        <Script
+          id="musai-device-boot"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: DEVICE_BOOT_SCRIPT }}
         />
         <ThemeProvider>
           <InstrumentProvider>

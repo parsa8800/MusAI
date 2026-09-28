@@ -12,6 +12,11 @@ import {
   coachSuggestedQuestions,
 } from "@/lib/scaleCoachChat";
 import {
+  guideSuggestedQuestions,
+  localSiteGuideReply,
+  type ScaleCoachPreview,
+} from "@/lib/musaiSiteGuide";
+import {
   ensureBulletFeedback,
   sanitizeCoachFeedback,
   takeCoachBullets,
@@ -26,7 +31,10 @@ type Props = {
   trendLine: string;
   tip: string;
   source: "template" | "llm";
-  session: ScalePracticeSessionV1;
+  /** Absent before the first take. The chat still answers. */
+  session?: ScalePracticeSessionV1 | null;
+  /** Scale on the staff when they have not recorded yet. */
+  preview?: ScaleCoachPreview;
   /** Kept for API compatibility; never shown in the UI. */
   initialError?: string | null;
   /** Embed beside the staff on results (fills column, no top rule). */
@@ -45,7 +53,8 @@ export function CoachChatPanel({
   trendLine,
   tip,
   source: initialSource,
-  session,
+  session = null,
+  preview,
   initialError = null,
   embed = false,
   title = "Coach · Parsa",
@@ -56,9 +65,11 @@ export function CoachChatPanel({
     [trendLine, tip].filter(Boolean).join("\n"),
     2,
   );
-  const suggestions = coachSuggestedQuestions(
-    buildScaleCoachChatContext(session, tip, trendLine, loopAttempts),
-  );
+  const suggestions = session
+    ? coachSuggestedQuestions(
+        buildScaleCoachChatContext(session, tip, trendLine, loopAttempts),
+      )
+    : guideSuggestedQuestions();
 
   return (
     <CoachParsaShell
@@ -70,13 +81,15 @@ export function CoachChatPanel({
       suggestions={suggestions}
       sanitizeUserText={sanitizeCoachFeedback}
       getReply={async (userText, history) => {
-        const ctx = buildScaleCoachChatContext(
-          session,
-          tip,
-          trendLine,
-          loopAttempts,
-        );
-        let answer = localCoachChatReply(userText, ctx);
+        const ctx = session
+          ? buildScaleCoachChatContext(session, tip, trendLine, loopAttempts)
+          : null;
+        let answer = ctx
+          ? localCoachChatReply(userText, ctx)
+          : (localSiteGuideReply(userText, preview) ??
+            ensureBulletFeedback(
+              "Ask me how to record, or about Tuner, Scale studio, or Piece studio",
+            ));
         let replySource: CoachReplySource = "template";
 
         try {
@@ -84,7 +97,8 @@ export function CoachChatPanel({
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              session,
+              session: session ?? undefined,
+              preview,
               tip,
               trendLine,
               loopAttempts,

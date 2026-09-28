@@ -83,6 +83,14 @@ export function pickOrMergeExportedScores(exports) {
     return prepareMergedScoreForEngraving(withMvt[0].text);
   }
 
+  const withPage = valid
+    .map((e) => ({ ...e, page: pageFileIndex(e.name) }))
+    .filter((e) => e.page != null);
+  if (withPage.length > 1 && withPage.length === valid.length) {
+    withPage.sort((a, b) => a.page - b.page || a.name.localeCompare(b.name));
+    return mergePartwiseScores(withPage.map((e) => e.text));
+  }
+
   // Single unbroken export (or several non-mvt files — take the richest).
   valid.sort(
     (a, b) =>
@@ -93,6 +101,14 @@ export function pickOrMergeExportedScores(exports) {
 
 export function movementIndex(fileName) {
   const match = String(fileName || "").match(/\.mvt(\d+)\b/i);
+  if (!match) return null;
+  return Number(match[1]);
+}
+
+/** Raster page images are named page-1.png → page-1.mxl. */
+export function pageFileIndex(fileName) {
+  const base = String(fileName || "").split("/").pop() || "";
+  const match = base.match(/^page-(\d+)\b/i);
   if (!match) return null;
   return Number(match[1]);
 }

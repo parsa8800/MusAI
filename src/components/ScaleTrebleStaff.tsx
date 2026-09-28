@@ -23,6 +23,7 @@ import { SCALE_IN_TUNE_CENTS } from "@/lib/analyzeScalePerformance";
 import {
   buildMidiToVexKeyMap,
   clefPointForLineSpacing,
+  keySignaturePointForStaff,
   STAVE_HEADROOM_SPACES,
   STAVE_LINE_SPACING_PX,
   staveCanvasMetrics,
@@ -195,6 +196,22 @@ function drawSystem(
     const sized = mod as { setFontSize?: (size: number | string) => unknown };
     sized.setFontSize?.(clefPoint);
   }
+  const keySigPoint = keySignaturePointForStaff(noteHeadFontSize);
+  const metricsDefaultsKs = (
+    VF as {
+      MetricsDefaults?: { KeySignature?: { fontSize?: number } };
+    }
+  ).MetricsDefaults;
+  const hadKeySig = metricsDefaultsKs
+    ? Object.prototype.hasOwnProperty.call(metricsDefaultsKs, "KeySignature")
+    : false;
+  const prevKeySig = metricsDefaultsKs?.KeySignature
+    ? { ...metricsDefaultsKs.KeySignature }
+    : undefined;
+  if (metricsDefaultsKs) {
+    metricsDefaultsKs.KeySignature = { fontSize: keySigPoint };
+    vfMetrics?.clear?.("KeySignature");
+  }
   stave.addKeySignature(keySig);
   if (options.endBarSingle) {
     stave.setEndBarType(endBar);
@@ -205,6 +222,18 @@ function drawSystem(
     if (el instanceof SVGElement) {
       el.setAttribute("font-size", `${clefPoint}pt`);
     }
+  }
+  for (const el of host.querySelectorAll(
+    ".vf-keysignature text, g.vf-keysignature text",
+  )) {
+    if (el instanceof SVGElement) {
+      el.setAttribute("font-size", `${keySigPoint}pt`);
+    }
+  }
+  if (metricsDefaultsKs) {
+    if (!hadKeySig) delete metricsDefaultsKs.KeySignature;
+    else if (prevKeySig) metricsDefaultsKs.KeySignature = prevKeySig;
+    vfMetrics?.clear?.("KeySignature");
   }
 
   // Stems + noteheads share ink — never use staff-line grey for stems.
@@ -510,16 +539,58 @@ function paintedClientBoxes(root: HTMLElement) {
   return boxes;
 }
 
+function notationSlotMatches(
+  slot: string | undefined,
+  width: number,
+  height: number,
+): boolean {
+  if (!slot) return false;
+  const [w, h] = slot.split("x").map(Number);
+  return (
+    Number.isFinite(w) &&
+    Number.isFinite(h) &&
+    Math.abs(w - width) < 4 &&
+    Math.abs(h - height) < 4
+  );
+}
+
+function applyNotationScale(
+  piece: HTMLElement,
+  scale: number,
+  needW: number,
+  needH: number,
+) {
+  const shift = notationFitLayoutShift(scale, needW, needH);
+  piece.dataset.notationScale = scale.toFixed(3);
+  if (scale >= 0.995) {
+    piece.style.transform = "";
+    piece.style.marginRight = "";
+    piece.style.marginBottom = "";
+    return;
+  }
+  piece.style.transformOrigin = "top left";
+  piece.style.transform = `scale(${scale})`;
+  piece.style.marginRight = `${shift.marginRight}px`;
+  piece.style.marginBottom = `${shift.marginBottom}px`;
+}
+
 function fitPieceIntoHost(host: HTMLElement) {
   const piece = host.firstElementChild as HTMLElement | null;
   if (!piece) return;
-  piece.style.transform = "";
-  piece.style.marginRight = "";
-  piece.style.marginBottom = "";
-  piece.removeAttribute("data-notation-scale");
   const availW = host.clientWidth;
   const availH = host.clientHeight;
   if (availW < 1 || availH < 1) return;
+  // Fitting must not run again just because the scale changed this box.
+  if (
+    piece.dataset.notationScale &&
+    notationSlotMatches(piece.dataset.notationSlot, availW, availH)
+  ) {
+    return;
+  }
+
+  piece.style.transform = "";
+  piece.style.marginRight = "";
+  piece.style.marginBottom = "";
   const needW = Math.max(piece.scrollWidth, piece.offsetWidth);
   const needH = Math.max(piece.scrollHeight, piece.offsetHeight);
   const hostBox = host.getBoundingClientRect();
@@ -538,13 +609,12 @@ function fitPieceIntoHost(host: HTMLElement) {
       )
     : 1;
   const scale = Math.min(layoutScale, inkScale);
-  const shift = notationFitLayoutShift(scale, needW, needH);
-  piece.dataset.notationScale = scale.toFixed(3);
-  if (scale >= 0.995) return;
-  piece.style.transformOrigin = "top left";
-  piece.style.transform = `scale(${scale})`;
-  piece.style.marginRight = `${shift.marginRight}px`;
-  piece.style.marginBottom = `${shift.marginBottom}px`;
+  const prev = Number(piece.dataset.notationScale || "0");
+  // A slightly different scale from our own margin must not flip the staff.
+  const stable =
+    prev > 0 && Math.abs(scale - prev) < 0.08 ? prev : scale;
+  applyNotationScale(piece, stable, needW, needH);
+  piece.dataset.notationSlot = `${host.clientWidth}x${host.clientHeight}`;
 }
 
 /** One paper card; multiple systems stack inside like a continuous piece. */
@@ -602,8 +672,8 @@ export function ScaleTrebleStaff({
   const { instrument } = useInstrument();
   const wrapRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
+  const heightRef = useRef(0);
   const [usableW, setUsableW] = useState(0);
-  const [usableH, setUsableH] = useState(0);
   const [themeKey, setThemeKey] = useState("light");
   const pad = density === "pad";
   const preview = appearance === "preview";
@@ -631,21 +701,32 @@ export function ScaleTrebleStaff({
     const host = hostRef.current;
     if (!wrap) return;
     let lastW = 0;
-    let lastH = 0;
     const measure = () => {
-      const box = wrap.getBoundingClientRect();
-      const w = box.width;
-      const h = box.height;
-      if (Math.abs(w - lastW) < 2 && Math.abs(h - lastH) < 2) return;
+      const frame = wrap.parentElement;
+      const wrapH = wrap.clientHeight || wrap.getBoundingClientRect().height;
+      const frameH = frame?.clientHeight || 0;
+      const h = Math.floor(wrapH >= 48 ? wrapH : frameH);
+      const w = Math.floor(
+        wrap.clientWidth ||
+          frame?.clientWidth ||
+          wrap.getBoundingClientRect().width,
+      );
+      // Ignore the collapsed frame left behind when a redraw clears the SVG.
+      if (w < 40 || h < 48) return;
+      heightRef.current = h;
+      // Height changes only refit the existing engraving. A new height must
+      // not clear and redraw the notes — that feedback is the up/down jump.
+      if (Math.abs(w - lastW) < 8) {
+        if (host?.firstElementChild) fitPieceIntoHost(host);
+        return;
+      }
       lastW = w;
-      lastH = h;
-      if (w > 0) setUsableW(w);
-      if (h > 0) setUsableH(h);
-      if (host?.firstElementChild) fitPieceIntoHost(host);
+      setUsableW(w);
     };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(wrap);
+    if (wrap.parentElement) ro.observe(wrap.parentElement);
     return () => ro.disconnect();
   }, []);
 
@@ -703,9 +784,10 @@ export function ScaleTrebleStaff({
         ),
       );
       const measuredH = Math.max(
-        usableH,
+        heightRef.current,
         Math.floor(
-          wrapRef.current?.getBoundingClientRect().height ||
+          wrapRef.current?.clientHeight ||
+            wrapRef.current?.getBoundingClientRect().height ||
             host.getBoundingClientRect().height ||
             0,
         ),
@@ -842,7 +924,6 @@ export function ScaleTrebleStaff({
     staveWidth,
     tonicPitchClass,
     usableW,
-    usableH,
     themeKey,
     appearance,
     preview,

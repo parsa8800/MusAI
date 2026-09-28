@@ -17,11 +17,13 @@ import {
 import type { ListenSoundfont } from "@/lib/instrument";
 import {
   createPieceMetronome,
+  PIECE_CLICK_LEVEL_DEFAULT,
   type PieceMetronome,
 } from "@/features/piece-studio/playback/pieceMetronome";
 import { planScheduledNotes } from "@/features/piece-studio/playback/playbackSchedule";
 import {
   buildPlaybackTimeline,
+  clampPieceTempoBpm,
   clampPlaybackTime,
   loopBoundsSec,
   measureAtSeconds,
@@ -32,6 +34,11 @@ import {
 } from "@/features/piece-studio/playback/playbackTimeline";
 import type { MusaiScoreV1 } from "@/features/piece-studio/score/musaiScore";
 import type { PiecePlaybackTimeListener } from "@/features/piece-studio/playback/playbackTime";
+import {
+  pieceSpeedBpm,
+  pieceSpeedPresetForBpm,
+  type PieceSpeedPreset,
+} from "@/features/piece-studio/playback/pieceSpeed";
 
 const LOOKAHEAD_SEC = 1.2;
 
@@ -39,8 +46,7 @@ export type { PiecePlaybackTimeListener } from "@/features/piece-studio/playback
 
 export type PieceInstrumentStatus = "idle" | "loading" | "ready" | "error";
 
-/** Student-facing speed presets. Tempo changes reschedule notes — pitch stays. */
-export type PieceSpeedPreset = "slow" | "normal";
+export type { PieceSpeedPreset } from "@/features/piece-studio/playback/pieceSpeed";
 
 export type PieceLoopRange = {
   fromMeasure: number;
@@ -85,15 +91,18 @@ export function usePiecePlayback(
   );
   const [playing, setPlaying] = useState(false);
   const [bpmOverride, setBpmOverride] = useState<number | null>(null);
-  const [speedPreset, setSpeedPresetState] = useState<PieceSpeedPreset>("normal");
+  const [speedPreset, setSpeedPresetState] = useState<PieceSpeedPreset | null>(
+    "written",
+  );
   const [metronomeOn, setMetronomeOn] = useState(false);
+  const [clickLevel, setClickLevelState] = useState(PIECE_CLICK_LEVEL_DEFAULT);
   const [loop, setLoopState] = useState<PieceLoopRange | null>(null);
   const [instrumentStatus, setInstrumentStatus] =
     useState<PieceInstrumentStatus>("idle");
   const baseBpm = timeline?.baseBpm ?? 100;
   const bpm =
     bpmOverride ??
-    (speedPreset === "slow" ? Math.round(baseBpm * 0.5) : baseBpm);
+    pieceSpeedBpm(speedPreset ?? "written", baseBpm);
 
   const playingRef = useRef(false);
   const pausePosRef = useRef(0);
@@ -106,6 +115,7 @@ export function usePiecePlayback(
   const instrumentRef = useRef<PieceInstrument | null>(null);
   const metronomeRef = useRef<PieceMetronome | null>(null);
   const metronomeOnRef = useRef(false);
+  const clickLevelRef = useRef(PIECE_CLICK_LEVEL_DEFAULT);
   const loopRef = useRef<PieceLoopRange | null>(null);
   const startedClicksRef = useRef(new Set<number>());
   const instrumentIdRef = useRef(instrumentId);
@@ -147,6 +157,14 @@ export function usePiecePlayback(
   const getCurrentSec = useCallback(() => currentSecRef.current, []);
   const getPlaying = useCallback(() => playingRef.current, []);
 
+  const ensureMetronome = useCallback((ctx: AudioContext) => {
+    if (!metronomeRef.current) {
+      metronomeRef.current = createPieceMetronome(ctx);
+    }
+    metronomeRef.current.setLevel(clickLevelRef.current);
+    return metronomeRef.current;
+  }, []);
+
   useEffect(() => {
     timelineRef.current = timeline;
     const resetTransport = () => {
@@ -162,7 +180,7 @@ export function usePiecePlayback(
       setPlaying(false);
       setLoopState(null);
       setBpmOverride(null);
-      setSpeedPresetState("normal");
+      setSpeedPresetState("written");
       setMetronomeOn(false);
     };
     if (!timeline) {
@@ -205,7 +223,7 @@ export function usePiecePlayback(
       };
     }
     ctxRef.current = ctx;
-    if (!metronomeRef.current) metronomeRef.current = createPieceMetronome(ctx);
+    ensureMetronome(ctx);
     setStatus("loading");
 
     void (async () => {
@@ -238,7 +256,7 @@ export function usePiecePlayback(
       cancelled = true;
       timers.forEach((id) => window.clearTimeout(id));
     };
-  }, [timeline, instrumentId, loadInstrument, voiceReady]);
+  }, [timeline, instrumentId, loadInstrument, voiceReady, ensureMetronome]);
 
   const rate = () => bpmRef.current / Math.max(1, baseBpmRef.current);
 
@@ -493,7 +511,7 @@ export function usePiecePlayback(
       warmInst &&
       warmInst.id === instrumentIdRef.current
     ) {
-      if (!metronomeRef.current) metronomeRef.current = createPieceMetronome(warmCtx);
+      ensureMetronome(warmCtx);
       armTransport(warmCtx, t);
       return;
     }
@@ -501,7 +519,7 @@ export function usePiecePlayback(
     const ctx = await resumePieceAudio();
     if (!ctx) return;
     ctxRef.current = ctx;
-    if (!metronomeRef.current) metronomeRef.current = createPieceMetronome(ctx);
+    ensureMetronome(ctx);
 
     let inst = instrumentRef.current;
     if (!inst || inst.id !== instrumentIdRef.current) {
@@ -527,7 +545,7 @@ export function usePiecePlayback(
     // Position may have changed while we waited for samples.
     t = pausePosRef.current;
     armTransport(ctx, t);
-  }, [armTransport]);
+  }, [armTransport, ensureMetronome]);
 
   /**
    * End a playhead drag. When `resume` is true (transport was playing before
@@ -661,10 +679,9 @@ export function usePiecePlayback(
 
   const setBpm = useCallback(
     (next: number) => {
-      const bpmNext = Math.max(40, Math.min(208, Math.round(next)));
+      const bpmNext = clampPieceTempoBpm(next);
       setBpmOverride(bpmNext);
-      const ratio = bpmNext / Math.max(1, baseBpmRef.current);
-      setSpeedPresetState(ratio <= 0.6 ? "slow" : "normal");
+      setSpeedPresetState(pieceSpeedPresetForBpm(bpmNext, baseBpmRef.current));
       applyTempo(bpmNext);
     },
     [applyTempo],
@@ -673,10 +690,9 @@ export function usePiecePlayback(
   const setSpeedPreset = useCallback(
     (preset: PieceSpeedPreset) => {
       setSpeedPresetState(preset);
-      const next =
-        preset === "slow"
-          ? Math.round(baseBpmRef.current * 0.5)
-          : baseBpmRef.current;
+      const next = clampPieceTempoBpm(
+        pieceSpeedBpm(preset, baseBpmRef.current),
+      );
       setBpmOverride(null);
       applyTempo(next);
     },
@@ -720,6 +736,27 @@ export function usePiecePlayback(
       return next;
     });
   }, [schedule, scoreTimeNow]);
+
+  const setClickLevel = useCallback((next: number) => {
+    const level = Math.max(0, Math.min(100, Math.round(next)));
+    clickLevelRef.current = level;
+    setClickLevelState(level);
+    metronomeRef.current?.setLevel(level);
+  }, []);
+
+  const previewClick = useCallback(async () => {
+    const ctx = ctxRef.current ?? (await resumePieceAudio());
+    if (!ctx) return;
+    if (ctx.state !== "running") {
+      try {
+        await ctx.resume();
+      } catch {
+        return;
+      }
+    }
+    ctxRef.current = ctx;
+    ensureMetronome(ctx).click(ctx.currentTime, true);
+  }, [ensureMetronome]);
 
   const toggle = useCallback(() => {
     if (playingRef.current) pause();
@@ -832,7 +869,10 @@ export function usePiecePlayback(
     setVoice,
     setBpm,
     metronomeOn,
+    clickLevel,
     toggleMetronome,
+    setClickLevel,
+    previewClick,
     loop,
     setLoop,
     loopCurrentMeasure,

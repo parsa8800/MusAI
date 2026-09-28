@@ -275,6 +275,10 @@ export function MusaiSplitPane({
     ? { flexGrow: 1 - ratio, flexShrink: 1, flexBasis: 0 }
     : undefined;
   const showRight = right != null;
+  // A lone notes column must keep a definite height. Content-sized height
+  // (max-md h-auto) lets the engraved staff change the box it measures and
+  // redraw forever — notes jump up and down.
+  const fillLeft = !showRight;
 
   return (
     <div
@@ -282,8 +286,16 @@ export function MusaiSplitPane({
       className={`relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden md:flex-row ${className}`.trim()}
     >
       <div
-        className={`flex min-h-0 min-w-0 flex-col max-md:h-auto max-md:flex-none max-md:overflow-visible md:h-full md:min-w-[12rem] md:flex-1 md:overflow-hidden ${leftClassName}`.trim()}
-        style={showRight ? leftStyle : desktop ? { flexGrow: 1, flexShrink: 1, flexBasis: 0 } : undefined}
+        className={
+          fillLeft
+            ? `flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:min-w-[12rem] ${leftClassName}`.trim()
+            : `flex min-h-0 min-w-0 flex-col max-md:h-auto max-md:flex-none max-md:overflow-visible md:h-full md:min-w-[12rem] md:flex-1 md:overflow-hidden ${leftClassName}`.trim()
+        }
+        style={
+          fillLeft
+            ? { flexGrow: 1, flexShrink: 1, flexBasis: 0 }
+            : leftStyle
+        }
       >
         {left}
       </div>

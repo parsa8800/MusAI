@@ -6,8 +6,13 @@ import {
   scaleCoachChatDataMessage,
   scaleCoachChatSystemPrompt,
   type CoachChatMessage,
-  type ScaleCoachChatContext,
 } from "@/lib/scaleCoachChat";
+import {
+  localSiteGuideReply,
+  scaleCoachGuidePrompt,
+  scaleCoachPreviewMessage,
+  type ScaleCoachPreview,
+} from "@/lib/musaiSiteGuide";
 import { ensureBulletFeedback } from "@/lib/scalePracticeCopy";
 import { parseScalePracticeSession } from "@/lib/scalePracticeSession";
 import type { ScalePracticeSessionV1 } from "@/lib/scalePracticeTypes";
@@ -16,6 +21,7 @@ export const runtime = "nodejs";
 
 type ChatBody = {
   session?: ScalePracticeSessionV1;
+  preview?: ScaleCoachPreview;
   tip?: string;
   trendLine?: string;
   loopAttempts?: unknown;
@@ -49,7 +55,8 @@ function parseLoopAttempts(
 }
 
 async function callOpenAiChat(
-  ctx: ScaleCoachChatContext,
+  system: string,
+  briefing: string,
   history: CoachChatMessage[],
   apiKey: string,
 ): Promise<{ reply: string } | { error: string }> {
@@ -73,8 +80,8 @@ async function callOpenAiChat(
         max_tokens: 220,
         response_format: { type: "json_object" },
         messages: [
-          { role: "system", content: scaleCoachChatSystemPrompt(ctx) },
-          { role: "system", content: scaleCoachChatDataMessage(ctx) },
+          { role: "system", content: system },
+          { role: "system", content: briefing },
           ...recent,
         ],
       }),
@@ -102,6 +109,21 @@ async function callOpenAiChat(
   return { reply: ensureBulletFeedback(reply.slice(0, 360)) };
 }
 
+function parsePreview(raw: unknown): ScaleCoachPreview | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const preview = raw as ScaleCoachPreview;
+  return {
+    scaleLabel:
+      typeof preview.scaleLabel === "string" ? preview.scaleLabel : undefined,
+    scaleKind:
+      typeof preview.scaleKind === "string" ? preview.scaleKind : undefined,
+    octaveLabel:
+      typeof preview.octaveLabel === "string" ? preview.octaveLabel : undefined,
+    instrumentId:
+      typeof preview.instrumentId === "string" ? preview.instrumentId : undefined,
+  };
+}
+
 export async function POST(req: Request) {
   let body: ChatBody;
   try {
@@ -114,14 +136,43 @@ export async function POST(req: Request) {
   const tip = typeof body.tip === "string" ? body.tip : "";
   const trendLine = typeof body.trendLine === "string" ? body.trendLine : "";
   const messages = Array.isArray(body.messages) ? body.messages : [];
-
-  if (!session) {
-    return NextResponse.json({ error: "Invalid session" }, { status: 400 });
-  }
+  const preview = parsePreview(body.preview);
 
   const lastUser = [...messages].reverse().find((m) => m.role === "user");
   if (!lastUser?.text?.trim()) {
     return NextResponse.json({ error: "Missing user message" }, { status: 400 });
+  }
+
+  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  const llmEnabled = isOpenAiLlmEnabled();
+
+  if (!session) {
+    const fallback =
+      localSiteGuideReply(lastUser.text, preview) ??
+      ensureBulletFeedback(
+        "Ask me how to record, or about Tuner, Scale studio, or Piece studio",
+      );
+    if (!apiKey || !llmEnabled) {
+      return NextResponse.json({
+        reply: fallback,
+        source: "template" as const,
+      });
+    }
+    const llm = await callOpenAiChat(
+      scaleCoachGuidePrompt(),
+      scaleCoachPreviewMessage(preview),
+      messages,
+      apiKey,
+    );
+    if ("reply" in llm) {
+      return NextResponse.json({ reply: llm.reply, source: "llm" as const });
+    }
+    console.error("[scale-coach-chat] LLM failed:", llm.error);
+    return NextResponse.json({
+      reply: fallback,
+      source: "template" as const,
+      error: llm.error,
+    });
   }
 
   const ctx = buildScaleCoachChatContext(
@@ -131,8 +182,6 @@ export async function POST(req: Request) {
     parseLoopAttempts(body.loopAttempts, session),
   );
   const fallback = localCoachChatReply(lastUser.text, ctx);
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
-  const llmEnabled = isOpenAiLlmEnabled();
 
   if (!apiKey || !llmEnabled) {
     return NextResponse.json({
@@ -144,7 +193,12 @@ export async function POST(req: Request) {
     });
   }
 
-  const llm = await callOpenAiChat(ctx, messages, apiKey);
+  const llm = await callOpenAiChat(
+    scaleCoachChatSystemPrompt(ctx),
+    scaleCoachChatDataMessage(ctx),
+    messages,
+    apiKey,
+  );
   if ("reply" in llm) {
     return NextResponse.json({ reply: llm.reply, source: "llm" as const });
   }

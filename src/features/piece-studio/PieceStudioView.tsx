@@ -56,6 +56,7 @@ export function PieceStudioView() {
   const importDraftRef = useRef<PieceImportDraft | null>(null);
   const [revision, setRevision] = useState(0);
   const [phase, setPhase] = useState<ImportPiecePhase | null>(null);
+  const [convertProgress, setConvertProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pieces, setPieces] = useState<PieceWorkspaceV1[] | null>(null);
   const [openings, setOpenings] = useState<Record<string, string | null>>({});
@@ -63,6 +64,17 @@ export function PieceStudioView() {
   const [committing, setCommitting] = useState(false);
   importDraftRef.current = importDraft;
   const importGenerationRef = useRef(0);
+
+  useEffect(() => {
+    if (phase !== "processing") return;
+    const started = performance.now();
+    const id = window.setInterval(() => {
+      const t = (performance.now() - started) / 80_000;
+      const eased = 18 + (1 - Math.exp(-2.1 * t)) * 64;
+      setConvertProgress((prev) => Math.max(prev ?? 0, Math.min(86, eased)));
+    }, 500);
+    return () => window.clearInterval(id);
+  }, [phase]);
 
   useEffect(() => {
     let cancelled = false;
@@ -103,6 +115,7 @@ export function PieceStudioView() {
     await discardPieceImport(importDraftRef.current);
     setImportDraft(null);
     setPhase(null);
+    setConvertProgress(null);
   };
 
   const onFile = async (file: File | undefined) => {
@@ -112,11 +125,16 @@ export function PieceStudioView() {
     await discardPieceImport(importDraftRef.current);
     setImportDraft(null);
     setPhase("uploading");
+    setConvertProgress(8);
     try {
       const result = await importPieceFromFile(file, new Date(), {
         onPhase: (next) => {
           if (generation !== importGenerationRef.current) return;
           setPhase(next);
+        },
+        onProgress: (percent) => {
+          if (generation !== importGenerationRef.current) return;
+          setConvertProgress((prev) => Math.max(prev ?? 0, percent));
         },
       });
       if (generation !== importGenerationRef.current) {
@@ -135,6 +153,7 @@ export function PieceStudioView() {
     } catch (err) {
       if (generation !== importGenerationRef.current) return;
       setError(err instanceof Error ? err.message : "Couldn’t import that file.");
+      setConvertProgress(null);
     } finally {
       if (generation === importGenerationRef.current) {
         setPhase(null);
@@ -221,6 +240,7 @@ export function PieceStudioView() {
             draft={importDraft}
             processing={busy && !importDraft}
             processingLabel={phase ? importPhaseLabel(phase) : OMR_COPY.reading}
+            progress={convertProgress ?? undefined}
             onConfirm={(title) => void onConfirmReview(title)}
             onTryAgain={() => void onTryAgain()}
             onChooseAnotherFile={() => void onChooseAnotherFile()}

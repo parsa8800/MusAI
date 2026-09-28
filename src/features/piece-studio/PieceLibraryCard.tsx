@@ -145,19 +145,11 @@ export function PieceLibraryCard({
               aria-labelledby={titleId}
               aria-describedby={descId}
             >
-              <div className="musai-piece-remove__mark" aria-hidden>
-                <span />
-                <span />
-                <span />
-              </div>
-              <p id={titleId} className="musai-piece-remove__title">
-                Remove this piece?
+              <p id={titleId} className="musai-piece-remove__title font-display">
+                {isMachinePieceTitle(model.title) ? "Remove this piece" : model.title}
               </p>
-              {isMachinePieceTitle(model.title) ? null : (
-                <p className="musai-piece-remove__name font-display">{model.title}</p>
-              )}
               <p id={descId} className="musai-piece-remove__lead">
-                This removes the piece and the practice saved with it.
+                Saved practice goes with it.
               </p>
               {removeError ? (
                 <p className="musai-piece-remove__error" role="alert">
@@ -168,11 +160,11 @@ export function PieceLibraryCard({
                 <button
                   ref={cancelRef}
                   type="button"
-                  className="musai-pressable musai-piece-remove__cancel"
+                  className="musai-pressable musai-piece-remove__keep"
                   disabled={removing}
                   onClick={cancelConfirm}
                 >
-                  Cancel
+                  Keep
                 </button>
                 <button
                   type="button"

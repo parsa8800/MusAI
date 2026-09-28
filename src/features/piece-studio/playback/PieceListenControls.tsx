@@ -2,12 +2,20 @@
 
 import { animate } from "animejs";
 import { useEffect, useRef, useState } from "react";
-import { formatPieceClock } from "@/features/piece-studio/playback/playbackTimeline";
+import {
+  formatPieceClock,
+  PIECE_TEMPO_MAX_BPM,
+  PIECE_TEMPO_MIN_BPM,
+} from "@/features/piece-studio/playback/playbackTimeline";
+import { PIECE_CLICK_LEVEL_DEFAULT } from "@/features/piece-studio/playback/pieceMetronome";
 import type { PiecePlaybackTimeListener } from "@/features/piece-studio/playback/playbackTime";
+import {
+  PIECE_SPEED_PRESETS,
+  type PieceSpeedPreset,
+} from "@/features/piece-studio/playback/pieceSpeed";
 import type {
   PieceInstrumentStatus,
   PieceLoopRange,
-  PieceSpeedPreset,
 } from "@/features/piece-studio/playback/usePiecePlayback";
 import { MUSAI_DUR, MUSAI_EASE, prefersReducedMotion } from "@/lib/motion";
 
@@ -116,6 +124,7 @@ export function PieceListenControls({
   baseBpm,
   speedPreset,
   metronomeOn,
+  clickLevel = PIECE_CLICK_LEVEL_DEFAULT,
   loop,
   measureCount,
   unavailable,
@@ -128,6 +137,8 @@ export function PieceListenControls({
   onBpm,
   onSpeedPreset,
   onToggleMetronome,
+  onClickLevel,
+  onPreviewClick,
   onLoopPress,
   loopPick = null,
 }: {
@@ -137,8 +148,10 @@ export function PieceListenControls({
   durationSec: number;
   bpm: number;
   baseBpm: number;
-  speedPreset: PieceSpeedPreset;
+  speedPreset: PieceSpeedPreset | null;
   metronomeOn: boolean;
+  /** 0 soft, 100 loud. Shown only while Click is on. */
+  clickLevel?: number;
   loop: PieceLoopRange | null;
   measureCount: number;
   unavailable: string | null;
@@ -152,6 +165,8 @@ export function PieceListenControls({
   onBpm: (bpm: number) => void;
   onSpeedPreset: (preset: PieceSpeedPreset) => void;
   onToggleMetronome: () => void;
+  onClickLevel?: (level: number) => void;
+  onPreviewClick?: () => void;
   /** Starts a start-bar / end-bar pick on the score, or clears the current loop. */
   onLoopPress: () => void;
   loopPick?: "start" | "end" | null;
@@ -430,26 +445,20 @@ export function PieceListenControls({
             <div className="musai-piece-listen__opt">
               <span className="musai-piece-listen__opt-label">Speed</span>
               <div className="musai-piece-listen__seg" role="group" aria-label="Speed">
-                <button
-                  type="button"
-                  className="musai-pressable musai-piece-listen__seg-btn"
-                  data-active={speedPreset === "slow"}
-                  disabled={!canControl}
-                  aria-pressed={speedPreset === "slow"}
-                  onClick={() => onSpeedPreset("slow")}
-                >
-                  ½
-                </button>
-                <button
-                  type="button"
-                  className="musai-pressable musai-piece-listen__seg-btn"
-                  data-active={speedPreset === "normal"}
-                  disabled={!canControl}
-                  aria-pressed={speedPreset === "normal"}
-                  onClick={() => onSpeedPreset("normal")}
-                >
-                  1×
-                </button>
+                {PIECE_SPEED_PRESETS.map((speed) => (
+                  <button
+                    key={speed.id}
+                    type="button"
+                    className="musai-pressable musai-piece-listen__seg-btn"
+                    data-active={speedPreset === speed.id}
+                    disabled={!canControl}
+                    aria-pressed={speedPreset === speed.id}
+                    aria-label={speed.aria}
+                    onClick={() => onSpeedPreset(speed.id)}
+                  >
+                    {speed.label}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -457,8 +466,8 @@ export function PieceListenControls({
               <span className="musai-piece-listen__opt-label">Tempo</span>
               <input
                 type="range"
-                min={40}
-                max={208}
+                min={PIECE_TEMPO_MIN_BPM}
+                max={PIECE_TEMPO_MAX_BPM}
                 step={1}
                 value={draftBpm}
                 disabled={!canControl}
@@ -498,6 +507,24 @@ export function PieceListenControls({
                 <IconMetronome className="musai-piece-listen__glyph" />
                 Click
               </button>
+              {metronomeOn ? (
+                <label className="musai-piece-listen__click">
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={clickLevel}
+                    disabled={!canControl}
+                    aria-label={`Click volume ${clickLevel}`}
+                    data-testid="piece-listen-click-volume"
+                    onChange={(e) => onClickLevel?.(Number(e.target.value))}
+                    onPointerUp={() => {
+                      onPreviewClick?.();
+                    }}
+                  />
+                </label>
+              ) : null}
 
               {measureCount > 0 ? (
                 <button

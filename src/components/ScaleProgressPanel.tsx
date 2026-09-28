@@ -69,17 +69,19 @@ function ScaleSwitcherRow({
             scaleKind={journey.scaleKind}
             size="chip"
           />
-          <span className="musai-scale-switcher__name">{journey.scaleLabel}</span>
-          <span
-            className="musai-scale-switcher__meter"
-            data-progress={progress}
-            aria-hidden
-          >
+          <span className="musai-scale-switcher__label">
+            <span className="musai-scale-switcher__name">{journey.scaleLabel}</span>
             <span
-              style={{
-                width: `${Math.max(complete ? 100 : 4, Math.min(100, progress))}%`,
-              }}
-            />
+              className="musai-scale-switcher__meter"
+              data-progress={progress}
+              aria-hidden
+            >
+              <span
+                style={{
+                  width: `${Math.max(complete ? 100 : 4, Math.min(100, progress))}%`,
+                }}
+              />
+            </span>
           </span>
         </span>
       </Link>

@@ -358,7 +358,7 @@ export function IntonationUpload() {
         </div>
 
         <div
-          className={`relative z-[2] grid gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.08fr)] ${
+          className={`musai-trainer-grid relative z-[2] grid gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.08fr)] ${
             status === "loading" ? "pointer-events-none select-none" : ""
           }`}
           aria-hidden={status === "loading"}
@@ -370,13 +370,13 @@ export function IntonationUpload() {
                   <h2 className="text-base font-semibold tracking-tight text-[var(--musai-ink)]">
                     Target
                   </h2>
-                  <p className="mt-1 text-[12px] text-[var(--musai-muted)]">
+                  <p className="musai-trainer-hint mt-1 text-[12px] text-[var(--musai-muted)]">
                     Hold a wedge to hear the reference
                   </p>
                 </div>
               </div>
 
-              <div className="relative mt-5 flex min-h-0 flex-1 items-center justify-center py-3 sm:mt-7 sm:py-6">
+              <div className="musai-trainer-ring relative mt-5 flex min-h-0 flex-1 items-center justify-center py-3 sm:mt-7 sm:py-6">
                 <div
                   className="pointer-events-none absolute left-1/2 top-1/2 aspect-square w-[min(100%,18rem)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,color-mix(in_srgb,var(--musai-accent)_8%,transparent)_0%,transparent_68%)] blur-[28px] sm:w-[min(100%,22rem)]"
                   aria-hidden
@@ -397,7 +397,7 @@ export function IntonationUpload() {
                 <h2 className="text-base font-semibold tracking-tight text-[var(--musai-ink)]">
                   Your take
                 </h2>
-                <p className="mt-1 text-[12px] text-[var(--musai-muted)]">
+                <p className="musai-trainer-hint mt-1 text-[12px] text-[var(--musai-muted)]">
                   Record or import one sustained note
                 </p>
               </div>

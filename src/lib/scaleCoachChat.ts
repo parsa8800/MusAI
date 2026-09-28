@@ -3,6 +3,10 @@ import { pitchCueForNote } from "@/lib/scaleCoachingLlm";
 import { buildLoopMastery } from "@/lib/scalePracticeProgress";
 import type { ScalePracticeSessionV1 } from "@/lib/scalePracticeTypes";
 import {
+  localSiteGuideReply,
+  musaiSiteGuideText,
+} from "@/lib/musaiSiteGuide";
+import {
   coachMethodBooksLine,
   coachSystemRole,
   fingerLabelRegex,
@@ -139,10 +143,16 @@ export function scaleCoachChatSystemPrompt(
     "",
     coachMethodBooksLine(instrument),
     "Never invent notes. Never claim you heard the audio waveform. Never quote cents, Hertz, or percents.",
-    "Small talk: reply warmly, then offer to help with the take.",
+    "Small talk: reply warmly, then offer to help with the take or with how MusAI works.",
+    "",
+    "APP (answer these even before a recording. Do not invent pages):",
+    musaiSiteGuideText(),
+    "If there is no measured take, do not invent a score or coloured notes.",
     "",
     "Reply with JSON only: {\"reply\":\"...\"}",
     "reply: 1 • bullet. 2 only if they asked how to practise. Each max ~10 easy words. No hyphens or dashes.",
+    "When you name choices, write them as photo, PDF, or MusicXML in one sentence.",
+    "When someone must do steps in order, give each step its own short sentence that starts with a verb.",
   ].join(" ");
 }
 
@@ -214,6 +224,14 @@ export function localCoachChatReply(
   ) {
     return ensureBulletFeedback("Pretty good. Ask if you want help");
   }
+
+  const site = localSiteGuideReply(question, {
+    scaleLabel: ctx.scaleLabel,
+    scaleKind: ctx.scaleKind,
+    octaveLabel: ctx.octaveSpan === 2 ? "2 octaves" : "1 octave",
+    instrumentId: ctx.instrumentId,
+  });
+  if (site) return site;
 
   if (
     /\b(3 times in a row|three times in a row|play it 3 times|fill the bar|progress bar|what should i try next|keep this)\b/.test(

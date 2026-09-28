@@ -31,6 +31,7 @@ export function PieceImportReview({
   draft,
   processing = false,
   processingLabel,
+  progress,
   onConfirm,
   onTryAgain,
   onChooseAnotherFile,
@@ -39,6 +40,8 @@ export function PieceImportReview({
   /** Full-screen reading state before the draft exists. */
   processing?: boolean;
   processingLabel?: string;
+  /** 0–100 for the file being turned into MusicXML. */
+  progress?: number;
   onConfirm: (title: string) => void;
   onTryAgain: () => void;
   onChooseAnotherFile: () => void;
@@ -191,6 +194,7 @@ export function PieceImportReview({
           title={OMR_COPY.openingScore}
           label={readingLabel}
           tip={OMR_COPY.readingPatience}
+          progress={progress}
         />
       ) : null}
 
@@ -230,7 +234,10 @@ export function PieceImportReview({
                 role="status"
                 data-testid="piece-import-paint-host"
               >
-                <ImportLoadingCompact label={OMR_COPY.preparingScore} />
+                <ImportLoadingCompact
+                  label={OMR_COPY.preparingScore}
+                  progress={progress}
+                />
               </div>
             ) : null}
 
@@ -373,10 +380,12 @@ function ImportLoadingLayout({
   title,
   label,
   tip,
+  progress,
 }: {
   title: string;
   label: string;
   tip?: string;
+  progress?: number;
 }) {
   // Visible UI is wordless; keep copy for assistive tech only.
   void tip;
@@ -392,13 +401,19 @@ function ImportLoadingLayout({
     >
       <span className="musai-piece-import-review__a11y">{a11y}</span>
       <div className="musai-piece-import-review__loading-stage">
-        <MusaiLoadingMark />
+        <MusaiLoadingMark progress={progress} />
       </div>
     </div>
   );
 }
 
-function ImportLoadingCompact({ label }: { label: string }) {
+function ImportLoadingCompact({
+  label,
+  progress,
+}: {
+  label: string;
+  progress?: number;
+}) {
   return (
     <div
       className="musai-piece-import-review__processing"
@@ -408,7 +423,7 @@ function ImportLoadingCompact({ label }: { label: string }) {
       aria-label={label}
     >
       <span className="musai-piece-import-review__a11y">{label}</span>
-      <MusaiLoadingMark compact />
+      <MusaiLoadingMark compact progress={progress} />
     </div>
   );
 }

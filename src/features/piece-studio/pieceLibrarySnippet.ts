@@ -3,13 +3,18 @@
  * the written opening, not a hand-drawn stand-in.
  *
  * Every card uses the same staff-space window, so a short tune and a wide
- * system render at the same note size.
+ * system render at the same note size. A crowded opening keeps only the
+ * first noteheads, so a packed bar does not fill the card.
  */
 type StaffLine = { x0: number; x1: number; y: number };
 
 const SPACES_ABOVE = 4.6;
 const SPACES_BELOW = 3.4;
 const SPACES_WIDE = 30;
+/** Heads in the wide window before the opening is treated as crowded. */
+const CROWDED_HEADS = 18;
+/** How many heads a crowded opening keeps. */
+const OPENING_HEADS = 8;
 /** How far a glyph may sit and still count as part of this opening. */
 const GATE_ABOVE = 12;
 const GATE_BELOW = 7;
@@ -33,8 +38,10 @@ export function cropSvgToFirstSystem(svg: SVGSVGElement): boolean {
   );
   const x0 = Math.min(...band.map((line) => line.x0)) - spacing * 0.45;
   const y0 = first.top - spacing * SPACES_ABOVE;
-  const width = spacing * SPACES_WIDE;
+  const wide = spacing * SPACES_WIDE;
+  const width = openingWidth(noteHeads(svg, first), x0, spacing, wide);
   const height = spacing * (4 + SPACES_ABOVE + SPACES_BELOW);
+  const crowded = width < wide - spacing * 0.5;
   const frame = expandFrameToWholeNotes(svg, {
     x: x0,
     y: y0,
@@ -45,6 +52,7 @@ export function cropSvgToFirstSystem(svg: SVGSVGElement): boolean {
     gateRight: x0 + width,
     gateBottom: first.bottom + spacing * GATE_BELOW,
     pad: spacing * 0.45,
+    keepSpans: !crowded,
   });
 
   svg.setAttribute(
@@ -55,6 +63,49 @@ export function cropSvgToFirstSystem(svg: SVGSVGElement): boolean {
   svg.removeAttribute("width");
   svg.removeAttribute("height");
   return true;
+}
+
+type NoteHead = { x: number };
+
+/**
+ * A crowded first line (many heads in the wide window) keeps only the
+ * opening. A sparse line keeps the full window, so note size stays put.
+ */
+function openingWidth(
+  heads: NoteHead[],
+  x0: number,
+  spacing: number,
+  wide: number,
+): number {
+  const inWindow = heads
+    .filter((head) => head.x >= x0 - spacing && head.x <= x0 + wide)
+    .sort((a, b) => a.x - b.x);
+  if (inWindow.length < CROWDED_HEADS) return wide;
+
+  const kept = inWindow.slice(0, OPENING_HEADS);
+  const last = kept[kept.length - 1];
+  const right = last ? last.x + spacing * 1.6 : x0 + spacing * 12;
+  return Math.min(wide, Math.max(spacing * 12, right - x0));
+}
+
+function noteHeads(
+  svg: SVGSVGElement,
+  staff: { top: number; bottom: number; spacing: number },
+): NoteHead[] {
+  const heads: NoteHead[] = [];
+  const above = staff.top - staff.spacing * 6;
+  const below = staff.bottom + staff.spacing * 6;
+  for (const el of svg.querySelectorAll("g")) {
+    const cls = el.getAttribute("class") ?? "";
+    if (!/(?:^|\s)vf-stavenote(?:\s|$)/.test(cls)) continue;
+    const box = userBox(svg, el);
+    if (!box) continue;
+    const x = (box.x + box.x1) / 2;
+    const y = (box.y + box.y1) / 2;
+    if (y < above || y > below) continue;
+    heads.push({ x });
+  }
+  return heads;
 }
 
 type Frame = { x: number; y: number; width: number; height: number };
@@ -71,6 +122,8 @@ function expandFrameToWholeNotes(
     gateRight: number;
     gateBottom: number;
     pad: number;
+    /** Packed openings must not grow to fit a beam or slur across the pile. */
+    keepSpans: boolean;
   },
 ): Frame {
   let x = frame.x;
@@ -80,6 +133,9 @@ function expandFrameToWholeNotes(
   const glyphs = svg.querySelectorAll("g");
   for (const el of glyphs) {
     if (!isSnippetGlyph(el)) continue;
+    const cls = el.getAttribute("class") ?? "";
+    const spans = /vf-(?:beam|curve|tie|tuplet)(?:\s|$)/.test(cls);
+    if (spans && !frame.keepSpans) continue;
     const box = userBox(svg, el);
     if (!box) continue;
     const cx = (box.x + box.x1) / 2;
@@ -92,8 +148,6 @@ function expandFrameToWholeNotes(
     ) {
       continue;
     }
-    const cls = el.getAttribute("class") ?? "";
-    const spans = /vf-(?:beam|curve|tie|tuplet)(?:\s|$)/.test(cls);
     const boxLeft = spans ? Math.max(box.x, frame.gateLeft) : box.x;
     const boxRight = spans ? Math.min(box.x1, frame.gateRight) : box.x1;
     x = Math.min(x, boxLeft - frame.pad);

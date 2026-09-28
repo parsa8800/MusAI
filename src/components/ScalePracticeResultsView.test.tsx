@@ -389,12 +389,12 @@ describe("ScalePracticeResultsView", () => {
     expect(screen.getByTestId("studio-capture")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /open coach/i }));
-    expect(screen.getByRole("heading", { name: "Tips" })).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/Ask your coach/i)).toBeInTheDocument();
+    expect(screen.getByTestId("coach-chat")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Tips" })).not.toBeInTheDocument();
     expect(screen.getByTestId("studio-capture")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /close coach/i }));
-    expect(screen.queryByRole("heading", { name: "Tips" })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("coach-chat")).not.toBeInTheDocument();
   });
 
   it("hides fingering until a specific scale is on the staff", () => {

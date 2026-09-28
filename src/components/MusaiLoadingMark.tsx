@@ -1,12 +1,22 @@
 /**
- * The one loading mark for the app. A dot hops across three notes, and a
- * bar fills underneath without a time or a percent.
+ * The one loading mark for the app. A dot travels the three notes at a
+ * steady pace. When `progress` is set, that bar is the only bar.
  */
-export function MusaiLoadingMark({ compact = false }: { compact?: boolean }) {
+export function MusaiLoadingMark({
+  compact = false,
+  progress,
+}: {
+  compact?: boolean;
+  progress?: number;
+}) {
+  const overall =
+    typeof progress === "number" && Number.isFinite(progress)
+      ? Math.max(0, Math.min(100, progress))
+      : null;
   return (
     <div
       className={compact ? "musai-load musai-load--compact" : "musai-load"}
-      aria-hidden
+      aria-hidden={overall == null ? true : undefined}
     >
       <svg
         className="musai-piece-load__staff"
@@ -19,24 +29,67 @@ export function MusaiLoadingMark({ compact = false }: { compact?: boolean }) {
           <line x1="16" y1="58" x2="224" y2="58" />
           <line x1="16" y1="68" x2="224" y2="68" />
         </g>
-        <g className="musai-piece-load__note musai-piece-load__note--1">
-          <ellipse cx="52" cy="58" rx="7.2" ry="5" transform="rotate(-16 52 58)" />
-          <path d="M58.4 56.4V34" />
-        </g>
-        <g className="musai-piece-load__note musai-piece-load__note--2">
-          <ellipse cx="120" cy="48" rx="7.2" ry="5" transform="rotate(-16 120 48)" />
-          <path d="M126.4 46.4V24" />
-        </g>
-        <g className="musai-piece-load__note musai-piece-load__note--3">
-          <ellipse cx="188" cy="38" rx="7.2" ry="5" transform="rotate(-16 188 38)" />
-          <path d="M194.4 36.4V14" />
-        </g>
-        <circle className="musai-piece-load__dot" cx="52" cy="58" r="4.4" />
+        <LoadNote cx={52} cy={58} className="musai-piece-load__note" />
+        <LoadNote cx={120} cy={48} className="musai-piece-load__note" />
+        <LoadNote cx={188} cy={38} className="musai-piece-load__note" />
+        <LoadNote
+          cx={52}
+          cy={58}
+          className="musai-piece-load__glow musai-piece-load__glow--1"
+        />
+        <LoadNote
+          cx={120}
+          cy={48}
+          className="musai-piece-load__glow musai-piece-load__glow--2"
+        />
+        <LoadNote
+          cx={188}
+          cy={38}
+          className="musai-piece-load__glow musai-piece-load__glow--3"
+        />
+        <circle className="musai-piece-load__dot" cx="0" cy="0" r="4.4" />
       </svg>
-      <div className="musai-load__track">
-        <span className="musai-load__fill" />
-      </div>
+      {overall == null ? (
+        <div className="musai-load__track">
+          <span className="musai-load__fill" />
+        </div>
+      ) : (
+        <div
+          className="musai-load__overall"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(overall)}
+          aria-label="Converting the score"
+        >
+          <span style={{ width: `${overall}%` }} />
+        </div>
+      )}
     </div>
+  );
+}
+
+function LoadNote({
+  cx,
+  cy,
+  className,
+}: {
+  cx: number;
+  cy: number;
+  className: string;
+}) {
+  const stemX = cx + 6.4;
+  return (
+    <g className={className}>
+      <ellipse
+        cx={cx}
+        cy={cy}
+        rx="7.2"
+        ry="5"
+        transform={`rotate(-16 ${cx} ${cy})`}
+      />
+      <path d={`M${stemX} ${cy - 1.6}V${cy - 24}`} />
+    </g>
   );
 }
 

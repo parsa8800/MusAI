@@ -65,6 +65,7 @@ export async function GET(_req: Request, context: RouteContext) {
       return NextResponse.json({
         jobId,
         status: "completed" as const,
+        progress: 100,
         musicXml: snap.musicXml,
       });
     }
@@ -80,6 +81,7 @@ export async function GET(_req: Request, context: RouteContext) {
     return NextResponse.json({
       jobId,
       status: snap.status,
+      ...(typeof snap.progress === "number" ? { progress: snap.progress } : {}),
     });
   } catch (err) {
     pieceImportFail("OMR", err, {

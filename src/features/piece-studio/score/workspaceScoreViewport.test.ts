@@ -20,13 +20,13 @@ describe("workspace score viewport contract", () => {
       "utf8",
     );
     expect(css).toMatch(
-      /\.musai-piece-workspace__stage\s+\.musai-piece-score--embedded\s*\{[^}]*height:\s*100%/s,
+      /\.musai-piece-workspace__stage\s+\.musai-piece-score--embedded\s*\{[^}]*height:\s*100%/,
     );
     expect(css).toMatch(
-      /\.musai-piece-workspace__stage\s+\.musai-piece-osmd-wrap\s*\{[^}]*width:\s*100%/s,
+      /\.musai-piece-workspace__stage\s+\.musai-piece-osmd-wrap\s*\{[^}]*width:\s*100%/,
     );
     expect(css).toMatch(
-      /\.musai-piece-workspace__stage\s+\.musai-piece-osmd\s*\{[^}]*width:\s*100%/s,
+      /\.musai-piece-workspace__stage\s+\.musai-piece-osmd\s*\{[^}]*width:\s*100%/,
     );
   });
 
@@ -36,13 +36,13 @@ describe("workspace score viewport contract", () => {
       "utf8",
     );
     expect(css).toMatch(
-      /\.musai-piece-workspace__stage\s+\.musai-piece-osmd-wrap--compact:has\(\.musai-piece-osmd svg\)\s*\{[^}]*width:\s*fit-content/s,
+      /\.musai-piece-workspace__stage\s+\.musai-piece-osmd-wrap--compact:has\(\.musai-piece-osmd svg\)\s*\{[^}]*width:\s*fit-content/,
     );
     expect(css).toMatch(
-      /\.musai-piece-workspace__stage\s+\.musai-piece-osmd-wrap--scroll\s*\{[^}]*height:\s*100%/s,
+      /\.musai-piece-workspace__stage\s+\.musai-piece-osmd-wrap--scroll\s*\{[^}]*height:\s*100%/,
     );
     expect(css).toMatch(
-      /\.musai-piece-workspace__stage\s*\{[^}]*background:\s*transparent/s,
+      /\.musai-piece-workspace__stage\s*\{[^}]*background:\s*transparent/,
     );
   });
 
@@ -80,13 +80,13 @@ describe("workspace score viewport contract", () => {
       "utf8",
     );
     expect(css).toMatch(
-      /\.musai-piece-workspace--listen\s+\.musai-piece-workspace__practise-stage:has\(\s*\.musai-piece-osmd-wrap--compact[\s\S]*?\{[^}]*flex:\s*0\s+1\s+auto/s,
+      /\.musai-piece-workspace--listen\s+\.musai-piece-workspace__practise-stage:has\(\s*\.musai-piece-osmd-wrap--compact[\s\S]*?\{[^}]*flex:\s*0\s+1\s+auto/,
     );
     expect(css).toMatch(
-      /\.musai-piece-workspace--listen\s+\.musai-piece-workspace__stage:has\(\s*\.musai-piece-osmd-wrap--compact[\s\S]*?\{[^}]*flex:\s*0\s+1\s+auto/s,
+      /\.musai-piece-workspace--listen\s+\.musai-piece-workspace__stage:has\(\s*\.musai-piece-osmd-wrap--compact[\s\S]*?\{[^}]*flex:\s*0\s+1\s+auto/,
     );
     expect(css).toMatch(
-      /\.musai-piece-workspace--listen\s+\.musai-piece-workspace__dock\s*\{[^}]*margin-top:/s,
+      /\.musai-piece-workspace--listen\s+\.musai-piece-workspace__dock\s*\{[^}]*margin-top:/,
     );
   });
 

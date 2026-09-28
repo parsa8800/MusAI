@@ -100,7 +100,7 @@ function ScaleKeyOption({
         onSelect(option.pitchClass);
       }}
     >
-      <KeySignatureMini option={option} scaleKind={scaleKind} size="row" />
+      <KeySignatureMini option={option} scaleKind={scaleKind} size="chip" />
       <span className="musai-key-option__copy">
         <span className="musai-key-option__name">{summary.displayName}</span>
         <span className="musai-key-option__count">{summary.countLabel}</span>
@@ -353,7 +353,7 @@ export function ScalePickControls({
         <KeySignatureMini
           option={selected}
           scaleKind={scaleKind}
-          size="sm"
+          size="chip"
         />
         <span className="musai-key-select__copy">
           <span className="musai-key-select__letter">
