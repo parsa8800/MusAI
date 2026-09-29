@@ -109,6 +109,9 @@ server.listen(PORT, process.env.OMR_HOST || "127.0.0.1", () => {
  * @param {import("node:http").ServerResponse} res
  */
 async function authorize(req, res) {
+  const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
+  // Liveness must stay open so Vercel can probe without a bearer token.
+  if (req.method === "GET" && url.pathname === "/healthz") return true;
   if (!TOKEN) return true;
   const header = req.headers.authorization || "";
   const ok = header === `Bearer ${TOKEN}`;

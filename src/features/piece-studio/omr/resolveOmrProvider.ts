@@ -115,7 +115,8 @@ export async function probeAudiverisWorkerHealth(
     const res = await fetchImpl(`${base}/healthz`, {
       method: "GET",
       headers,
-      signal: AbortSignal.timeout(2500),
+      // Free Render instances can take ~50s to wake after idle.
+      signal: AbortSignal.timeout(60_000),
     });
     if (!res.ok) {
       return {
