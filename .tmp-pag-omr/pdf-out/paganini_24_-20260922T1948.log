@@ -1,0 +1,434 @@
+2026-09-22 19:48:13,134 INFO [paganini_24_]                 Book.java:560  | 3 sheets in /Users/parsarahmanseresht/.cursor/projects/Users-parsarahmanseresht-Desktop-stuff-cs-projects-musai/attachments/bfc7619a-748e-4206-b90e-75bcd6ec007f/paganini_24_.pdf
+2026-09-22 19:48:13,199 INFO []                 Book.java:2565 | Stored /book.xml
+2026-09-22 19:48:13,199 INFO []                 Book.java:2525 | Book stored as /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.omr
+2026-09-22 19:48:13,200 INFO []                 Book.java:1929 | Book reaching PAGE on sheets:[#1#2#3]
+2026-09-22 19:48:13,201 INFO [paganini_24_#1]       StepMonitoring.java:98   | LOAD
+2026-09-22 19:48:13,779 INFO [paganini_24_#1]            SheetStub.java:1278 | Loaded image #1 2550x3299 from /Users/parsarahmanseresht/.cursor/projects/Users-parsarahmanseresht-Desktop-stuff-cs-projects-musai/attachments/bfc7619a-748e-4206-b90e-75bcd6ec007f/paganini_24_.pdf
+2026-09-22 19:48:13,781 INFO [paganini_24_#1]       StepMonitoring.java:98   | BINARY
+2026-09-22 19:48:14,030 INFO [paganini_24_#1]       StepMonitoring.java:98   | SCALE
+2026-09-22 19:48:14,047 INFO [paganini_24_#1]         ScaleBuilder.java:254  | Beam  guessed height: 13 -- 0.25 of [10..21] range
+2026-09-22 19:48:14,048 INFO [paganini_24_#1]         ScaleBuilder.java:271  | Beam measured height: 14 -- 0.36 of [10..21] range at 487% of needed quorum
+2026-09-22 19:48:14,048 INFO [paganini_24_#1]         ScaleBuilder.java:401  | Normalized black jitter: 18.18 %
+2026-09-22 19:48:14,048 INFO [paganini_24_#1]            ScaleStep.java:65   | Scale{ interline(20,22,23) line(2,3,6) beam(14)}
+2026-09-22 19:48:14,048 INFO [paganini_24_#1]       StepMonitoring.java:98   | GRID
+2026-09-22 19:48:14,608 INFO [paganini_24_#1]       LinesRetriever.java:1508 | Global slope: 0.00189
+2026-09-22 19:48:14,664 INFO [paganini_24_#1]    ClustersRetriever.java:326  | Retrieved raw line clusters: 11 of sizes [5] with interline(20,22,23)
+2026-09-22 19:48:14,843 INFO [paganini_24_#1]            PeakGraph.java:310  | Systems: #1[1] #2[2] #3[3] #4[4] #5[5] #6[6] #7[7] #8[8] #9[9] #10[10] #11[11]
+2026-09-22 19:48:15,204 INFO [paganini_24_#1]        SystemManager.java:134  | Indentation detected for system #1
+2026-09-22 19:48:15,205 INFO [paganini_24_#1]        SystemManager.java:134  | Indentation detected for system #4
+2026-09-22 19:48:15,205 INFO [paganini_24_#1]        SystemManager.java:134  | Indentation detected for system #7
+2026-09-22 19:48:15,205 INFO [paganini_24_#1]        SystemManager.java:134  | Indentation detected for system #10
+2026-09-22 19:48:15,205 INFO [paganini_24_#1]        SystemManager.java:744  | 4 pages found in sheet
+2026-09-22 19:48:15,205 INFO [paganini_24_#1]        SystemManager.java:800  | Page #1: 1 part along 3 systems
+2026-09-22 19:48:15,205 INFO [paganini_24_#1]        SystemManager.java:800  | Page #2: 1 part along 3 systems
+2026-09-22 19:48:15,205 INFO [paganini_24_#1]        SystemManager.java:800  | Page #3: 1 part along 3 systems
+2026-09-22 19:48:15,205 INFO [paganini_24_#1]        SystemManager.java:800  | Page #4: 1 part along 2 systems
+2026-09-22 19:48:15,206 INFO [paganini_24_#1]                 Book.java:543  | Created scores: [{Score 1}, {Score 2}, {Score 3}, {Score 4}]
+2026-09-22 19:48:15,206 INFO [paganini_24_#1]       StepMonitoring.java:98   | HEADERS
+2026-09-22 19:48:16,191 INFO [paganini_24_#1]       StepMonitoring.java:98   | STEM_SEEDS
+2026-09-22 19:48:16,243 INFO [paganini_24_#1]        StemSeedsStep.java:86   | stem(5 max:6)
+2026-09-22 19:48:16,311 INFO [paganini_24_#1]       StepMonitoring.java:98   | BEAMS
+2026-09-22 19:48:20,167 INFO [paganini_24_#1]       StepMonitoring.java:98   | LEDGERS
+2026-09-22 19:48:20,448 INFO [paganini_24_#1]       StepMonitoring.java:98   | HEADS
+2026-09-22 19:48:26,122 INFO [paganini_24_#1]        HeadSeedTally.java:235  | Scale information: HeadSeeds{NOTEHEAD_BLACK[L:-1.6,R:-1.2]}
+2026-09-22 19:48:26,124 INFO [paganini_24_#1]       StepMonitoring.java:98   | STEMS
+2026-09-22 19:48:26,696 INFO [paganini_24_#1]       StepMonitoring.java:98   | REDUCTION
+2026-09-22 19:48:26,776 INFO [paganini_24_#1]        ReductionStep.java:105  | Stems free length median value: 70 pixels, 3.2 interlines
+2026-09-22 19:48:26,779 INFO [paganini_24_#1]       StepMonitoring.java:98   | CUE_BEAMS
+2026-09-22 19:48:26,779 INFO [paganini_24_#1]         CueBeamsStep.java:81   | Step CUE_BEAMS is skipped because small heads switch is off
+2026-09-22 19:48:26,780 INFO [paganini_24_#1]       StepMonitoring.java:98   | TEXTS
+2026-09-22 19:48:26,932 WARN [paganini_24_#1]         TesseractOCR.java:335  | The collection of supported languages is empty
+2026-09-22 19:48:26,933 INFO [paganini_24_#1]              OcrUtil.java:106  | Missing support for 'eng' language(s)
+2026-09-22 19:48:26,940 INFO [paganini_24_#1]       StepMonitoring.java:98   | MEASURES
+2026-09-22 19:48:26,945 INFO [paganini_24_#1]                 Page.java:307  | 14 raw measures: [5 in system#1, 5 in system#2, 4 in system#3]
+2026-09-22 19:48:26,945 INFO [paganini_24_#1]                 Page.java:307  | 14 raw measures: [5 in system#4, 5 in system#5, 4 in system#6]
+2026-09-22 19:48:26,945 INFO [paganini_24_#1]                 Page.java:307  | 14 raw measures: [5 in system#7, 5 in system#8, 4 in system#9]
+2026-09-22 19:48:26,945 INFO [paganini_24_#1]                 Page.java:307  | 13 raw measures: [7 in system#10, 6 in system#11]
+2026-09-22 19:48:26,945 INFO [paganini_24_#1]       StepMonitoring.java:98   | CHORDS
+2026-09-22 19:48:26,955 INFO [paganini_24_#1]       StepMonitoring.java:98   | CURVES
+2026-09-22 19:48:28,044 INFO [paganini_24_#1]         SlursBuilder.java:240  | Slurs: 70
+2026-09-22 19:48:28,113 INFO [paganini_24_#1]      SegmentsBuilder.java:155  | Segments: 72
+2026-09-22 19:48:28,117 INFO [paganini_24_#1]       StepMonitoring.java:98   | SYMBOLS
+2026-09-22 19:48:28,985 INFO [paganini_24_#1]       StepMonitoring.java:98   | LINKS
+2026-09-22 19:48:28,998 INFO [paganini_24_#1]             KeyInter.java:1198 | No effective key before AlterInter#10258{(0.172) staff:2 NATURAL pitch:-2.0}
+2026-09-22 19:48:29,001 INFO [paganini_24_#1]             KeyInter.java:1198 | No effective key before AlterInter#10272{(0.141) staff:3 NATURAL pitch:4.0}
+2026-09-22 19:48:29,001 INFO [paganini_24_#1]             KeyInter.java:1198 | No effective key before AlterInter#10281{(0.789) staff:3 NATURAL pitch:-2.0}
+2026-09-22 19:48:29,008 INFO [paganini_24_#1]             KeyInter.java:1198 | No effective key before AlterInter#10504{(0.363) staff:5 NATURAL pitch:-4.0}
+2026-09-22 19:48:29,008 INFO [paganini_24_#1]             KeyInter.java:1198 | No effective key before AlterInter#10506{(0.234) staff:5 NATURAL pitch:-2.0}
+2026-09-22 19:48:29,016 INFO [paganini_24_#1]             KeyInter.java:1331 | Key built KeyInter#11040{(0.780) staff:7 KEY_FLAT_1 pitch:0.4 fifths:-1}
+2026-09-22 19:48:29,016 INFO [paganini_24_#1]             KeyInter.java:1331 | Key built KeyInter#11042{(0.733) staff:7 KEY_FLAT_1 pitch:0.2 fifths:-1}
+2026-09-22 19:48:29,023 INFO [paganini_24_#1]             KeyInter.java:1198 | No effective key before AlterInter#10788{(0.747) staff:8 NATURAL pitch:-5.0}
+2026-09-22 19:48:29,024 INFO [paganini_24_#1]             KeyInter.java:1198 | No effective key before AlterInter#10798{(0.790) staff:8 NATURAL pitch:-3.0}
+2026-09-22 19:48:29,024 INFO [paganini_24_#1]             KeyInter.java:1198 | No effective key before AlterInter#10823{(0.795) staff:8 NATURAL pitch:-4.0}
+2026-09-22 19:48:29,024 INFO [paganini_24_#1]             KeyInter.java:1198 | No effective key before AlterInter#10845{(0.784) staff:8 NATURAL pitch:-2.0}
+2026-09-22 19:48:29,043 INFO [paganini_24_#1]       StepMonitoring.java:98   | RHYTHMS
+2026-09-22 19:48:29,057 INFO [paganini_24_#1]        MeasureRhythm.java:1044 | Measure{#7} No timeOffset for HeadChordInter#8378{(0.925/0.925) staff:2 slot#4 dur:1/16}
+2026-09-22 19:48:29,058 INFO [paganini_24_#1]                Voice.java:257  | Measure{#7} Voice{#1 excess:1/16} too long
+2026-09-22 19:48:29,058 INFO [paganini_24_#1]          StackRhythm.java:224  | S2 MeasureStack#7 no correct rhythm
+2026-09-22 19:48:29,066 INFO [paganini_24_#1]                Voice.java:257  | Measure{#3} Voice{#1 excess:1/4} too long
+2026-09-22 19:48:29,066 INFO [paganini_24_#1]          StackRhythm.java:224  | S4 MeasureStack#3 no correct rhythm
+2026-09-22 19:48:29,066 INFO [paganini_24_#1]                Voice.java:257  | Measure{#4} Voice{#1 excess:1/4} too long
+2026-09-22 19:48:29,066 INFO [paganini_24_#1]          StackRhythm.java:224  | S4 MeasureStack#4 no correct rhythm
+2026-09-22 19:48:29,067 INFO [paganini_24_#1]                Voice.java:257  | Measure{#7} Voice{#1 excess:1/4} too long
+2026-09-22 19:48:29,067 INFO [paganini_24_#1]          StackRhythm.java:224  | S5 MeasureStack#7 no correct rhythm
+2026-09-22 19:48:29,068 INFO [paganini_24_#1]        MeasureRhythm.java:1044 | Measure{#8} No timeOffset for HeadChordInter#8450{(0.923/0.923) staff:5 slot#5 dur:1/8}
+2026-09-22 19:48:29,068 INFO [paganini_24_#1]                Voice.java:257  | Measure{#8} Voice{#1 excess:1/8} too long
+2026-09-22 19:48:29,068 INFO [paganini_24_#1]          StackRhythm.java:224  | S5 MeasureStack#8 no correct rhythm
+2026-09-22 19:48:29,069 INFO [paganini_24_#1]                Voice.java:257  | Measure{#9} Voice{#1 excess:1/4} too long
+2026-09-22 19:48:29,069 INFO [paganini_24_#1]          StackRhythm.java:224  | S5 MeasureStack#9 no correct rhythm
+2026-09-22 19:48:29,069 INFO [paganini_24_#1]                Voice.java:257  | Measure{#10} Voice{#1 excess:1/4} too long
+2026-09-22 19:48:29,069 INFO [paganini_24_#1]          StackRhythm.java:224  | S5 MeasureStack#10 no correct rhythm
+2026-09-22 19:48:29,070 INFO [paganini_24_#1]                Voice.java:257  | Measure{#11} Voice{#1 excess:1/4} too long
+2026-09-22 19:48:29,070 INFO [paganini_24_#1]          StackRhythm.java:224  | S6 MeasureStack#11 no correct rhythm
+2026-09-22 19:48:29,070 INFO [paganini_24_#1]                Voice.java:257  | Measure{#12} Voice{#1 excess:1/4} too long
+2026-09-22 19:48:29,070 INFO [paganini_24_#1]          StackRhythm.java:224  | S6 MeasureStack#12 no correct rhythm
+2026-09-22 19:48:29,071 INFO [paganini_24_#1]                Voice.java:257  | Measure{#13} Voice{#1 excess:1/4} too long
+2026-09-22 19:48:29,071 INFO [paganini_24_#1]          StackRhythm.java:224  | S6 MeasureStack#13 no correct rhythm
+2026-09-22 19:48:29,084 INFO [paganini_24_#1]       StepMonitoring.java:98   | PAGE
+2026-09-22 19:48:29,086 INFO [paganini_24_#1]       SheetReduction.java:154  | Gutter. Different glyphs 9/10 ArticulationInter#10934{(0.797/0.913) STACCATO} vs SlurInter#8826{(0.674/0.946) SLUR_ABOVE}
+2026-09-22 19:48:29,089 INFO [paganini_24_#1]                Voice.java:257  | Measure{#7} Voice{#1 excess:1/16} too long
+2026-09-22 19:48:29,090 INFO [paganini_24_#1]                Voice.java:257  | Measure{#3} Voice{#1 excess:1/4} too long
+2026-09-22 19:48:29,090 INFO [paganini_24_#1]                Voice.java:257  | Measure{#4} Voice{#1 excess:1/4} too long
+2026-09-22 19:48:29,090 INFO [paganini_24_#1]                Voice.java:257  | Measure{#7} Voice{#1 excess:1/4} too long
+2026-09-22 19:48:29,090 INFO [paganini_24_#1]                Voice.java:257  | Measure{#8} Voice{#1 excess:1/8} too long
+2026-09-22 19:48:29,090 INFO [paganini_24_#1]                Voice.java:257  | Measure{#9} Voice{#1 excess:1/4} too long
+2026-09-22 19:48:29,090 INFO [paganini_24_#1]                Voice.java:257  | Measure{#10} Voice{#1 excess:1/4} too long
+2026-09-22 19:48:29,090 INFO [paganini_24_#1]                Voice.java:257  | Measure{#11} Voice{#1 excess:1/4} too long
+2026-09-22 19:48:29,090 INFO [paganini_24_#1]                Voice.java:257  | Measure{#12} Voice{#1 excess:1/4} too long
+2026-09-22 19:48:29,090 INFO [paganini_24_#1]                Voice.java:257  | Measure{#13} Voice{#1 excess:1/4} too long
+2026-09-22 19:48:29,091 INFO [paganini_24_#1]                 Book.java:2584 | Book{paganini_24_} storing
+2026-09-22 19:48:29,148 INFO [paganini_24_#1]                 Book.java:2565 | Stored /book.xml
+2026-09-22 19:48:29,240 INFO [paganini_24_#1]           DataHolder.java:348  | Stored /sheet#1/BINARY.png
+2026-09-22 19:48:30,209 INFO [paganini_24_#1]                Sheet.java:1583 | Stored /sheet#1/sheet#1.xml
+2026-09-22 19:48:30,209 INFO [paganini_24_#1]                 Book.java:2525 | Book stored as /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.omr
+2026-09-22 19:48:30,210 INFO [paganini_24_#1]            SheetStub.java:1655 | Sheet#1 disposed
+2026-09-22 19:48:30,230 INFO [paganini_24_#1]                 Book.java:2050 | End of Stub#1
+2026-09-22 19:48:30,230 INFO [paganini_24_#2]       StepMonitoring.java:98   | LOAD
+2026-09-22 19:48:31,025 INFO [paganini_24_#2]            SheetStub.java:1278 | Loaded image #2 2550x3299 from /Users/parsarahmanseresht/.cursor/projects/Users-parsarahmanseresht-Desktop-stuff-cs-projects-musai/attachments/bfc7619a-748e-4206-b90e-75bcd6ec007f/paganini_24_.pdf
+2026-09-22 19:48:31,025 INFO [paganini_24_#2]       StepMonitoring.java:98   | BINARY
+2026-09-22 19:48:31,221 INFO [paganini_24_#2]       StepMonitoring.java:98   | SCALE
+2026-09-22 19:48:31,239 INFO [paganini_24_#2]         ScaleBuilder.java:254  | Beam  guessed height: 11 -- 0.25 of [9..19] range
+2026-09-22 19:48:31,240 INFO [paganini_24_#2]         ScaleBuilder.java:271  | Beam measured height: 14 -- 0.50 of [9..19] range at 669% of needed quorum
+2026-09-22 19:48:31,240 INFO [paganini_24_#2]         ScaleBuilder.java:401  | Normalized black jitter: 20.00 %
+2026-09-22 19:48:31,240 INFO [paganini_24_#2]            ScaleStep.java:65   | Scale{ interline(18,20,22) line(2,4,6) beam(14)}
+2026-09-22 19:48:31,240 INFO [paganini_24_#2]       StepMonitoring.java:98   | GRID
+2026-09-22 19:48:31,660 INFO [paganini_24_#2]       LinesRetriever.java:1508 | Global slope: 0.00239
+2026-09-22 19:48:31,680 INFO [paganini_24_#2]    ClustersRetriever.java:326  | Retrieved raw line clusters: 12 of sizes [5] with interline(18,20,22)
+2026-09-22 19:48:31,879 INFO [paganini_24_#2]            PeakGraph.java:310  | Systems: #1[1] #2[2] #3[3] #4[4] #5[5] #6[6] #7[7] #8[8] #9[9] #10[10] #11[11] #12[12]
+2026-09-22 19:48:32,181 INFO [paganini_24_#2]        SystemManager.java:134  | Indentation detected for system #1
+2026-09-22 19:48:32,181 INFO [paganini_24_#2]        SystemManager.java:134  | Indentation detected for system #4
+2026-09-22 19:48:32,181 INFO [paganini_24_#2]        SystemManager.java:134  | Indentation detected for system #6
+2026-09-22 19:48:32,181 INFO [paganini_24_#2]        SystemManager.java:134  | Indentation detected for system #8
+2026-09-22 19:48:32,181 INFO [paganini_24_#2]        SystemManager.java:134  | Indentation detected for system #11
+2026-09-22 19:48:32,181 INFO [paganini_24_#2]        SystemManager.java:744  | 5 pages found in sheet
+2026-09-22 19:48:32,181 INFO [paganini_24_#2]        SystemManager.java:800  | Page #1: 1 part along 3 systems
+2026-09-22 19:48:32,181 INFO [paganini_24_#2]        SystemManager.java:800  | Page #2: 1 part along 2 systems
+2026-09-22 19:48:32,181 INFO [paganini_24_#2]        SystemManager.java:800  | Page #3: 1 part along 2 systems
+2026-09-22 19:48:32,181 INFO [paganini_24_#2]        SystemManager.java:800  | Page #4: 1 part along 3 systems
+2026-09-22 19:48:32,181 INFO [paganini_24_#2]        SystemManager.java:800  | Page #5: 1 part along 2 systems
+2026-09-22 19:48:32,182 INFO [paganini_24_#2]       StepMonitoring.java:98   | HEADERS
+2026-09-22 19:48:32,391 INFO [paganini_24_#2]       StepMonitoring.java:98   | STEM_SEEDS
+2026-09-22 19:48:32,417 INFO [paganini_24_#2]        StemSeedsStep.java:86   | stem(5 max:7)
+2026-09-22 19:48:32,438 INFO [paganini_24_#2]       StepMonitoring.java:98   | BEAMS
+2026-09-22 19:48:36,191 INFO [paganini_24_#2]       StepMonitoring.java:98   | LEDGERS
+2026-09-22 19:48:36,496 INFO [paganini_24_#2]       StepMonitoring.java:98   | HEADS
+2026-09-22 19:48:43,182 INFO [paganini_24_#2]        HeadSeedTally.java:235  | Scale information: HeadSeeds{NOTEHEAD_BLACK[L:-1.6,R:-1.7]}
+2026-09-22 19:48:43,184 INFO [paganini_24_#2]       StepMonitoring.java:98   | STEMS
+2026-09-22 19:48:43,995 INFO [paganini_24_#2]       StepMonitoring.java:98   | REDUCTION
+2026-09-22 19:48:44,090 INFO [paganini_24_#2]        ReductionStep.java:105  | Stems free length median value: 71 pixels, 3.6 interlines
+2026-09-22 19:48:44,098 INFO [paganini_24_#2]       StepMonitoring.java:98   | CUE_BEAMS
+2026-09-22 19:48:44,098 INFO [paganini_24_#2]         CueBeamsStep.java:81   | Step CUE_BEAMS is skipped because small heads switch is off
+2026-09-22 19:48:44,099 INFO [paganini_24_#2]       StepMonitoring.java:98   | TEXTS
+2026-09-22 19:48:44,264 WARN [paganini_24_#2]         TesseractOCR.java:335  | The collection of supported languages is empty
+2026-09-22 19:48:44,264 INFO [paganini_24_#2]              OcrUtil.java:106  | Missing support for 'eng' language(s)
+2026-09-22 19:48:44,267 INFO [paganini_24_#2]       StepMonitoring.java:98   | MEASURES
+2026-09-22 19:48:44,269 INFO [paganini_24_#2]                 Page.java:307  | 14 raw measures: [5 in system#1, 5 in system#2, 4 in system#3]
+2026-09-22 19:48:44,269 INFO [paganini_24_#2]                 Page.java:307  | 12 raw measures: [6 in system#4, 6 in system#5]
+2026-09-22 19:48:44,269 INFO [paganini_24_#2]                 Page.java:307  | 13 raw measures: [7 in system#6, 6 in system#7]
+2026-09-22 19:48:44,269 INFO [paganini_24_#2]                 Page.java:307  | 14 raw measures: [5 in system#8, 5 in system#9, 4 in system#10]
+2026-09-22 19:48:44,269 INFO [paganini_24_#2]                 Page.java:307  | 13 raw measures: [6 in system#11, 7 in system#12]
+2026-09-22 19:48:44,269 INFO [paganini_24_#2]       StepMonitoring.java:98   | CHORDS
+2026-09-22 19:48:44,274 INFO [paganini_24_#2]       StepMonitoring.java:98   | CURVES
+2026-09-22 19:48:45,184 INFO [paganini_24_#2]         SlursBuilder.java:240  | Slurs: 75
+2026-09-22 19:48:45,197 INFO [paganini_24_#2]      SegmentsBuilder.java:155  | Segments: 58
+2026-09-22 19:48:45,197 INFO [paganini_24_#2]       StepMonitoring.java:98   | SYMBOLS
+2026-09-22 19:48:46,126 INFO [paganini_24_#2]       StepMonitoring.java:98   | LINKS
+2026-09-22 19:48:46,137 INFO [paganini_24_#2]             KeyInter.java:1198 | No effective key before AlterInter#17429{(0.796) staff:3 NATURAL pitch:-1.0}
+2026-09-22 19:48:46,177 INFO [paganini_24_#2]       StepMonitoring.java:98   | RHYTHMS
+2026-09-22 19:48:46,178 INFO [paganini_24_#2]                Voice.java:257  | Measure{#3} Voice{#1 excess:1/32} too long
+2026-09-22 19:48:46,179 INFO [paganini_24_#2]          StackRhythm.java:224  | S1 MeasureStack#3 no correct rhythm
+2026-09-22 19:48:46,179 INFO [paganini_24_#2]                Voice.java:257  | Measure{#4} Voice{#1 excess:1/16} too long
+2026-09-22 19:48:46,179 INFO [paganini_24_#2]          StackRhythm.java:224  | S1 MeasureStack#4 no correct rhythm
+2026-09-22 19:48:46,179 INFO [paganini_24_#2]        MeasureRhythm.java:1044 | Measure{#5} No timeOffset for HeadChordInter#14551{(0.944/0.944) staff:1 slot#5 dur:1/8}
+2026-09-22 19:48:46,180 INFO [paganini_24_#2]          StackRhythm.java:224  | S1 MeasureStack#5 no correct rhythm
+2026-09-22 19:48:46,181 INFO [paganini_24_#2]        MeasureRhythm.java:1044 | Measure{#8} No timeOffset for HeadChordInter#14565{(0.968/0.968) staff:2 slot#5 dur:1/16}
+2026-09-22 19:48:46,181 INFO [paganini_24_#2]          StackRhythm.java:224  | S2 MeasureStack#8 no correct rhythm
+2026-09-22 19:48:46,182 INFO [paganini_24_#2]                Voice.java:257  | Measure{#11} Voice{#1 excess:1/8} too long
+2026-09-22 19:48:46,182 INFO [paganini_24_#2]          StackRhythm.java:224  | S3 MeasureStack#11 no correct rhythm
+2026-09-22 19:48:46,183 INFO [paganini_24_#2]                Voice.java:257  | Measure{#12} Voice{#1 excess:1/16} too long
+2026-09-22 19:48:46,183 INFO [paganini_24_#2]          StackRhythm.java:224  | S3 MeasureStack#12 no correct rhythm
+2026-09-22 19:48:46,186 INFO [paganini_24_#2]        MeasureRhythm.java:1044 | Measure{#6} No timeOffset for HeadChordInter#14651{(0.916/0.916) staff:4 slot#11 dur:1/8}
+2026-09-22 19:48:46,186 INFO [paganini_24_#2]                Voice.java:257  | Measure{#6} Voice{#2 excess:3/16} too long
+2026-09-22 19:48:46,186 INFO [paganini_24_#2]                Voice.java:257  | Measure{#6} Voice{#3 excess:3/8} too long
+2026-09-22 19:48:46,186 INFO [paganini_24_#2]          StackRhythm.java:224  | S4 MeasureStack#6 no correct rhythm
+2026-09-22 19:48:46,188 INFO [paganini_24_#2]                Voice.java:257  | Measure{#12} Voice{#1 excess:1/16} too long
+2026-09-22 19:48:46,188 INFO [paganini_24_#2]          StackRhythm.java:224  | S5 MeasureStack#12 no correct rhythm
+2026-09-22 19:48:46,189 INFO [paganini_24_#2]                Voice.java:257  | Measure{#4} Voice{#1 excess:1/16} too long
+2026-09-22 19:48:46,189 INFO [paganini_24_#2]          StackRhythm.java:224  | S6 MeasureStack#4 no correct rhythm
+2026-09-22 19:48:46,192 INFO [paganini_24_#2]                Voice.java:257  | Measure{#2} Voice{#1 excess:1/8} too long
+2026-09-22 19:48:46,192 INFO [paganini_24_#2]          StackRhythm.java:224  | S8 MeasureStack#2 no correct rhythm
+2026-09-22 19:48:46,193 INFO [paganini_24_#2]        MeasureRhythm.java:1044 | Measure{#3} No timeOffset for HeadChordInter#14756{(0.956/0.956) staff:8 slot#7 dur:1/24}
+2026-09-22 19:48:46,193 INFO [paganini_24_#2]   AbstractChordInter.java:635  | Measure{#3} No timeOffset for HeadChordInter#14758{(0.957/0.957) staff:8 slot#9 dur:1/24}
+2026-09-22 19:48:46,193 INFO [paganini_24_#2]          StackRhythm.java:224  | S8 MeasureStack#3 no correct rhythm
+2026-09-22 19:48:46,193 INFO [paganini_24_#2]                Voice.java:257  | Measure{#4} Voice{#1 excess:1/16} too long
+2026-09-22 19:48:46,193 INFO [paganini_24_#2]          StackRhythm.java:224  | S8 MeasureStack#4 no correct rhythm
+2026-09-22 19:48:46,194 INFO [paganini_24_#2]        MeasureRhythm.java:1044 | Measure{#5} No timeOffset for HeadChordInter#14776{(0.911/0.911) staff:8 slot#10 dur:1/8}
+2026-09-22 19:48:46,194 INFO [paganini_24_#2]          StackRhythm.java:224  | S8 MeasureStack#5 no correct rhythm
+2026-09-22 19:48:46,195 INFO [paganini_24_#2]        MeasureRhythm.java:1044 | Measure{#8} No timeOffset for HeadChordInter#14786{(0.958/0.958) staff:9 slot#4 dur:1/24}
+2026-09-22 19:48:46,195 INFO [paganini_24_#2]   AbstractChordInter.java:635  | Measure{#8} No timeOffset for HeadChordInter#14788{(0.959/0.959) staff:9 slot#6 dur:1/24}
+2026-09-22 19:48:46,195 INFO [paganini_24_#2]   AbstractChordInter.java:635  | Measure{#8} No timeOffset for HeadChordInter#14791{(0.960/0.960) staff:9 slot#9 dur:1/24}
+2026-09-22 19:48:46,195 INFO [paganini_24_#2]                Voice.java:257  | Measure{#8} Voice{#1 excess:1/8} too long
+2026-09-22 19:48:46,195 INFO [paganini_24_#2]          StackRhythm.java:224  | S9 MeasureStack#8 no correct rhythm
+2026-09-22 19:48:46,196 INFO [paganini_24_#2]        MeasureRhythm.java:1044 | Measure{#10} No timeOffset for HeadChordInter#14808{(0.949/0.949) staff:9 slot#7 dur:1/24}
+2026-09-22 19:48:46,196 INFO [paganini_24_#2]   AbstractChordInter.java:635  | Measure{#10} No timeOffset for HeadChordInter#14810{(0.940/0.940) staff:9 slot#9 dur:1/24}
+2026-09-22 19:48:46,196 INFO [paganini_24_#2]          StackRhythm.java:224  | S9 MeasureStack#10 no correct rhythm
+2026-09-22 19:48:46,196 INFO [paganini_24_#2]        MeasureRhythm.java:1044 | Measure{#11} No timeOffset for HeadChordInter#14818{(0.954/0.954) staff:10 slot#5 dur:1/24}
+2026-09-22 19:48:46,196 INFO [paganini_24_#2]          StackRhythm.java:224  | S10 MeasureStack#11 no correct rhythm
+2026-09-22 19:48:46,198 INFO [paganini_24_#2]        MeasureRhythm.java:1044 | Measure{#14} No timeOffset for HeadChordInter#14847{(0.710/0.710) staff:10 slot#8 dur:1/4}
+2026-09-22 19:48:46,198 INFO [paganini_24_#2]                Voice.java:257  | Measure{#14} Voice{#1 excess:1/8} too long
+2026-09-22 19:48:46,198 INFO [paganini_24_#2]          StackRhythm.java:224  | S10 MeasureStack#14 no correct rhythm
+2026-09-22 19:48:46,200 INFO [paganini_24_#2]       StepMonitoring.java:98   | PAGE
+2026-09-22 19:48:46,200 INFO [paganini_24_#2]       SheetReduction.java:154  | Gutter. Different glyphs 1/2 ArticulationInter#17211{(0.511/0.644) TENUTO} vs SlurInter#14904{(0.427/0.866) SLUR_ABOVE}
+2026-09-22 19:48:46,201 INFO [paganini_24_#2]       SheetReduction.java:154  | Gutter. Different glyphs 2/3 ArticulationInter#17257{(0.769/0.835) TENUTO} vs SlurInter#14937{(0.541/0.908) SLUR_ABOVE}
+2026-09-22 19:48:46,201 INFO [paganini_24_#2]       SheetReduction.java:154  | Gutter. Different glyphs 2/3 MeasureCountInter#18132{(0.685/0.685) staff:2 TIME_THREE 3} vs SlurInter#14913{(0.534/0.906) SLUR_ABOVE}
+2026-09-22 19:48:46,201 INFO [paganini_24_#2]       SheetReduction.java:154  | Gutter. Different glyphs 2/3 ArticulationInter#17357{(0.564/0.665) TENUTO} vs SlurInter#14913{(0.534/0.906) SLUR_ABOVE}
+2026-09-22 19:48:46,201 INFO [paganini_24_#2]       SheetReduction.java:154  | Gutter. Different glyphs 2/3 ArticulationInter#17372{(0.625/0.802) TENUTO} vs SlurInter#14913{(0.534/0.906) SLUR_ABOVE}
+2026-09-22 19:48:46,202 INFO [paganini_24_#2]       SheetReduction.java:154  | Gutter. Different glyphs 4/5 SlurInter#15093{(0.684/0.947) SLUR_BELOW} vs ArticulationInter#17611{ REMOVED(0.798/0.913) ACCENT}
+2026-09-22 19:48:46,202 INFO [paganini_24_#2]       SheetReduction.java:154  | Gutter. Different glyphs 4/5 SlurInter#15084{(0.688/0.947) SLUR_BELOW} vs ArticulationInter#17620{ REMOVED(0.798/0.894) ACCENT}
+2026-09-22 19:48:46,202 INFO [paganini_24_#2]       SheetReduction.java:154  | Gutter. Different glyphs 5/6 SlurInter#15078{(0.684/0.947) SLUR_BELOW} vs ArticulationInter#17682{ REMOVED(0.799/0.915) ACCENT}
+2026-09-22 19:48:46,202 INFO [paganini_24_#2]       SheetReduction.java:154  | Gutter. Different glyphs 5/6 DynamicsInter#17602{(0.257/0.537) DYNAMICS_FP} vs AugmentationDotInter#17725{(0.782/0.889) staff:6 AUGMENTATION_DOT}
+2026-09-22 19:48:46,202 INFO [paganini_24_#2]       SheetReduction.java:154  | Gutter. Different glyphs 5/6 DynamicsInter#17602{(0.257/0.537) DYNAMICS_FP} vs AugmentationDotInter#17726{(0.796/0.896) staff:6 AUGMENTATION_DOT}
+2026-09-22 19:48:46,202 INFO [paganini_24_#2]       SheetReduction.java:154  | Gutter. Different glyphs 5/6 DynamicsInter#17602{(0.257/0.537) DYNAMICS_FP} vs ArticulationInter#17690{(0.786/0.821) STACCATO}
+2026-09-22 19:48:46,203 INFO [paganini_24_#2]       SheetReduction.java:154  | Gutter. Different glyphs 7/8 ArticulationInter#17734{(0.798/0.847) ACCENT} vs SlurInter#14959{(0.699/0.949) SLUR_ABOVE}
+2026-09-22 19:48:46,203 INFO [paganini_24_#2]       SheetReduction.java:154  | Gutter. Different glyphs 7/8 ArticulationInter#17737{(0.745/0.790) STACCATO} vs ArticulationInter#17811{(0.797/0.905) ACCENT}
+2026-09-22 19:48:46,203 INFO [paganini_24_#2]       SheetReduction.java:154  | Gutter. Different glyphs 8/9 DynamicsInter#17785{(0.330/0.627) DYNAMICS_SF} vs SlurInter#15043{(0.691/0.948) SLUR_ABOVE}
+2026-09-22 19:48:46,204 INFO [paganini_24_#2]       SheetReduction.java:154  | Gutter. Different glyphs 10/11 ArticulationInter#17902{(0.795/0.918) STACCATO} vs DynamicsInter#17992{ REMOVED(0.597/0.834) DYNAMICS_MF}
+2026-09-22 19:48:46,204 INFO [paganini_24_#2]       SheetReduction.java:154  | Gutter. Different glyphs 10/11 SlurInter#15002{(0.726/0.957) SLUR_BELOW} vs DynamicsInter#17992{ REMOVED(0.597/0.834) DYNAMICS_MF}
+2026-09-22 19:48:46,204 INFO [paganini_24_#2]       SheetReduction.java:154  | Gutter. Different glyphs 10/11 ArticulationInter#17928{(0.790/0.902) STACCATO} vs DynamicsInter#18018{ REMOVED(0.586/0.829) DYNAMICS_MF}
+2026-09-22 19:48:46,204 INFO [paganini_24_#2]       SheetReduction.java:154  | Gutter. Different glyphs 10/11 BowInter#17945{(0.481/0.522) BOW_DOWN} vs ArticulationInter#18035{(0.321/0.590) ACCENT}
+2026-09-22 19:48:46,204 INFO [paganini_24_#2]       SheetReduction.java:154  | Gutter. Different glyphs 10/11 ArticulationInter#17963{(0.799/0.909) STACCATO} vs DynamicsInter#18054{(0.667/0.667) DYNAMICS_F}
+2026-09-22 19:48:46,205 INFO [paganini_24_#2]       SheetReduction.java:154  | Gutter. Different glyphs 10/11 DynamicsInter#17968{(0.291/0.578) DYNAMICS_PPP} vs TupletInter#18068{(0.602/0.814) staff:11 TUPLET_THREE}
+2026-09-22 19:48:46,205 INFO [paganini_24_#2]       SheetReduction.java:154  | Gutter. Different glyphs 11/12 ArticulationInter#17999{(0.797/0.916) STACCATO} vs DynamicsInter#18074{ REMOVED(0.773/0.921) DYNAMICS_F}
+2026-09-22 19:48:46,206 INFO [paganini_24_#2]                Voice.java:257  | Measure{#3} Voice{#1 excess:1/32} too long
+2026-09-22 19:48:46,206 INFO [paganini_24_#2]                Voice.java:257  | Measure{#4} Voice{#1 excess:1/16} too long
+2026-09-22 19:48:46,206 INFO [paganini_24_#2]                Voice.java:257  | Measure{#11} Voice{#1 excess:1/8} too long
+2026-09-22 19:48:46,206 INFO [paganini_24_#2]                Voice.java:257  | Measure{#12} Voice{#1 excess:1/16} too long
+2026-09-22 19:48:46,207 INFO [paganini_24_#2]                Voice.java:257  | Measure{#6} Voice{#2 excess:3/16} too long
+2026-09-22 19:48:46,207 INFO [paganini_24_#2]                Voice.java:257  | Measure{#6} Voice{#3 excess:3/8} too long
+2026-09-22 19:48:46,207 INFO [paganini_24_#2]                Voice.java:257  | Measure{#12} Voice{#1 excess:1/16} too long
+2026-09-22 19:48:46,207 INFO [paganini_24_#2]                Voice.java:257  | Measure{#4} Voice{#1 excess:1/16} too long
+2026-09-22 19:48:46,207 INFO [paganini_24_#2]                Voice.java:257  | Measure{#2} Voice{#1 excess:1/8} too long
+2026-09-22 19:48:46,207 INFO [paganini_24_#2]                Voice.java:257  | Measure{#4} Voice{#1 excess:1/16} too long
+2026-09-22 19:48:46,207 INFO [paganini_24_#2]                Voice.java:257  | Measure{#8} Voice{#1 excess:1/8} too long
+2026-09-22 19:48:46,207 INFO [paganini_24_#2]                Voice.java:257  | Measure{#14} Voice{#1 excess:1/8} too long
+2026-09-22 19:48:46,208 INFO [paganini_24_#2]                 Book.java:2584 | Book{paganini_24_} storing
+2026-09-22 19:48:46,291 INFO [paganini_24_#2]                 Book.java:2565 | Stored /book.xml
+2026-09-22 19:48:46,363 INFO [paganini_24_#2]           DataHolder.java:348  | Stored /sheet#2/BINARY.png
+2026-09-22 19:48:47,611 INFO [paganini_24_#2]                Sheet.java:1583 | Stored /sheet#2/sheet#2.xml
+2026-09-22 19:48:47,612 INFO [paganini_24_#2]                 Book.java:2525 | Book stored as /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.omr
+2026-09-22 19:48:47,615 INFO [paganini_24_#2]            SheetStub.java:1655 | Sheet#2 disposed
+2026-09-22 19:48:47,630 INFO [paganini_24_#2]                 Book.java:2050 | End of Stub#2
+2026-09-22 19:48:47,630 INFO [paganini_24_#3]       StepMonitoring.java:98   | LOAD
+2026-09-22 19:48:48,374 INFO [paganini_24_#3]            SheetStub.java:1278 | Loaded image #3 2550x3299 from /Users/parsarahmanseresht/.cursor/projects/Users-parsarahmanseresht-Desktop-stuff-cs-projects-musai/attachments/bfc7619a-748e-4206-b90e-75bcd6ec007f/paganini_24_.pdf
+2026-09-22 19:48:48,374 INFO [paganini_24_#3]       StepMonitoring.java:98   | BINARY
+2026-09-22 19:48:48,562 INFO [paganini_24_#3]       StepMonitoring.java:98   | SCALE
+2026-09-22 19:48:48,564 INFO [paganini_24_#3]         ScaleBuilder.java:254  | Beam  guessed height: 12 -- 0.25 of [9..20] range
+2026-09-22 19:48:48,564 INFO [paganini_24_#3]         ScaleBuilder.java:271  | Beam measured height: 15 -- 0.55 of [9..20] range at 669% of needed quorum
+2026-09-22 19:48:48,564 INFO [paganini_24_#3]         ScaleBuilder.java:401  | Normalized black jitter: 19.05 %
+2026-09-22 19:48:48,564 INFO [paganini_24_#3]            ScaleStep.java:65   | Scale{ interline(19,21,23) line(3,4,7) beam(15)}
+2026-09-22 19:48:48,564 INFO [paganini_24_#3]       StepMonitoring.java:98   | GRID
+2026-09-22 19:48:48,850 INFO [paganini_24_#3]       LinesRetriever.java:1508 | Global slope: 0.00074
+2026-09-22 19:48:48,861 INFO [paganini_24_#3]    ClustersRetriever.java:326  | Retrieved raw line clusters: 11 of sizes [5] with interline(19,21,23)
+2026-09-22 19:48:48,948 INFO [paganini_24_#3]            PeakGraph.java:310  | Systems: #1[1] #2[2] #3[3] #4[4] #5[5] #6[6] #7[7] #8[8] #9[9] #10[10] #11[11]
+2026-09-22 19:48:49,197 INFO [paganini_24_#3]        SystemManager.java:134  | Indentation detected for system #1
+2026-09-22 19:48:49,197 INFO [paganini_24_#3]        SystemManager.java:134  | Indentation detected for system #4
+2026-09-22 19:48:49,197 INFO [paganini_24_#3]        SystemManager.java:134  | Indentation detected for system #6
+2026-09-22 19:48:49,197 INFO [paganini_24_#3]        SystemManager.java:134  | Indentation detected for system #9
+2026-09-22 19:48:49,197 INFO [paganini_24_#3]        SystemManager.java:744  | 4 pages found in sheet
+2026-09-22 19:48:49,197 INFO [paganini_24_#3]        SystemManager.java:800  | Page #1: 1 part along 3 systems
+2026-09-22 19:48:49,198 INFO [paganini_24_#3]        SystemManager.java:800  | Page #2: 1 part along 2 systems
+2026-09-22 19:48:49,198 INFO [paganini_24_#3]        SystemManager.java:800  | Page #3: 1 part along 3 systems
+2026-09-22 19:48:49,198 INFO [paganini_24_#3]        SystemManager.java:800  | Page #4: 1 part along 3 systems
+2026-09-22 19:48:49,198 INFO [paganini_24_#3]       StepMonitoring.java:98   | HEADERS
+2026-09-22 19:48:49,420 INFO [paganini_24_#3]       StepMonitoring.java:98   | STEM_SEEDS
+2026-09-22 19:48:49,439 INFO [paganini_24_#3]        StemSeedsStep.java:86   | stem(5 max:7)
+2026-09-22 19:48:49,457 INFO [paganini_24_#3]       StepMonitoring.java:98   | BEAMS
+2026-09-22 19:48:53,847 INFO [paganini_24_#3]       StepMonitoring.java:98   | LEDGERS
+2026-09-22 19:48:54,380 INFO [paganini_24_#3]       StepMonitoring.java:98   | HEADS
+2026-09-22 19:49:00,644 INFO [paganini_24_#3]        HeadSeedTally.java:235  | Scale information: HeadSeeds{NOTEHEAD_BLACK[L:-2.0,R:-2.0]}
+2026-09-22 19:49:00,647 INFO [paganini_24_#3]       StepMonitoring.java:98   | STEMS
+2026-09-22 19:49:01,443 INFO [paganini_24_#3]       StepMonitoring.java:98   | REDUCTION
+2026-09-22 19:49:01,520 INFO [paganini_24_#3]        ReductionStep.java:105  | Stems free length median value: 119 pixels, 5.7 interlines
+2026-09-22 19:49:01,523 INFO [paganini_24_#3]       StepMonitoring.java:98   | CUE_BEAMS
+2026-09-22 19:49:01,523 INFO [paganini_24_#3]         CueBeamsStep.java:81   | Step CUE_BEAMS is skipped because small heads switch is off
+2026-09-22 19:49:01,523 INFO [paganini_24_#3]       StepMonitoring.java:98   | TEXTS
+2026-09-22 19:49:01,674 WARN [paganini_24_#3]         TesseractOCR.java:335  | The collection of supported languages is empty
+2026-09-22 19:49:01,674 INFO [paganini_24_#3]              OcrUtil.java:106  | Missing support for 'eng' language(s)
+2026-09-22 19:49:01,676 INFO [paganini_24_#3]       StepMonitoring.java:98   | MEASURES
+2026-09-22 19:49:01,677 INFO [paganini_24_#3]                 Page.java:307  | 14 raw measures: [5 in system#1, 5 in system#2, 4 in system#3]
+2026-09-22 19:49:01,677 INFO [paganini_24_#3]                 Page.java:307  | 12 raw measures: [6 in system#4, 6 in system#5]
+2026-09-22 19:49:01,677 INFO [paganini_24_#3]                 Page.java:307  | 13 raw measures: [5 in system#6, 4 in system#7, 4 in system#8]
+2026-09-22 19:49:01,677 INFO [paganini_24_#3]                 Page.java:307  | 12 raw measures: [4 in system#9, 3 in system#10, 5 in system#11]
+2026-09-22 19:49:01,677 INFO [paganini_24_#3]       StepMonitoring.java:98   | CHORDS
+2026-09-22 19:49:01,681 INFO [paganini_24_#3]       StepMonitoring.java:98   | CURVES
+2026-09-22 19:49:02,730 INFO [paganini_24_#3]         SlursBuilder.java:240  | Slurs: 57
+2026-09-22 19:49:02,753 INFO [paganini_24_#3]        CurvesBuilder.java:532  | Curve: SegmentInfo{#501[458,1113][492,1111] dist:0.49} Too many rookies: 61, giving up!
+2026-09-22 19:49:02,763 INFO [paganini_24_#3]      SegmentsBuilder.java:155  | Segments: 39
+2026-09-22 19:49:02,767 INFO [paganini_24_#3]       StepMonitoring.java:98   | SYMBOLS
+2026-09-22 19:49:03,999 INFO [paganini_24_#3]       StepMonitoring.java:98   | LINKS
+2026-09-22 19:49:04,024 INFO [paganini_24_#3]             KeyInter.java:1198 | No effective key before AlterInter#16830{(0.554) staff:5 NATURAL pitch:-5.0}
+2026-09-22 19:49:04,038 INFO [paganini_24_#3]             KeyInter.java:1198 | No effective key before AlterInter#16999{(0.144) staff:7 NATURAL pitch:-3.0}
+2026-09-22 19:49:04,039 INFO [paganini_24_#3]             KeyInter.java:1198 | No effective key before AlterInter#17031{(0.578) staff:7 NATURAL pitch:-4.0}
+2026-09-22 19:49:04,054 INFO [paganini_24_#3]        SymbolsLinker.java:258  | No chord linked to OctaveShiftInter#17159{(0.337) staff:9 QUINDICESIMA ALTA} at java.awt.Point[x=485,y=2402]
+2026-09-22 19:49:04,062 INFO [paganini_24_#3]             KeyInter.java:1331 | Key built KeyInter#17317{(0.795) staff:10 KEY_SHARP_1 pitch:-3.9 fifths:1}
+2026-09-22 19:49:04,068 INFO [paganini_24_#3]        SymbolsLinker.java:258  | No chord linked to OctaveShiftInter#17295{(0.190) staff:11 QUINDICESIMA ALTA} at java.awt.Point[x=1964,y=2897]
+2026-09-22 19:49:04,074 INFO [paganini_24_#3]       StepMonitoring.java:98   | RHYTHMS
+2026-09-22 19:49:04,082 INFO [paganini_24_#3]        MeasureRhythm.java:1044 | Measure{#4} No timeOffset for HeadChordInter#13574{(0.941/0.941) staff:4 slot#7 dur:1/4}
+2026-09-22 19:49:04,082 INFO [paganini_24_#3]                Voice.java:257  | Measure{#4} Voice{#1 excess:1/16} too long
+2026-09-22 19:49:04,082 INFO [paganini_24_#3]          StackRhythm.java:224  | S4 MeasureStack#4 no correct rhythm
+2026-09-22 19:49:04,090 INFO [paganini_24_#3]                Voice.java:257  | Measure{#2} Voice{#2 excess:1/16} too long
+2026-09-22 19:49:04,090 INFO [paganini_24_#3]          StackRhythm.java:224  | S6 MeasureStack#2 no correct rhythm
+2026-09-22 19:49:04,110 INFO [paganini_24_#3]                Voice.java:257  | Measure{#3} Voice{#1 excess:1/16} too long
+2026-09-22 19:49:04,110 INFO [paganini_24_#3]          StackRhythm.java:224  | S6 MeasureStack#3 no correct rhythm
+2026-09-22 19:49:04,111 INFO [paganini_24_#3]        MeasureRhythm.java:1044 | Measure{#4} No timeOffset for HeadChordInter#13648{(0.972/0.972) staff:6 slot#5 dur:1/16}
+2026-09-22 19:49:04,111 INFO [paganini_24_#3]   AbstractChordInter.java:635  | Measure{#4} No timeOffset for HeadChordInter#13649{(0.962/0.962) staff:6 slot#6 dur:1/16}
+2026-09-22 19:49:04,111 INFO [paganini_24_#3]                Voice.java:257  | Measure{#4} Voice{#1 excess:1/8} too long
+2026-09-22 19:49:04,111 INFO [paganini_24_#3]          StackRhythm.java:224  | S6 MeasureStack#4 no correct rhythm
+2026-09-22 19:49:04,113 INFO [paganini_24_#3]                Voice.java:257  | Measure{#7} Voice{#1 excess:3/16} too long
+2026-09-22 19:49:04,113 INFO [paganini_24_#3]          StackRhythm.java:224  | S7 MeasureStack#7 no correct rhythm
+2026-09-22 19:49:04,114 INFO [paganini_24_#3]                Voice.java:257  | Measure{#9} Voice{#1 excess:3/16} too long
+2026-09-22 19:49:04,114 INFO [paganini_24_#3]          StackRhythm.java:224  | S7 MeasureStack#9 no correct rhythm
+2026-09-22 19:49:04,114 INFO [paganini_24_#3]        MeasureRhythm.java:1044 | Measure{#10} No timeOffset for HeadChordInter#13701{(0.957/0.957) staff:8 slot#3 dur:1/16}
+2026-09-22 19:49:04,114 INFO [paganini_24_#3]   AbstractChordInter.java:635  | Measure{#10} No timeOffset for HeadChordInter#13702{(0.966/0.966) staff:8 slot#4 dur:1/16}
+2026-09-22 19:49:04,115 INFO [paganini_24_#3]   AbstractChordInter.java:635  | Measure{#10} No timeOffset for HeadChordInter#13704{(0.971/0.971) staff:8 slot#6 dur:1/16}
+2026-09-22 19:49:04,115 INFO [paganini_24_#3]          StackRhythm.java:224  | S8 MeasureStack#10 no correct rhythm
+2026-09-22 19:49:04,116 INFO [paganini_24_#3]        MeasureRhythm.java:1044 | Measure{#12} No timeOffset for HeadChordInter#13722{(0.967/0.967) staff:8 slot#8 dur:1/4}
+2026-09-22 19:49:04,116 INFO [paganini_24_#3]   AbstractChordInter.java:635  | Measure{#12} No timeOffset for HeadChordInter#13722{(0.967/0.967) staff:8 slot#8 dur:1/4}
+2026-09-22 19:49:04,116 INFO [paganini_24_#3]                Voice.java:257  | Measure{#12} Voice{#1 excess:1/8} too long
+2026-09-22 19:49:04,116 INFO [paganini_24_#3]          StackRhythm.java:224  | S8 MeasureStack#12 no correct rhythm
+2026-09-22 19:49:04,116 INFO [paganini_24_#3]                Voice.java:257  | Measure{#13} Voice{#1 excess:1/8} too long
+2026-09-22 19:49:04,116 INFO [paganini_24_#3]          StackRhythm.java:224  | S8 MeasureStack#13 no correct rhythm
+2026-09-22 19:49:04,118 INFO [paganini_24_#3]                Voice.java:257  | Measure{#3} Voice{#1 excess:3/16} too long
+2026-09-22 19:49:04,118 INFO [paganini_24_#3]          StackRhythm.java:224  | S9 MeasureStack#3 no correct rhythm
+2026-09-22 19:49:04,120 INFO [paganini_24_#3]        MeasureRhythm.java:1044 | Measure{#6} No timeOffset for HeadChordInter#13782{(0.529/0.529) staff:10 slot#7 dur:3/16}
+2026-09-22 19:49:04,120 INFO [paganini_24_#3]          StackRhythm.java:224  | S10 MeasureStack#6 no correct rhythm
+2026-09-22 19:49:04,120 INFO [paganini_24_#3]                Voice.java:257  | Measure{#7} Voice{#1 excess:3/8} too long
+2026-09-22 19:49:04,120 INFO [paganini_24_#3]          StackRhythm.java:224  | S10 MeasureStack#7 no correct rhythm
+2026-09-22 19:49:04,121 INFO [paganini_24_#3]                Voice.java:257  | Measure{#8} Voice{#1 excess:1/32} too long
+2026-09-22 19:49:04,121 INFO [paganini_24_#3]          StackRhythm.java:224  | S11 MeasureStack#8 no correct rhythm
+2026-09-22 19:49:04,122 INFO [paganini_24_#3]        MeasureRhythm.java:1044 | Measure{#9} No timeOffset for HeadChordInter#13828{(0.948/0.948) staff:11 slot#11 dur:1/4}
+2026-09-22 19:49:04,122 INFO [paganini_24_#3]   AbstractChordInter.java:635  | Measure{#9} No timeOffset for HeadChordInter#13828{(0.948/0.948) staff:11 slot#11 dur:1/4}
+2026-09-22 19:49:04,122 INFO [paganini_24_#3]   AbstractChordInter.java:635  | Measure{#9} No timeOffset for HeadChordInter#13829{(0.953/0.953) staff:11 slot#12 dur:1/4}
+2026-09-22 19:49:04,122 INFO [paganini_24_#3]   AbstractChordInter.java:635  | Measure{#9} No timeOffset for HeadChordInter#13830{(0.949/0.949) staff:11 slot#13 dur:1/4}
+2026-09-22 19:49:04,122 INFO [paganini_24_#3]   AbstractChordInter.java:635  | Measure{#9} No timeOffset for HeadChordInter#13831{(0.960/0.960) staff:11 slot#14 dur:1/4}
+2026-09-22 19:49:04,122 INFO [paganini_24_#3]   AbstractChordInter.java:635  | Measure{#9} No timeOffset for HeadChordInter#13832{(0.965/0.965) staff:11 slot#15 dur:1/4}
+2026-09-22 19:49:04,123 INFO [paganini_24_#3]   AbstractChordInter.java:635  | Measure{#9} No timeOffset for HeadChordInter#13833{(0.962/0.962) staff:11 slot#16 dur:1/4}
+2026-09-22 19:49:04,123 INFO [paganini_24_#3]                Voice.java:257  | Measure{#9} Voice{#1 excess:1/32} too long
+2026-09-22 19:49:04,123 INFO [paganini_24_#3]          StackRhythm.java:224  | S11 MeasureStack#9 no correct rhythm
+2026-09-22 19:49:04,123 INFO [paganini_24_#3]                Voice.java:257  | Measure{#10} Voice{#1 excess:1/4} too long
+2026-09-22 19:49:04,123 INFO [paganini_24_#3]          StackRhythm.java:224  | S11 MeasureStack#10 no correct rhythm
+2026-09-22 19:49:04,123 INFO [paganini_24_#3]       StepMonitoring.java:98   | PAGE
+2026-09-22 19:49:04,125 INFO [paganini_24_#3]       SheetReduction.java:154  | Gutter. Different glyphs 6/7 ArticulationInter#16877{(0.796/0.927) STACCATO} vs DynamicsInter#17000{ REMOVED(0.748/0.910) DYNAMICS_F}
+2026-09-22 19:49:04,125 INFO [paganini_24_#3]       SheetReduction.java:154  | Gutter. Different glyphs 6/7 BeamInter#2728{(0.549/0.973) BEAM} vs OctaveShiftInter#17012{(0.538/0.538) staff:7 OTTAVA ALTA}
+2026-09-22 19:49:04,125 INFO [paganini_24_#3]       SheetReduction.java:154  | Gutter. Different glyphs 6/7 BeamInter#2728{(0.549/0.973) BEAM} vs ArticulationInter#17018{(0.623/0.797) TENUTO}
+2026-09-22 19:49:04,125 INFO [paganini_24_#3]       SheetReduction.java:154  | Gutter. Different glyphs 6/7 BeamInter#2730{(0.762/0.989) BEAM} vs OctaveShiftInter#17012{(0.538/0.538) staff:7 OTTAVA ALTA}
+2026-09-22 19:49:04,125 INFO [paganini_24_#3]       SheetReduction.java:154  | Gutter. Different glyphs 6/7 BeamInter#2730{(0.762/0.989) BEAM} vs ArticulationInter#17018{(0.623/0.797) TENUTO}
+2026-09-22 19:49:04,125 INFO [paganini_24_#3]       SheetReduction.java:154  | Gutter. Different glyphs 6/7 BeamInter#2732{(0.733/0.988) BEAM} vs OctaveShiftInter#17012{(0.538/0.538) staff:7 OTTAVA ALTA}
+2026-09-22 19:49:04,125 INFO [paganini_24_#3]       SheetReduction.java:154  | Gutter. Different glyphs 6/7 BeamInter#2732{(0.733/0.988) BEAM} vs ArticulationInter#17018{(0.623/0.797) TENUTO}
+2026-09-22 19:49:04,125 INFO [paganini_24_#3]       SheetReduction.java:154  | Gutter. Different glyphs 6/7 ArticulationInter#16989{(0.792/0.862) STACCATO} vs SlurInter#14053{(0.731/0.956) SLUR_ABOVE}
+2026-09-22 19:49:04,126 INFO [paganini_24_#3]       SheetReduction.java:154  | Gutter. Different glyphs 7/8 BeamInter#2800{(0.620/0.933) BEAM} vs SlurInter#14047{(0.663/0.944) SLUR_ABOVE}
+2026-09-22 19:49:04,126 INFO [paganini_24_#3]       SheetReduction.java:154  | Gutter. Different glyphs 7/8 ArticulationInter#17032{(0.774/0.909) STACCATO} vs SlurInter#14047{(0.663/0.944) SLUR_ABOVE}
+2026-09-22 19:49:04,126 INFO [paganini_24_#3]       SheetReduction.java:154  | Gutter. Different glyphs 7/8 ArticulationInter#17039{(0.793/0.916) STACCATO} vs SlurInter#14047{(0.663/0.944) SLUR_ABOVE}
+2026-09-22 19:49:04,126 INFO [paganini_24_#3]       SheetReduction.java:154  | Gutter. Different glyphs 10/11 AlterInter#17210{(0.798/0.916) staff:10 SHARP pitch:9.0} vs DynamicsInter#17281{(0.766/0.766) DYNAMICS_F}
+2026-09-22 19:49:04,127 INFO [paganini_24_#3]       SheetReduction.java:154  | Gutter. Different glyphs 10/11 ArticulationInter#17234{(0.797/0.899) STACCATO} vs DynamicsInter#17284{ REMOVED(0.755/0.913) DYNAMICS_F}
+2026-09-22 19:49:04,127 INFO [paganini_24_#3]       SheetReduction.java:154  | Gutter. Different glyphs 10/11 SlurInter#13838{(0.683/0.925) SLUR_BELOW} vs DynamicsInter#17284{ REMOVED(0.755/0.913) DYNAMICS_F}
+2026-09-22 19:49:04,127 INFO [paganini_24_#3]       SheetReduction.java:154  | Gutter. Different glyphs 10/11 BeamInter#3001{(0.581/0.971) BEAM} vs DynamicsInter#17296{(0.419/0.696) DYNAMICS_PP}
+2026-09-22 19:49:04,127 INFO [paganini_24_#3]       SheetReduction.java:154  | Gutter. Different glyphs 10/11 BeamInter#3003{(0.725/0.984) BEAM} vs DynamicsInter#17296{(0.419/0.696) DYNAMICS_PP}
+2026-09-22 19:49:04,127 INFO [paganini_24_#3]                Voice.java:257  | Measure{#4} Voice{#1 excess:1/16} too long
+2026-09-22 19:49:04,127 INFO [paganini_24_#3]                Voice.java:257  | Measure{#2} Voice{#2 excess:1/16} too long
+2026-09-22 19:49:04,127 INFO [paganini_24_#3]                Voice.java:257  | Measure{#3} Voice{#1 excess:1/16} too long
+2026-09-22 19:49:04,127 INFO [paganini_24_#3]                Voice.java:257  | Measure{#4} Voice{#1 excess:1/8} too long
+2026-09-22 19:49:04,128 INFO [paganini_24_#3]                Voice.java:257  | Measure{#7} Voice{#1 excess:3/16} too long
+2026-09-22 19:49:04,128 INFO [paganini_24_#3]                Voice.java:257  | Measure{#9} Voice{#1 excess:3/16} too long
+2026-09-22 19:49:04,128 INFO [paganini_24_#3]                Voice.java:257  | Measure{#12} Voice{#1 excess:1/8} too long
+2026-09-22 19:49:04,128 INFO [paganini_24_#3]                Voice.java:257  | Measure{#13} Voice{#1 excess:1/8} too long
+2026-09-22 19:49:04,128 INFO [paganini_24_#3]                Voice.java:257  | Measure{#3} Voice{#1 excess:3/16} too long
+2026-09-22 19:49:04,128 INFO [paganini_24_#3]                Voice.java:257  | Measure{#7} Voice{#1 excess:3/8} too long
+2026-09-22 19:49:04,128 INFO [paganini_24_#3]                Voice.java:257  | Measure{#8} Voice{#1 excess:1/32} too long
+2026-09-22 19:49:04,128 INFO [paganini_24_#3]                Voice.java:257  | Measure{#9} Voice{#1 excess:1/32} too long
+2026-09-22 19:49:04,128 INFO [paganini_24_#3]                Voice.java:257  | Measure{#10} Voice{#1 excess:1/4} too long
+2026-09-22 19:49:04,128 INFO [paganini_24_#3]                 Book.java:2584 | Book{paganini_24_} storing
+2026-09-22 19:49:04,203 INFO [paganini_24_#3]                 Book.java:2565 | Stored /book.xml
+2026-09-22 19:49:04,285 INFO [paganini_24_#3]           DataHolder.java:348  | Stored /sheet#3/BINARY.png
+2026-09-22 19:49:06,048 INFO [paganini_24_#3]                Sheet.java:1583 | Stored /sheet#3/sheet#3.xml
+2026-09-22 19:49:06,050 INFO [paganini_24_#3]                 Book.java:2525 | Book stored as /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.omr
+2026-09-22 19:49:06,059 INFO [paganini_24_#3]            SheetStub.java:1655 | Sheet#3 disposed
+2026-09-22 19:49:06,111 INFO [paganini_24_#3]                 Book.java:2050 | End of Stub#3
+2026-09-22 19:49:06,112 INFO [paganini_24_]                 Book.java:2057 | End of Book{paganini_24_}
+2026-09-22 19:49:06,632 INFO [paganini_24_]            SheetStub.java:1000 | Loaded /sheet#1/sheet#1.xml
+2026-09-22 19:49:07,150 INFO [paganini_24_]            SheetStub.java:1000 | Loaded /sheet#2/sheet#2.xml
+2026-09-22 19:49:07,152 INFO [paganini_24_]                Score.java:866  | PartCollation needed in {Score 6}
+2026-09-22 19:49:07,156 INFO [paganini_24_]                Score.java:866  | PartCollation needed in {Score 7}
+2026-09-22 19:49:07,156 INFO [paganini_24_]                Score.java:866  | PartCollation needed in {Score 8}
+2026-09-22 19:49:07,156 INFO [paganini_24_]                Score.java:866  | PartCollation needed in {Score 9}
+2026-09-22 19:49:07,610 INFO [paganini_24_]            SheetStub.java:1000 | Loaded /sheet#3/sheet#3.xml
+2026-09-22 19:49:07,612 INFO [paganini_24_]                Score.java:866  | PartCollation needed in {Score 11}
+2026-09-22 19:49:07,613 INFO [paganini_24_]                Score.java:866  | PartCollation needed in {Score 12}
+2026-09-22 19:49:07,613 INFO [paganini_24_]                Score.java:866  | PartCollation needed in {Score 13}
+2026-09-22 19:49:07,613 INFO [paganini_24_]                 Book.java:2109 | Scores built: 13
+2026-09-22 19:49:07,859 INFO [paganini_24_]      PartwiseBuilder.java:2707 | Exporting sheet(s): [#1]
+2026-09-22 19:49:07,900 INFO [paganini_24_]        ScoreExporter.java:164  | Score paganini_24_.mvt1 exported to /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.mvt1.mxl
+2026-09-22 19:49:07,900 INFO [paganini_24_]      PartwiseBuilder.java:2707 | Exporting sheet(s): [#1]
+2026-09-22 19:49:07,911 INFO [paganini_24_]        ScoreExporter.java:164  | Score paganini_24_.mvt2 exported to /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.mvt2.mxl
+2026-09-22 19:49:07,911 INFO [paganini_24_]      PartwiseBuilder.java:2707 | Exporting sheet(s): [#1]
+2026-09-22 19:49:07,922 INFO [paganini_24_]        ScoreExporter.java:164  | Score paganini_24_.mvt3 exported to /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.mvt3.mxl
+2026-09-22 19:49:07,922 INFO [paganini_24_]      PartwiseBuilder.java:2707 | Exporting sheet(s): [#1]
+2026-09-22 19:49:07,928 INFO [paganini_24_]        ScoreExporter.java:164  | Score paganini_24_.mvt4 exported to /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.mvt4.mxl
+2026-09-22 19:49:07,928 INFO [paganini_24_]      PartwiseBuilder.java:2707 | Exporting sheet(s): [#2]
+2026-09-22 19:49:07,930 WARN [paganini_24_]      PartwiseBuilder.java:980  | Measure{#4} Multirest with no measure count, using default value 1
+2026-09-22 19:49:07,943 INFO [paganini_24_]        ScoreExporter.java:164  | Score paganini_24_.mvt5 exported to /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.mvt5.mxl
+2026-09-22 19:49:07,944 INFO [paganini_24_]      PartwiseBuilder.java:2707 | Exporting sheet(s): [#2]
+2026-09-22 19:49:07,950 INFO [paganini_24_]        ScoreExporter.java:164  | Score paganini_24_.mvt6 exported to /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.mvt6.mxl
+2026-09-22 19:49:07,950 INFO [paganini_24_]      PartwiseBuilder.java:2707 | Exporting sheet(s): [#2]
+2026-09-22 19:49:07,960 INFO [paganini_24_]        ScoreExporter.java:164  | Score paganini_24_.mvt7 exported to /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.mvt7.mxl
+2026-09-22 19:49:07,960 INFO [paganini_24_]      PartwiseBuilder.java:2707 | Exporting sheet(s): [#2]
+2026-09-22 19:49:07,961 WARN [paganini_24_]      PartwiseBuilder.java:980  | Measure{#6} Multirest with no measure count, using default value 1
+2026-09-22 19:49:07,963 WARN [paganini_24_]      PartwiseBuilder.java:980  | Measure{#7} Multirest with no measure count, using default value 1
+2026-09-22 19:49:07,964 WARN [paganini_24_]      PartwiseBuilder.java:980  | Measure{#7} Multirest with no measure count, using default value 1
+2026-09-22 19:49:07,965 WARN [paganini_24_]      PartwiseBuilder.java:980  | Measure{#9} Multirest with no measure count, using default value 1
+2026-09-22 19:49:07,971 INFO [paganini_24_]        ScoreExporter.java:164  | Score paganini_24_.mvt8 exported to /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.mvt8.mxl
+2026-09-22 19:49:07,972 INFO [paganini_24_]      PartwiseBuilder.java:2707 | Exporting sheet(s): [#2]
+2026-09-22 19:49:07,980 INFO [paganini_24_]        ScoreExporter.java:164  | Score paganini_24_.mvt9 exported to /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.mvt9.mxl
+2026-09-22 19:49:07,982 INFO [paganini_24_]      PartwiseBuilder.java:2707 | Exporting sheet(s): [#3]
+2026-09-22 19:49:07,989 INFO [paganini_24_]        ScoreExporter.java:164  | Score paganini_24_.mvt10 exported to /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.mvt10.mxl
+2026-09-22 19:49:07,989 INFO [paganini_24_]      PartwiseBuilder.java:2707 | Exporting sheet(s): [#3]
+2026-09-22 19:49:07,994 INFO [paganini_24_]        ScoreExporter.java:164  | Score paganini_24_.mvt11 exported to /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.mvt11.mxl
+2026-09-22 19:49:07,994 INFO [paganini_24_]      PartwiseBuilder.java:2707 | Exporting sheet(s): [#3]
+2026-09-22 19:49:08,000 INFO [paganini_24_]        ScoreExporter.java:164  | Score paganini_24_.mvt12 exported to /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.mvt12.mxl
+2026-09-22 19:49:08,001 INFO [paganini_24_]      PartwiseBuilder.java:2707 | Exporting sheet(s): [#3]
+2026-09-22 19:49:08,007 INFO [paganini_24_]        ScoreExporter.java:164  | Score paganini_24_.mvt13 exported to /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.mvt13.mxl
+2026-09-22 19:49:08,064 INFO [paganini_24_]                 Book.java:2565 | Stored /book.xml
+2026-09-22 19:49:08,064 INFO [paganini_24_]                 Book.java:2525 | Book stored as /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.omr
+2026-09-22 19:49:08,067 INFO [paganini_24_]                Score.java:181  | Closing {Score 1}
+2026-09-22 19:49:08,067 INFO [paganini_24_]                Score.java:181  | Closing {Score 2}
+2026-09-22 19:49:08,067 INFO [paganini_24_]                Score.java:181  | Closing {Score 3}
+2026-09-22 19:49:08,067 INFO [paganini_24_]                Score.java:181  | Closing {Score 4}
+2026-09-22 19:49:08,067 INFO [paganini_24_]                Score.java:181  | Closing {Score 5}
+2026-09-22 19:49:08,067 INFO [paganini_24_]                Score.java:181  | Closing {Score 6}
+2026-09-22 19:49:08,067 INFO [paganini_24_]                Score.java:181  | Closing {Score 7}
+2026-09-22 19:49:08,067 INFO [paganini_24_]                Score.java:181  | Closing {Score 8}
+2026-09-22 19:49:08,067 INFO [paganini_24_]                Score.java:181  | Closing {Score 9}
+2026-09-22 19:49:08,067 INFO [paganini_24_]                Score.java:181  | Closing {Score 10}
+2026-09-22 19:49:08,067 INFO [paganini_24_]                Score.java:181  | Closing {Score 11}
+2026-09-22 19:49:08,067 INFO [paganini_24_]                Score.java:181  | Closing {Score 12}
+2026-09-22 19:49:08,067 INFO [paganini_24_]                Score.java:181  | Closing {Score 13}

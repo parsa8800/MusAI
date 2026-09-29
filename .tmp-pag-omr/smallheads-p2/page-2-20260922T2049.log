@@ -1,0 +1,189 @@
+2026-09-22 20:49:06,425 INFO [page-2]                 Book.java:560  | 1 sheet in /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/raster/page-2.png
+2026-09-22 20:49:06,510 INFO []                 Book.java:2565 | Stored /book.xml
+2026-09-22 20:49:06,511 INFO []                 Book.java:2525 | Book stored as /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/smallheads-p2/page-2.omr
+2026-09-22 20:49:06,513 INFO []                 Book.java:1929 | Book reaching PAGE on sheets:[#1]
+2026-09-22 20:49:06,513 INFO [page-2]       StepMonitoring.java:98   | LOAD
+2026-09-22 20:49:06,585 INFO [page-2]            SheetStub.java:1278 | Loaded image #1 1870x2420 from /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/raster/page-2.png
+2026-09-22 20:49:06,588 INFO [page-2]            ImageUtil.java:152  | Converting max RGB to gray
+2026-09-22 20:49:06,663 INFO [page-2]       StepMonitoring.java:98   | BINARY
+2026-09-22 20:49:06,890 INFO [page-2]       StepMonitoring.java:98   | SCALE
+2026-09-22 20:49:06,911 INFO [page-2]         ScaleBuilder.java:254  | Beam  guessed height:  9 -- 0.25 of [7..14] range
+2026-09-22 20:49:06,912 INFO [page-2]         ScaleBuilder.java:271  | Beam measured height: 10 -- 0.43 of [7..14] range at 743% of needed quorum
+2026-09-22 20:49:06,913 INFO [page-2]         ScaleBuilder.java:401  | Normalized black jitter: 20.00 %
+2026-09-22 20:49:06,913 INFO [page-2]            ScaleStep.java:65   | Scale{ interline(13,15,16) line(2,3,5) beam(10)}
+2026-09-22 20:49:06,914 INFO [page-2]       StepMonitoring.java:98   | GRID
+2026-09-22 20:49:07,352 INFO [page-2]       LinesRetriever.java:1508 | Global slope: 0.00136
+2026-09-22 20:49:07,408 INFO [page-2]    ClustersRetriever.java:326  | Retrieved raw line clusters: 12 of sizes [5] with interline(13,15,16)
+2026-09-22 20:49:07,574 INFO [page-2]            PeakGraph.java:310  | Systems: #1[1] #2[2] #3[3] #4[4] #5[5] #6[6] #7[7] #8[8] #9[9] #10[10] #11[11] #12[12]
+2026-09-22 20:49:07,933 INFO [page-2]        SystemManager.java:134  | Indentation detected for system #1
+2026-09-22 20:49:07,934 INFO [page-2]        SystemManager.java:134  | Indentation detected for system #4
+2026-09-22 20:49:07,934 INFO [page-2]        SystemManager.java:134  | Indentation detected for system #6
+2026-09-22 20:49:07,934 INFO [page-2]        SystemManager.java:134  | Indentation detected for system #8
+2026-09-22 20:49:07,934 INFO [page-2]        SystemManager.java:134  | Indentation detected for system #11
+2026-09-22 20:49:07,934 INFO [page-2]        SystemManager.java:744  | 5 pages found in sheet
+2026-09-22 20:49:07,934 INFO [page-2]        SystemManager.java:800  | Page #1: 1 part along 3 systems
+2026-09-22 20:49:07,934 INFO [page-2]        SystemManager.java:800  | Page #2: 1 part along 2 systems
+2026-09-22 20:49:07,934 INFO [page-2]        SystemManager.java:800  | Page #3: 1 part along 2 systems
+2026-09-22 20:49:07,934 INFO [page-2]        SystemManager.java:800  | Page #4: 1 part along 3 systems
+2026-09-22 20:49:07,934 INFO [page-2]        SystemManager.java:800  | Page #5: 1 part along 2 systems
+2026-09-22 20:49:07,935 INFO [page-2]                 Book.java:543  | Created scores: [{Score 1}, {Score 2}, {Score 3}, {Score 4}, {Score 5}]
+2026-09-22 20:49:07,935 INFO [page-2]       StepMonitoring.java:98   | HEADERS
+2026-09-22 20:49:08,567 INFO [page-2]       StepMonitoring.java:98   | STEM_SEEDS
+2026-09-22 20:49:08,601 INFO [page-2]        StemSeedsStep.java:86   | stem(4 max:5)
+2026-09-22 20:49:08,646 INFO [page-2]       StepMonitoring.java:98   | BEAMS
+2026-09-22 20:49:09,717 INFO [page-2]       StepMonitoring.java:98   | LEDGERS
+2026-09-22 20:49:10,070 INFO [page-2]       StepMonitoring.java:98   | HEADS
+2026-09-22 20:49:15,123 INFO [page-2]        HeadSeedTally.java:235  | Scale information: HeadSeeds{NOTEHEAD_BLACK[L:-0.9,R:-1.0] NOTEHEAD_BLACK_SMALL[L:-0.3,R:-0.0]}
+2026-09-22 20:49:15,124 INFO [page-2]       StepMonitoring.java:98   | STEMS
+2026-09-22 20:49:16,770 INFO [page-2]       StepMonitoring.java:98   | REDUCTION
+2026-09-22 20:49:17,142 INFO [page-2]        ReductionStep.java:105  | Stems free length median value: 50 pixels, 3.3 interlines
+2026-09-22 20:49:17,149 INFO [page-2]       StepMonitoring.java:98   | CUE_BEAMS
+2026-09-22 20:49:17,155 INFO [page-2]       StepMonitoring.java:98   | TEXTS
+2026-09-22 20:49:17,286 WARN [page-2]         TesseractOCR.java:335  | The collection of supported languages is empty
+2026-09-22 20:49:17,286 INFO [page-2]              OcrUtil.java:106  | Missing support for 'eng' language(s)
+2026-09-22 20:49:17,293 INFO [page-2]       StepMonitoring.java:98   | MEASURES
+2026-09-22 20:49:17,300 INFO [page-2]                 Page.java:307  | 14 raw measures: [5 in system#1, 5 in system#2, 4 in system#3]
+2026-09-22 20:49:17,300 INFO [page-2]                 Page.java:307  | 11 raw measures: [6 in system#4, 5 in system#5]
+2026-09-22 20:49:17,300 INFO [page-2]                 Page.java:307  | 13 raw measures: [7 in system#6, 6 in system#7]
+2026-09-22 20:49:17,300 INFO [page-2]                 Page.java:307  | 14 raw measures: [5 in system#8, 5 in system#9, 4 in system#10]
+2026-09-22 20:49:17,300 INFO [page-2]                 Page.java:307  | 13 raw measures: [6 in system#11, 7 in system#12]
+2026-09-22 20:49:17,300 INFO [page-2]       StepMonitoring.java:98   | CHORDS
+2026-09-22 20:49:17,313 INFO [page-2]       StepMonitoring.java:98   | CURVES
+2026-09-22 20:49:18,029 INFO [page-2]         SlursBuilder.java:240  | Slurs: 71
+2026-09-22 20:49:18,084 INFO [page-2]      SegmentsBuilder.java:155  | Segments: 53
+2026-09-22 20:49:18,089 INFO [page-2]       StepMonitoring.java:98   | SYMBOLS
+2026-09-22 20:49:18,755 INFO [page-2]       StepMonitoring.java:98   | LINKS
+2026-09-22 20:49:18,773 INFO [page-2]             KeyInter.java:1198 | No effective key before AlterInter#24106{(0.792) staff:3 NATURAL pitch:-1.0}
+2026-09-22 20:49:18,827 INFO [page-2]       StepMonitoring.java:98   | RHYTHMS
+2026-09-22 20:49:18,843 INFO [page-2]                Voice.java:257  | Measure{#11} Voice{#1 excess:1/16} too long
+2026-09-22 20:49:18,844 INFO [page-2]          StackRhythm.java:224  | S3 MeasureStack#11 no correct rhythm
+2026-09-22 20:49:18,845 INFO [page-2]        MeasureRhythm.java:1044 | Measure{#12} No timeOffset for HeadChordInter#21692{(0.965/0.965) staff:3 slot#3 dur:1/4}
+2026-09-22 20:49:18,845 INFO [page-2]   AbstractChordInter.java:635  | Measure{#12} No timeOffset for HeadChordInter#21692{(0.965/0.965) staff:3 slot#3 dur:1/4}
+2026-09-22 20:49:18,845 INFO [page-2]          StackRhythm.java:224  | S3 MeasureStack#12 no correct rhythm
+2026-09-22 20:49:18,850 INFO [page-2]        MeasureRhythm.java:1044 | Measure{#6} No timeOffset for HeadChordInter#21748{(0.966/0.966) staff:4 slot#7 dur:1/16}
+2026-09-22 20:49:18,850 INFO [page-2]   AbstractChordInter.java:635  | Measure{#6} No timeOffset for HeadChordInter#21751{(0.956/0.956) staff:4 slot#10 dur:1/16}
+2026-09-22 20:49:18,850 INFO [page-2]   AbstractChordInter.java:635  | Measure{#6} No timeOffset for HeadChordInter#21752{(0.907/0.907) staff:4 slot#11 dur:3/8}
+2026-09-22 20:49:18,850 INFO [page-2]                Voice.java:257  | Measure{#6} Voice{#1 excess:7/16} too long
+2026-09-22 20:49:18,850 INFO [page-2]                Voice.java:257  | Measure{#6} Voice{#3 excess:1/16} too long
+2026-09-22 20:49:18,851 INFO [page-2]          StackRhythm.java:224  | S4 MeasureStack#6 no correct rhythm
+2026-09-22 20:49:18,852 INFO [page-2]        MeasureRhythm.java:1044 | Measure{#9} No timeOffset for HeadChordInter#21774{(0.516/0.516) staff:5 slot#7 dur:1/2}
+2026-09-22 20:49:18,853 INFO [page-2]   AbstractChordInter.java:635  | Measure{#9} No timeOffset for HeadChordInter#21774{(0.516/0.516) staff:5 slot#7 dur:1/2}
+2026-09-22 20:49:18,853 INFO [page-2]   AbstractChordInter.java:635  | Measure{#9} No timeOffset for HeadChordInter#21775{(0.939/0.939) staff:5 slot#8 dur:1/8}
+2026-09-22 20:49:18,853 INFO [page-2]   AbstractChordInter.java:635  | Measure{#9} No timeOffset for HeadChordInter#21781{(0.958/0.958) staff:5 slot#12 dur:1/16}
+2026-09-22 20:49:18,853 INFO [page-2]                Voice.java:257  | Measure{#9} Voice{#1 excess:1/8} too long
+2026-09-22 20:49:18,853 INFO [page-2]          StackRhythm.java:224  | S5 MeasureStack#9 no correct rhythm
+2026-09-22 20:49:18,854 INFO [page-2]                Voice.java:257  | Measure{#11} Voice{#1 excess:1/16} too long
+2026-09-22 20:49:18,854 INFO [page-2]          StackRhythm.java:224  | S5 MeasureStack#11 no correct rhythm
+2026-09-22 20:49:18,856 INFO [page-2]                Voice.java:257  | Measure{#6} Voice{#1 excess:1/8} too long
+2026-09-22 20:49:18,856 INFO [page-2]                Voice.java:257  | Measure{#6} Voice{#2 excess:1/8} too long
+2026-09-22 20:49:18,856 INFO [page-2]          StackRhythm.java:224  | S6 MeasureStack#6 no correct rhythm
+2026-09-22 20:49:18,857 INFO [page-2]        MeasureRhythm.java:1044 | Measure{#8} No timeOffset for HeadChordInter#21826{(0.961/0.961) staff:7 slot#3 dur:1/4}
+2026-09-22 20:49:18,857 INFO [page-2]                Voice.java:257  | Measure{#8} Voice{#1 excess:1/8} too long
+2026-09-22 20:49:18,857 INFO [page-2]          StackRhythm.java:224  | S7 MeasureStack#8 no correct rhythm
+2026-09-22 20:49:18,860 INFO [page-2]        MeasureRhythm.java:1044 | Measure{#2} No timeOffset for HeadChordInter#21853{(0.909/0.909) staff:8 slot#3 dur:1/24}
+2026-09-22 20:49:18,862 INFO [page-2]          StackRhythm.java:224  | S8 MeasureStack#2 no correct rhythm
+2026-09-22 20:49:18,862 INFO [page-2]        MeasureRhythm.java:1044 | Measure{#3} No timeOffset for HeadChordInter#21861{(0.950/0.950) staff:8 slot#6 dur:1/4}
+2026-09-22 20:49:18,863 INFO [page-2]   AbstractChordInter.java:635  | Measure{#3} No timeOffset for HeadChordInter#21861{(0.950/0.950) staff:8 slot#6 dur:1/4}
+2026-09-22 20:49:18,863 INFO [page-2]   AbstractChordInter.java:635  | Measure{#3} No timeOffset for HeadChordInter#21864{(0.956/0.956) staff:8 slot#9 dur:1/24}
+2026-09-22 20:49:18,863 INFO [page-2]                Voice.java:257  | Measure{#3} Voice{#1 excess:3/16} too long
+2026-09-22 20:49:18,863 INFO [page-2]          StackRhythm.java:224  | S8 MeasureStack#3 no correct rhythm
+2026-09-22 20:49:18,864 INFO [page-2]        MeasureRhythm.java:1044 | Measure{#5} No timeOffset for HeadChordInter#21880{(0.902/0.902) staff:8 slot#8 dur:1/4}
+2026-09-22 20:49:18,865 INFO [page-2]   AbstractChordInter.java:635  | Measure{#5} No timeOffset for HeadChordInter#21880{(0.902/0.902) staff:8 slot#8 dur:1/4}
+2026-09-22 20:49:18,865 INFO [page-2]   AbstractChordInter.java:635  | Measure{#5} No timeOffset for HeadChordInter#21881{(0.908/0.908) staff:8 slot#9 dur:1/4}
+2026-09-22 20:49:18,865 INFO [page-2]                Voice.java:257  | Measure{#5} Voice{#1 excess:1/16} too long
+2026-09-22 20:49:18,865 INFO [page-2]          StackRhythm.java:224  | S8 MeasureStack#5 no correct rhythm
+2026-09-22 20:49:18,865 INFO [page-2]        MeasureRhythm.java:1044 | Measure{#7} No timeOffset for HeadChordInter#21885{(0.944/0.944) staff:9 slot#3 dur:1/24}
+2026-09-22 20:49:18,865 INFO [page-2]          StackRhythm.java:224  | S9 MeasureStack#7 no correct rhythm
+2026-09-22 20:49:18,866 INFO [page-2]        MeasureRhythm.java:1044 | Measure{#8} No timeOffset for HeadChordInter#21897{(0.955/0.955) staff:9 slot#10 dur:1/24}
+2026-09-22 20:49:18,867 INFO [page-2]                Voice.java:257  | Measure{#8} Voice{#1 excess:1/16} too long
+2026-09-22 20:49:18,867 INFO [page-2]          StackRhythm.java:224  | S9 MeasureStack#8 no correct rhythm
+2026-09-22 20:49:18,868 INFO [page-2]                Voice.java:257  | Measure{#9} Voice{#1 excess:1/16} too long
+2026-09-22 20:49:18,868 INFO [page-2]          StackRhythm.java:224  | S9 MeasureStack#9 no correct rhythm
+2026-09-22 20:49:18,870 INFO [page-2]        MeasureRhythm.java:1044 | Measure{#10} No timeOffset for HeadChordInter#21913{(0.937/0.937) staff:9 slot#7 dur:1/24}
+2026-09-22 20:49:18,870 INFO [page-2]   AbstractChordInter.java:635  | Measure{#10} No timeOffset for HeadChordInter#21915{(0.945/0.945) staff:9 slot#9 dur:1/24}
+2026-09-22 20:49:18,870 INFO [page-2]   AbstractChordInter.java:635  | Measure{#10} No timeOffset for HeadChordInter#21916{(0.932/0.932) slot#10 dur:1/4}
+2026-09-22 20:49:18,870 INFO [page-2]   AbstractChordInter.java:635  | Measure{#10} No timeOffset for HeadChordInter#21917{(0.902/0.902) slot#11 dur:1/4}
+2026-09-22 20:49:18,870 INFO [page-2]          StackRhythm.java:224  | S9 MeasureStack#10 no correct rhythm
+2026-09-22 20:49:18,871 INFO [page-2]        MeasureRhythm.java:1044 | Measure{#11} No timeOffset for HeadChordInter#21923{(0.955/0.955) staff:10 slot#5 dur:1/24}
+2026-09-22 20:49:18,871 INFO [page-2]                Voice.java:257  | Measure{#11} Voice{#1 excess:1/8} too long
+2026-09-22 20:49:18,871 INFO [page-2]          StackRhythm.java:224  | S10 MeasureStack#11 no correct rhythm
+2026-09-22 20:49:18,873 INFO [page-2]                Voice.java:257  | Measure{#14} Voice{#1 excess:1/8} too long
+2026-09-22 20:49:18,873 INFO [page-2]          StackRhythm.java:224  | S10 MeasureStack#14 no correct rhythm
+2026-09-22 20:49:18,874 INFO [page-2]                Voice.java:257  | Measure{#3} Voice{#2 excess:1/8} too long
+2026-09-22 20:49:18,875 INFO [page-2]          StackRhythm.java:224  | S11 MeasureStack#3 no correct rhythm
+2026-09-22 20:49:18,877 INFO [page-2]       StepMonitoring.java:98   | PAGE
+2026-09-22 20:49:18,878 INFO [page-2]       SheetReduction.java:154  | Gutter. Different glyphs 1/2 RestInter#23892{(0.686/0.686) staff:1 ONE_16TH_REST pitch:13.3} vs AlterInter#24032{(0.796/0.923) staff:2 NATURAL pitch:-12.0}
+2026-09-22 20:49:18,878 INFO [page-2]       SheetReduction.java:154  | Gutter. Different glyphs 1/2 RestInter#23892{(0.686/0.686) staff:1 ONE_16TH_REST pitch:13.3} vs ArticulationInter#24033{(0.795/0.913) STACCATO}
+2026-09-22 20:49:18,878 INFO [page-2]       SheetReduction.java:154  | Gutter. Different glyphs 1/2 RestInter#23892{(0.686/0.686) staff:1 ONE_16TH_REST pitch:13.3} vs LedgerInter#4481{(0.666/0.666) staff:2 LEDGER}
+2026-09-22 20:49:18,878 INFO [page-2]       SheetReduction.java:154  | Gutter. Different glyphs 1/2 RestInter#23892{(0.686/0.686) staff:1 ONE_16TH_REST pitch:13.3} vs HeadInter#7214{(0.696/0.951) staff:2 NOTEHEAD_BLACK pitch:-12.0}
+2026-09-22 20:49:18,878 INFO [page-2]       SheetReduction.java:154  | Gutter. Different glyphs 1/2 RestInter#23892{(0.686/0.686) staff:1 ONE_16TH_REST pitch:13.3} vs SlurInter#22009{(0.520/0.897) SLUR_ABOVE}
+2026-09-22 20:49:18,879 INFO [page-2]       SheetReduction.java:154  | Gutter. Different glyphs 2/3 ArticulationInter#24057{(0.731/0.814) TENUTO} vs AlterInter#24084{(0.748/0.885) staff:3 SHARP pitch:-8.0}
+2026-09-22 20:49:18,879 INFO [page-2]       SheetReduction.java:154  | Gutter. Different glyphs 3/4 FermataInter#24111{(0.520/0.862) staff:3 FERMATA_BELOW} vs ArticulationInter#24268{(0.784/0.897) TENUTO}
+2026-09-22 20:49:18,879 INFO [page-2]       SheetReduction.java:154  | Gutter. Different glyphs 3/4 FermataInter#24111{(0.520/0.862) staff:3 FERMATA_BELOW} vs SlurInter#22076{(0.633/0.906) SLUR_ABOVE}
+2026-09-22 20:49:18,879 INFO [page-2]       SheetReduction.java:154  | Gutter. Different glyphs 4/5 SlurInter#22180{(0.608/0.903) SLUR_BELOW} vs ArticulationInter#24328{ REMOVED(0.798/0.914) ACCENT}
+2026-09-22 20:49:18,879 INFO [page-2]       SheetReduction.java:154  | Gutter. Different glyphs 4/5 SlurInter#22180{(0.608/0.903) SLUR_BELOW} vs ArticulationInter#24331{(0.489/0.648) STACCATO}
+2026-09-22 20:49:18,879 INFO [page-2]       SheetReduction.java:154  | Gutter. Different glyphs 4/5 StemInter#16361{(0.600/0.832) STEM} vs ArticulationInter#24331{(0.489/0.648) STACCATO}
+2026-09-22 20:49:18,880 INFO [page-2]       SheetReduction.java:154  | Gutter. Different glyphs 4/5 SlurInter#22173{(0.675/0.944) SLUR_BELOW} vs ArticulationInter#24339{ REMOVED(0.799/0.898) ACCENT}
+2026-09-22 20:49:18,880 INFO [page-2]       SheetReduction.java:154  | Gutter. Different glyphs 5/6 DynamicsInter#24311{(0.232/0.503) DYNAMICS_FP} vs AugmentationDotInter#24514{(0.766/0.877) staff:6 AUGMENTATION_DOT}
+2026-09-22 20:49:18,880 INFO [page-2]       SheetReduction.java:154  | Gutter. Different glyphs 5/6 DynamicsInter#24311{(0.232/0.503) DYNAMICS_FP} vs AugmentationDotInter#24515{(0.781/0.885) staff:6 AUGMENTATION_DOT}
+2026-09-22 20:49:18,880 INFO [page-2]       SheetReduction.java:154  | Gutter. Different glyphs 5/6 SlurInter#22175{(0.671/0.943) SLUR_BELOW} vs ArticulationInter#24443{ REMOVED(0.798/0.913) ACCENT}
+2026-09-22 20:49:18,880 INFO [page-2]       SheetReduction.java:154  | Gutter. Different glyphs 5/6 ArticulationInter#24399{(0.782/0.819) STACCATO} vs SlurInter#22042{(0.581/0.921) SLUR_ABOVE}
+2026-09-22 20:49:18,881 INFO [page-2]       SheetReduction.java:154  | Gutter. Different glyphs 7/8 ArticulationInter#24527{(0.797/0.905) ACCENT} vs SlurInter#22071{(0.695/0.943) SLUR_ABOVE}
+2026-09-22 20:49:18,881 INFO [page-2]       SheetReduction.java:154  | Gutter. Different glyphs 9/10 SlurInter#22117{(0.700/0.951) SLUR_BELOW} vs TupletInter#24755{(0.505/0.746) staff:10 TUPLET_THREE}
+2026-09-22 20:49:18,881 INFO [page-2]       SheetReduction.java:154  | Gutter. Different glyphs 10/11 DynamicsInter#24718{(0.745/0.908) DYNAMICS_MF} vs ArticulationInter#24839{(0.794/0.883) STACCATO}
+2026-09-22 20:49:18,881 INFO [page-2]       SheetReduction.java:154  | Gutter. Different glyphs 10/11 ArticulationInter#24728{(0.794/0.919) STACCATO} vs DynamicsInter#24834{ REMOVED(0.745/0.894) DYNAMICS_MF}
+2026-09-22 20:49:18,882 INFO [page-2]       SheetReduction.java:154  | Gutter. Different glyphs 10/11 SlurInter#22105{(0.713/0.955) SLUR_BELOW} vs DynamicsInter#24834{ REMOVED(0.745/0.894) DYNAMICS_MF}
+2026-09-22 20:49:18,882 INFO [page-2]       SheetReduction.java:154  | Gutter. Different glyphs 10/11 SlurInter#22105{(0.713/0.955) SLUR_BELOW} vs ArticulationInter#24839{ REMOVED(0.794/0.883) STACCATO}
+2026-09-22 20:49:18,882 INFO [page-2]       SheetReduction.java:154  | Gutter. Different glyphs 10/11 ArticulationInter#24752{(0.796/0.904) STACCATO} vs DynamicsInter#24860{ REMOVED(0.584/0.827) DYNAMICS_MF}
+2026-09-22 20:49:18,882 INFO [page-2]       SheetReduction.java:154  | Gutter. Different glyphs 10/11 SlurInter#22386{(0.311/0.788) SLUR_BELOW} vs ArticulationInter#24874{(0.380/0.566) STACCATO}
+2026-09-22 20:49:18,882 INFO [page-2]       SheetReduction.java:154  | Gutter. Different glyphs 10/11 BowInter#24783{(0.546/0.589) BOW_DOWN} vs ArticulationInter#24876{(0.422/0.688) ACCENT}
+2026-09-22 20:49:18,882 INFO [page-2]       SheetReduction.java:154  | Gutter. Different glyphs 10/11 SlurInter#22121{(0.695/0.952) SLUR_BELOW} vs TupletInter#24889{(0.724/0.849) staff:11 TUPLET_THREE}
+2026-09-22 20:49:18,882 INFO [page-2]       SheetReduction.java:154  | Gutter. Different glyphs 10/11 ArticulationInter#24804{(0.794/0.904) STACCATO} vs DynamicsInter#24892{(0.762/0.762) DYNAMICS_F}
+2026-09-22 20:49:18,882 INFO [page-2]       SheetReduction.java:154  | Gutter. Different glyphs 11/12 ArticulationInter#24846{(0.787/0.913) STACCATO} vs DynamicsInter#24909{ REMOVED(0.770/0.920) DYNAMICS_F}
+2026-09-22 20:49:18,883 INFO [page-2]                Voice.java:257  | Measure{#13} Voice{#1 excess:1/16} too long
+2026-09-22 20:49:18,884 INFO [page-2]          StackRhythm.java:224  | S10 MeasureStack#13 no correct rhythm
+2026-09-22 20:49:18,884 INFO [page-2]                Voice.java:257  | Measure{#5} Voice{#2 excess:1/8} too long
+2026-09-22 20:49:18,884 INFO [page-2]          StackRhythm.java:224  | S11 MeasureStack#5 no correct rhythm
+2026-09-22 20:49:18,887 INFO [page-2]                Voice.java:257  | Measure{#11} Voice{#1 excess:1/16} too long
+2026-09-22 20:49:18,887 INFO [page-2]                Voice.java:257  | Measure{#6} Voice{#1 excess:7/16} too long
+2026-09-22 20:49:18,887 INFO [page-2]                Voice.java:257  | Measure{#6} Voice{#3 excess:1/16} too long
+2026-09-22 20:49:18,887 INFO [page-2]                Voice.java:257  | Measure{#9} Voice{#1 excess:1/8} too long
+2026-09-22 20:49:18,887 INFO [page-2]                Voice.java:257  | Measure{#11} Voice{#1 excess:1/16} too long
+2026-09-22 20:49:18,888 INFO [page-2]                Voice.java:257  | Measure{#6} Voice{#1 excess:1/8} too long
+2026-09-22 20:49:18,888 INFO [page-2]                Voice.java:257  | Measure{#6} Voice{#2 excess:1/8} too long
+2026-09-22 20:49:18,888 INFO [page-2]                Voice.java:257  | Measure{#8} Voice{#1 excess:1/8} too long
+2026-09-22 20:49:18,888 INFO [page-2]                Voice.java:257  | Measure{#3} Voice{#1 excess:3/16} too long
+2026-09-22 20:49:18,888 INFO [page-2]                Voice.java:257  | Measure{#5} Voice{#1 excess:1/16} too long
+2026-09-22 20:49:18,888 INFO [page-2]                Voice.java:257  | Measure{#8} Voice{#1 excess:1/16} too long
+2026-09-22 20:49:18,888 INFO [page-2]                Voice.java:257  | Measure{#9} Voice{#1 excess:1/16} too long
+2026-09-22 20:49:18,888 INFO [page-2]                Voice.java:257  | Measure{#11} Voice{#1 excess:1/8} too long
+2026-09-22 20:49:18,888 INFO [page-2]                Voice.java:257  | Measure{#13} Voice{#1 excess:1/16} too long
+2026-09-22 20:49:18,889 INFO [page-2]                Voice.java:257  | Measure{#14} Voice{#1 excess:1/8} too long
+2026-09-22 20:49:18,889 INFO [page-2]                Voice.java:257  | Measure{#3} Voice{#2 excess:1/8} too long
+2026-09-22 20:49:18,889 INFO [page-2]                Voice.java:257  | Measure{#5} Voice{#2 excess:1/8} too long
+2026-09-22 20:49:18,889 INFO [page-2]                 Book.java:2584 | Book{page-2} storing
+2026-09-22 20:49:18,961 INFO [page-2]                 Book.java:2565 | Stored /book.xml
+2026-09-22 20:49:19,010 INFO [page-2]           DataHolder.java:348  | Stored /sheet#1/BINARY.png
+2026-09-22 20:49:20,126 INFO [page-2]                Sheet.java:1583 | Stored /sheet#1/sheet#1.xml
+2026-09-22 20:49:20,126 INFO [page-2]                 Book.java:2525 | Book stored as /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/smallheads-p2/page-2.omr
+2026-09-22 20:49:20,127 INFO [page-2]            SheetStub.java:1655 | Sheet disposed
+2026-09-22 20:49:20,146 INFO [page-2]                 Book.java:2050 | End of Stub#1
+2026-09-22 20:49:20,147 INFO [page-2]                 Book.java:2057 | End of Book{page-2}
+2026-09-22 20:49:20,483 INFO [page-2]            SheetStub.java:1000 | Loaded /sheet#1/sheet#1.xml
+2026-09-22 20:49:20,634 INFO [page-2]      PartwiseBuilder.java:2707 | Exporting sheet(s): [#1]
+2026-09-22 20:49:20,667 INFO [page-2]        ScoreExporter.java:164  | Score page-2.mvt1 exported to /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/smallheads-p2/page-2.mvt1.mxl
+2026-09-22 20:49:20,668 INFO [page-2]      PartwiseBuilder.java:2707 | Exporting sheet(s): [#1]
+2026-09-22 20:49:20,679 INFO [page-2]        ScoreExporter.java:164  | Score page-2.mvt2 exported to /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/smallheads-p2/page-2.mvt2.mxl
+2026-09-22 20:49:20,679 INFO [page-2]      PartwiseBuilder.java:2707 | Exporting sheet(s): [#1]
+2026-09-22 20:49:20,688 INFO [page-2]        ScoreExporter.java:164  | Score page-2.mvt3 exported to /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/smallheads-p2/page-2.mvt3.mxl
+2026-09-22 20:49:20,688 INFO [page-2]      PartwiseBuilder.java:2707 | Exporting sheet(s): [#1]
+2026-09-22 20:49:20,690 WARN [page-2]      PartwiseBuilder.java:980  | Measure{#6} Multirest with no measure count, using default value 1
+2026-09-22 20:49:20,691 WARN [page-2]      PartwiseBuilder.java:980  | Measure{#8} Multirest with no measure count, using default value 1
+2026-09-22 20:49:20,696 INFO [page-2]        ScoreExporter.java:164  | Score page-2.mvt4 exported to /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/smallheads-p2/page-2.mvt4.mxl
+2026-09-22 20:49:20,697 INFO [page-2]      PartwiseBuilder.java:2707 | Exporting sheet(s): [#1]
+2026-09-22 20:49:20,708 INFO [page-2]        ScoreExporter.java:164  | Score page-2.mvt5 exported to /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/smallheads-p2/page-2.mvt5.mxl
+2026-09-22 20:49:20,739 INFO [page-2]                Score.java:181  | Closing {Score 1}
+2026-09-22 20:49:20,739 INFO [page-2]                Score.java:181  | Closing {Score 2}
+2026-09-22 20:49:20,739 INFO [page-2]                Score.java:181  | Closing {Score 3}
+2026-09-22 20:49:20,739 INFO [page-2]                Score.java:181  | Closing {Score 4}
+2026-09-22 20:49:20,739 INFO [page-2]                Score.java:181  | Closing {Score 5}
