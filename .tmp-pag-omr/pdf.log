@@ -1,0 +1,440 @@
+Picked up JAVA_TOOL_OPTIONS: -Djava.awt.headless=true
+INFO  []                      Main 259  | Running in batch mode
+WARN  []                 Languages 142  | *** No installed OCR languages ***
+INFO  []             AliasPatterns 146  | Alias patterns: [(IMSLP[0-9]*)-.*]
+INFO  []                      Main 194  | Submitting 1 task(s) in sequence:
+    Input "/Users/parsarahmanseresht/.cursor/projects/Users-parsarahmanseresht-Desktop-stuff-cs-projects-musai/attachments/bfc7619a-748e-4206-b90e-75bcd6ec007f/paganini_24_.pdf"
+INFO  [paganini_24_]                      Book 560  | 3 sheets in /Users/parsarahmanseresht/.cursor/projects/Users-parsarahmanseresht-Desktop-stuff-cs-projects-musai/attachments/bfc7619a-748e-4206-b90e-75bcd6ec007f/paganini_24_.pdf
+INFO  []                      Book 2565 | Stored /book.xml
+INFO  []                      Book 2525 | Book stored as /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.omr
+INFO  []                      Book 1929 | Book reaching PAGE on sheets:[#1#2#3]
+INFO  [paganini_24_#1]            StepMonitoring 98   | LOAD
+INFO  [paganini_24_#1]                 SheetStub 1278 | Loaded image #1 2550x3299 from /Users/parsarahmanseresht/.cursor/projects/Users-parsarahmanseresht-Desktop-stuff-cs-projects-musai/attachments/bfc7619a-748e-4206-b90e-75bcd6ec007f/paganini_24_.pdf
+INFO  [paganini_24_#1]            StepMonitoring 98   | BINARY
+INFO  [paganini_24_#1]            StepMonitoring 98   | SCALE
+INFO  [paganini_24_#1]              ScaleBuilder 254  | Beam  guessed height: 13 -- 0.25 of [10..21] range
+INFO  [paganini_24_#1]              ScaleBuilder 271  | Beam measured height: 14 -- 0.36 of [10..21] range at 487% of needed quorum
+INFO  [paganini_24_#1]              ScaleBuilder 401  | Normalized black jitter: 18.18 %
+INFO  [paganini_24_#1]                 ScaleStep 65   | Scale{ interline(20,22,23) line(2,3,6) beam(14)}
+INFO  [paganini_24_#1]            StepMonitoring 98   | GRID
+INFO  [paganini_24_#1]            LinesRetriever 1508 | Global slope: 0.00189
+INFO  [paganini_24_#1]         ClustersRetriever 326  | Retrieved raw line clusters: 11 of sizes [5] with interline(20,22,23)
+INFO  [paganini_24_#1]                 PeakGraph 310  | Systems: #1[1] #2[2] #3[3] #4[4] #5[5] #6[6] #7[7] #8[8] #9[9] #10[10] #11[11]
+INFO  [paganini_24_#1]             SystemManager 134  | Indentation detected for system #1
+INFO  [paganini_24_#1]             SystemManager 134  | Indentation detected for system #4
+INFO  [paganini_24_#1]             SystemManager 134  | Indentation detected for system #7
+INFO  [paganini_24_#1]             SystemManager 134  | Indentation detected for system #10
+INFO  [paganini_24_#1]             SystemManager 744  | 4 pages found in sheet
+INFO  [paganini_24_#1]             SystemManager 800  | Page #1: 1 part along 3 systems
+INFO  [paganini_24_#1]             SystemManager 800  | Page #2: 1 part along 3 systems
+INFO  [paganini_24_#1]             SystemManager 800  | Page #3: 1 part along 3 systems
+INFO  [paganini_24_#1]             SystemManager 800  | Page #4: 1 part along 2 systems
+INFO  [paganini_24_#1]                      Book 543  | Created scores: [{Score 1}, {Score 2}, {Score 3}, {Score 4}]
+INFO  [paganini_24_#1]            StepMonitoring 98   | HEADERS
+INFO  [paganini_24_#1]            StepMonitoring 98   | STEM_SEEDS
+INFO  [paganini_24_#1]             StemSeedsStep 86   | stem(5 max:6)
+INFO  [paganini_24_#1]            StepMonitoring 98   | BEAMS
+INFO  [paganini_24_#1]            StepMonitoring 98   | LEDGERS
+INFO  [paganini_24_#1]            StepMonitoring 98   | HEADS
+INFO  [paganini_24_#1]             HeadSeedTally 235  | Scale information: HeadSeeds{NOTEHEAD_BLACK[L:-1.6,R:-1.2]}
+INFO  [paganini_24_#1]            StepMonitoring 98   | STEMS
+INFO  [paganini_24_#1]            StepMonitoring 98   | REDUCTION
+INFO  [paganini_24_#1]             ReductionStep 105  | Stems free length median value: 70 pixels, 3.2 interlines
+INFO  [paganini_24_#1]            StepMonitoring 98   | CUE_BEAMS
+INFO  [paganini_24_#1]              CueBeamsStep 81   | Step CUE_BEAMS is skipped because small heads switch is off
+INFO  [paganini_24_#1]            StepMonitoring 98   | TEXTS
+WARN  [paganini_24_#1]              TesseractOCR 335  | The collection of supported languages is empty
+INFO  [paganini_24_#1]                   OcrUtil 106  | Missing support for 'eng' language(s)
+INFO  [paganini_24_#1]            StepMonitoring 98   | MEASURES
+INFO  [paganini_24_#1]                      Page 307  | 14 raw measures: [5 in system#1, 5 in system#2, 4 in system#3]
+INFO  [paganini_24_#1]                      Page 307  | 14 raw measures: [5 in system#4, 5 in system#5, 4 in system#6]
+INFO  [paganini_24_#1]                      Page 307  | 14 raw measures: [5 in system#7, 5 in system#8, 4 in system#9]
+INFO  [paganini_24_#1]                      Page 307  | 13 raw measures: [7 in system#10, 6 in system#11]
+INFO  [paganini_24_#1]            StepMonitoring 98   | CHORDS
+INFO  [paganini_24_#1]            StepMonitoring 98   | CURVES
+INFO  [paganini_24_#1]              SlursBuilder 240  | Slurs: 70
+INFO  [paganini_24_#1]           SegmentsBuilder 155  | Segments: 72
+INFO  [paganini_24_#1]            StepMonitoring 98   | SYMBOLS
+INFO  [paganini_24_#1]            StepMonitoring 98   | LINKS
+INFO  [paganini_24_#1]                  KeyInter 1198 | No effective key before AlterInter#10258{(0.172) staff:2 NATURAL pitch:-2.0}
+INFO  [paganini_24_#1]                  KeyInter 1198 | No effective key before AlterInter#10272{(0.141) staff:3 NATURAL pitch:4.0}
+INFO  [paganini_24_#1]                  KeyInter 1198 | No effective key before AlterInter#10281{(0.789) staff:3 NATURAL pitch:-2.0}
+INFO  [paganini_24_#1]                  KeyInter 1198 | No effective key before AlterInter#10504{(0.363) staff:5 NATURAL pitch:-4.0}
+INFO  [paganini_24_#1]                  KeyInter 1198 | No effective key before AlterInter#10506{(0.234) staff:5 NATURAL pitch:-2.0}
+INFO  [paganini_24_#1]                  KeyInter 1331 | Key built KeyInter#11040{(0.780) staff:7 KEY_FLAT_1 pitch:0.4 fifths:-1}
+INFO  [paganini_24_#1]                  KeyInter 1331 | Key built KeyInter#11042{(0.733) staff:7 KEY_FLAT_1 pitch:0.2 fifths:-1}
+INFO  [paganini_24_#1]                  KeyInter 1198 | No effective key before AlterInter#10788{(0.747) staff:8 NATURAL pitch:-5.0}
+INFO  [paganini_24_#1]                  KeyInter 1198 | No effective key before AlterInter#10798{(0.790) staff:8 NATURAL pitch:-3.0}
+INFO  [paganini_24_#1]                  KeyInter 1198 | No effective key before AlterInter#10823{(0.795) staff:8 NATURAL pitch:-4.0}
+INFO  [paganini_24_#1]                  KeyInter 1198 | No effective key before AlterInter#10845{(0.784) staff:8 NATURAL pitch:-2.0}
+INFO  [paganini_24_#1]            StepMonitoring 98   | RHYTHMS
+INFO  [paganini_24_#1]             MeasureRhythm 1044 | Measure{#7} No timeOffset for HeadChordInter#8378{(0.925/0.925) staff:2 slot#4 dur:1/16}
+INFO  [paganini_24_#1]                     Voice 257  | Measure{#7} Voice{#1 excess:1/16} too long
+INFO  [paganini_24_#1]               StackRhythm 224  | S2 MeasureStack#7 no correct rhythm
+INFO  [paganini_24_#1]                     Voice 257  | Measure{#3} Voice{#1 excess:1/4} too long
+INFO  [paganini_24_#1]               StackRhythm 224  | S4 MeasureStack#3 no correct rhythm
+INFO  [paganini_24_#1]                     Voice 257  | Measure{#4} Voice{#1 excess:1/4} too long
+INFO  [paganini_24_#1]               StackRhythm 224  | S4 MeasureStack#4 no correct rhythm
+INFO  [paganini_24_#1]                     Voice 257  | Measure{#7} Voice{#1 excess:1/4} too long
+INFO  [paganini_24_#1]               StackRhythm 224  | S5 MeasureStack#7 no correct rhythm
+INFO  [paganini_24_#1]             MeasureRhythm 1044 | Measure{#8} No timeOffset for HeadChordInter#8450{(0.923/0.923) staff:5 slot#5 dur:1/8}
+INFO  [paganini_24_#1]                     Voice 257  | Measure{#8} Voice{#1 excess:1/8} too long
+INFO  [paganini_24_#1]               StackRhythm 224  | S5 MeasureStack#8 no correct rhythm
+INFO  [paganini_24_#1]                     Voice 257  | Measure{#9} Voice{#1 excess:1/4} too long
+INFO  [paganini_24_#1]               StackRhythm 224  | S5 MeasureStack#9 no correct rhythm
+INFO  [paganini_24_#1]                     Voice 257  | Measure{#10} Voice{#1 excess:1/4} too long
+INFO  [paganini_24_#1]               StackRhythm 224  | S5 MeasureStack#10 no correct rhythm
+INFO  [paganini_24_#1]                     Voice 257  | Measure{#11} Voice{#1 excess:1/4} too long
+INFO  [paganini_24_#1]               StackRhythm 224  | S6 MeasureStack#11 no correct rhythm
+INFO  [paganini_24_#1]                     Voice 257  | Measure{#12} Voice{#1 excess:1/4} too long
+INFO  [paganini_24_#1]               StackRhythm 224  | S6 MeasureStack#12 no correct rhythm
+INFO  [paganini_24_#1]                     Voice 257  | Measure{#13} Voice{#1 excess:1/4} too long
+INFO  [paganini_24_#1]               StackRhythm 224  | S6 MeasureStack#13 no correct rhythm
+INFO  [paganini_24_#1]            StepMonitoring 98   | PAGE
+INFO  [paganini_24_#1]            SheetReduction 154  | Gutter. Different glyphs 9/10 ArticulationInter#10934{(0.797/0.913) STACCATO} vs SlurInter#8826{(0.674/0.946) SLUR_ABOVE}
+INFO  [paganini_24_#1]                     Voice 257  | Measure{#7} Voice{#1 excess:1/16} too long
+INFO  [paganini_24_#1]                     Voice 257  | Measure{#3} Voice{#1 excess:1/4} too long
+INFO  [paganini_24_#1]                     Voice 257  | Measure{#4} Voice{#1 excess:1/4} too long
+INFO  [paganini_24_#1]                     Voice 257  | Measure{#7} Voice{#1 excess:1/4} too long
+INFO  [paganini_24_#1]                     Voice 257  | Measure{#8} Voice{#1 excess:1/8} too long
+INFO  [paganini_24_#1]                     Voice 257  | Measure{#9} Voice{#1 excess:1/4} too long
+INFO  [paganini_24_#1]                     Voice 257  | Measure{#10} Voice{#1 excess:1/4} too long
+INFO  [paganini_24_#1]                     Voice 257  | Measure{#11} Voice{#1 excess:1/4} too long
+INFO  [paganini_24_#1]                     Voice 257  | Measure{#12} Voice{#1 excess:1/4} too long
+INFO  [paganini_24_#1]                     Voice 257  | Measure{#13} Voice{#1 excess:1/4} too long
+INFO  [paganini_24_#1]                      Book 2584 | Book{paganini_24_} storing
+INFO  [paganini_24_#1]                      Book 2565 | Stored /book.xml
+INFO  [paganini_24_#1]                DataHolder 348  | Stored /sheet#1/BINARY.png
+INFO  [paganini_24_#1]                     Sheet 1583 | Stored /sheet#1/sheet#1.xml
+INFO  [paganini_24_#1]                      Book 2525 | Book stored as /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.omr
+INFO  [paganini_24_#1]                 SheetStub 1655 | Sheet#1 disposed
+INFO  [paganini_24_#1]                      Book 2050 | End of Stub#1
+INFO  [paganini_24_#2]            StepMonitoring 98   | LOAD
+INFO  [paganini_24_#2]                 SheetStub 1278 | Loaded image #2 2550x3299 from /Users/parsarahmanseresht/.cursor/projects/Users-parsarahmanseresht-Desktop-stuff-cs-projects-musai/attachments/bfc7619a-748e-4206-b90e-75bcd6ec007f/paganini_24_.pdf
+INFO  [paganini_24_#2]            StepMonitoring 98   | BINARY
+INFO  [paganini_24_#2]            StepMonitoring 98   | SCALE
+INFO  [paganini_24_#2]              ScaleBuilder 254  | Beam  guessed height: 11 -- 0.25 of [9..19] range
+INFO  [paganini_24_#2]              ScaleBuilder 271  | Beam measured height: 14 -- 0.50 of [9..19] range at 669% of needed quorum
+INFO  [paganini_24_#2]              ScaleBuilder 401  | Normalized black jitter: 20.00 %
+INFO  [paganini_24_#2]                 ScaleStep 65   | Scale{ interline(18,20,22) line(2,4,6) beam(14)}
+INFO  [paganini_24_#2]            StepMonitoring 98   | GRID
+INFO  [paganini_24_#2]            LinesRetriever 1508 | Global slope: 0.00239
+INFO  [paganini_24_#2]         ClustersRetriever 326  | Retrieved raw line clusters: 12 of sizes [5] with interline(18,20,22)
+INFO  [paganini_24_#2]                 PeakGraph 310  | Systems: #1[1] #2[2] #3[3] #4[4] #5[5] #6[6] #7[7] #8[8] #9[9] #10[10] #11[11] #12[12]
+INFO  [paganini_24_#2]             SystemManager 134  | Indentation detected for system #1
+INFO  [paganini_24_#2]             SystemManager 134  | Indentation detected for system #4
+INFO  [paganini_24_#2]             SystemManager 134  | Indentation detected for system #6
+INFO  [paganini_24_#2]             SystemManager 134  | Indentation detected for system #8
+INFO  [paganini_24_#2]             SystemManager 134  | Indentation detected for system #11
+INFO  [paganini_24_#2]             SystemManager 744  | 5 pages found in sheet
+INFO  [paganini_24_#2]             SystemManager 800  | Page #1: 1 part along 3 systems
+INFO  [paganini_24_#2]             SystemManager 800  | Page #2: 1 part along 2 systems
+INFO  [paganini_24_#2]             SystemManager 800  | Page #3: 1 part along 2 systems
+INFO  [paganini_24_#2]             SystemManager 800  | Page #4: 1 part along 3 systems
+INFO  [paganini_24_#2]             SystemManager 800  | Page #5: 1 part along 2 systems
+INFO  [paganini_24_#2]            StepMonitoring 98   | HEADERS
+INFO  [paganini_24_#2]            StepMonitoring 98   | STEM_SEEDS
+INFO  [paganini_24_#2]             StemSeedsStep 86   | stem(5 max:7)
+INFO  [paganini_24_#2]            StepMonitoring 98   | BEAMS
+INFO  [paganini_24_#2]            StepMonitoring 98   | LEDGERS
+INFO  [paganini_24_#2]            StepMonitoring 98   | HEADS
+INFO  [paganini_24_#2]             HeadSeedTally 235  | Scale information: HeadSeeds{NOTEHEAD_BLACK[L:-1.6,R:-1.7]}
+INFO  [paganini_24_#2]            StepMonitoring 98   | STEMS
+INFO  [paganini_24_#2]            StepMonitoring 98   | REDUCTION
+INFO  [paganini_24_#2]             ReductionStep 105  | Stems free length median value: 71 pixels, 3.6 interlines
+INFO  [paganini_24_#2]            StepMonitoring 98   | CUE_BEAMS
+INFO  [paganini_24_#2]              CueBeamsStep 81   | Step CUE_BEAMS is skipped because small heads switch is off
+INFO  [paganini_24_#2]            StepMonitoring 98   | TEXTS
+WARN  [paganini_24_#2]              TesseractOCR 335  | The collection of supported languages is empty
+INFO  [paganini_24_#2]                   OcrUtil 106  | Missing support for 'eng' language(s)
+INFO  [paganini_24_#2]            StepMonitoring 98   | MEASURES
+INFO  [paganini_24_#2]                      Page 307  | 14 raw measures: [5 in system#1, 5 in system#2, 4 in system#3]
+INFO  [paganini_24_#2]                      Page 307  | 12 raw measures: [6 in system#4, 6 in system#5]
+INFO  [paganini_24_#2]                      Page 307  | 13 raw measures: [7 in system#6, 6 in system#7]
+INFO  [paganini_24_#2]                      Page 307  | 14 raw measures: [5 in system#8, 5 in system#9, 4 in system#10]
+INFO  [paganini_24_#2]                      Page 307  | 13 raw measures: [6 in system#11, 7 in system#12]
+INFO  [paganini_24_#2]            StepMonitoring 98   | CHORDS
+INFO  [paganini_24_#2]            StepMonitoring 98   | CURVES
+INFO  [paganini_24_#2]              SlursBuilder 240  | Slurs: 75
+INFO  [paganini_24_#2]           SegmentsBuilder 155  | Segments: 58
+INFO  [paganini_24_#2]            StepMonitoring 98   | SYMBOLS
+INFO  [paganini_24_#2]            StepMonitoring 98   | LINKS
+INFO  [paganini_24_#2]                  KeyInter 1198 | No effective key before AlterInter#17429{(0.796) staff:3 NATURAL pitch:-1.0}
+INFO  [paganini_24_#2]            StepMonitoring 98   | RHYTHMS
+INFO  [paganini_24_#2]                     Voice 257  | Measure{#3} Voice{#1 excess:1/32} too long
+INFO  [paganini_24_#2]               StackRhythm 224  | S1 MeasureStack#3 no correct rhythm
+INFO  [paganini_24_#2]                     Voice 257  | Measure{#4} Voice{#1 excess:1/16} too long
+INFO  [paganini_24_#2]               StackRhythm 224  | S1 MeasureStack#4 no correct rhythm
+INFO  [paganini_24_#2]             MeasureRhythm 1044 | Measure{#5} No timeOffset for HeadChordInter#14551{(0.944/0.944) staff:1 slot#5 dur:1/8}
+INFO  [paganini_24_#2]               StackRhythm 224  | S1 MeasureStack#5 no correct rhythm
+INFO  [paganini_24_#2]             MeasureRhythm 1044 | Measure{#8} No timeOffset for HeadChordInter#14565{(0.968/0.968) staff:2 slot#5 dur:1/16}
+INFO  [paganini_24_#2]               StackRhythm 224  | S2 MeasureStack#8 no correct rhythm
+INFO  [paganini_24_#2]                     Voice 257  | Measure{#11} Voice{#1 excess:1/8} too long
+INFO  [paganini_24_#2]               StackRhythm 224  | S3 MeasureStack#11 no correct rhythm
+INFO  [paganini_24_#2]                     Voice 257  | Measure{#12} Voice{#1 excess:1/16} too long
+INFO  [paganini_24_#2]               StackRhythm 224  | S3 MeasureStack#12 no correct rhythm
+INFO  [paganini_24_#2]             MeasureRhythm 1044 | Measure{#6} No timeOffset for HeadChordInter#14651{(0.916/0.916) staff:4 slot#11 dur:1/8}
+INFO  [paganini_24_#2]                     Voice 257  | Measure{#6} Voice{#2 excess:3/16} too long
+INFO  [paganini_24_#2]                     Voice 257  | Measure{#6} Voice{#3 excess:3/8} too long
+INFO  [paganini_24_#2]               StackRhythm 224  | S4 MeasureStack#6 no correct rhythm
+INFO  [paganini_24_#2]                     Voice 257  | Measure{#12} Voice{#1 excess:1/16} too long
+INFO  [paganini_24_#2]               StackRhythm 224  | S5 MeasureStack#12 no correct rhythm
+INFO  [paganini_24_#2]                     Voice 257  | Measure{#4} Voice{#1 excess:1/16} too long
+INFO  [paganini_24_#2]               StackRhythm 224  | S6 MeasureStack#4 no correct rhythm
+INFO  [paganini_24_#2]                     Voice 257  | Measure{#2} Voice{#1 excess:1/8} too long
+INFO  [paganini_24_#2]               StackRhythm 224  | S8 MeasureStack#2 no correct rhythm
+INFO  [paganini_24_#2]             MeasureRhythm 1044 | Measure{#3} No timeOffset for HeadChordInter#14756{(0.956/0.956) staff:8 slot#7 dur:1/24}
+INFO  [paganini_24_#2]        AbstractChordInter 635  | Measure{#3} No timeOffset for HeadChordInter#14758{(0.957/0.957) staff:8 slot#9 dur:1/24}
+INFO  [paganini_24_#2]               StackRhythm 224  | S8 MeasureStack#3 no correct rhythm
+INFO  [paganini_24_#2]                     Voice 257  | Measure{#4} Voice{#1 excess:1/16} too long
+INFO  [paganini_24_#2]               StackRhythm 224  | S8 MeasureStack#4 no correct rhythm
+INFO  [paganini_24_#2]             MeasureRhythm 1044 | Measure{#5} No timeOffset for HeadChordInter#14776{(0.911/0.911) staff:8 slot#10 dur:1/8}
+INFO  [paganini_24_#2]               StackRhythm 224  | S8 MeasureStack#5 no correct rhythm
+INFO  [paganini_24_#2]             MeasureRhythm 1044 | Measure{#8} No timeOffset for HeadChordInter#14786{(0.958/0.958) staff:9 slot#4 dur:1/24}
+INFO  [paganini_24_#2]        AbstractChordInter 635  | Measure{#8} No timeOffset for HeadChordInter#14788{(0.959/0.959) staff:9 slot#6 dur:1/24}
+INFO  [paganini_24_#2]        AbstractChordInter 635  | Measure{#8} No timeOffset for HeadChordInter#14791{(0.960/0.960) staff:9 slot#9 dur:1/24}
+INFO  [paganini_24_#2]                     Voice 257  | Measure{#8} Voice{#1 excess:1/8} too long
+INFO  [paganini_24_#2]               StackRhythm 224  | S9 MeasureStack#8 no correct rhythm
+INFO  [paganini_24_#2]             MeasureRhythm 1044 | Measure{#10} No timeOffset for HeadChordInter#14808{(0.949/0.949) staff:9 slot#7 dur:1/24}
+INFO  [paganini_24_#2]        AbstractChordInter 635  | Measure{#10} No timeOffset for HeadChordInter#14810{(0.940/0.940) staff:9 slot#9 dur:1/24}
+INFO  [paganini_24_#2]               StackRhythm 224  | S9 MeasureStack#10 no correct rhythm
+INFO  [paganini_24_#2]             MeasureRhythm 1044 | Measure{#11} No timeOffset for HeadChordInter#14818{(0.954/0.954) staff:10 slot#5 dur:1/24}
+INFO  [paganini_24_#2]               StackRhythm 224  | S10 MeasureStack#11 no correct rhythm
+INFO  [paganini_24_#2]             MeasureRhythm 1044 | Measure{#14} No timeOffset for HeadChordInter#14847{(0.710/0.710) staff:10 slot#8 dur:1/4}
+INFO  [paganini_24_#2]                     Voice 257  | Measure{#14} Voice{#1 excess:1/8} too long
+INFO  [paganini_24_#2]               StackRhythm 224  | S10 MeasureStack#14 no correct rhythm
+INFO  [paganini_24_#2]            StepMonitoring 98   | PAGE
+INFO  [paganini_24_#2]            SheetReduction 154  | Gutter. Different glyphs 1/2 ArticulationInter#17211{(0.511/0.644) TENUTO} vs SlurInter#14904{(0.427/0.866) SLUR_ABOVE}
+INFO  [paganini_24_#2]            SheetReduction 154  | Gutter. Different glyphs 2/3 ArticulationInter#17257{(0.769/0.835) TENUTO} vs SlurInter#14937{(0.541/0.908) SLUR_ABOVE}
+INFO  [paganini_24_#2]            SheetReduction 154  | Gutter. Different glyphs 2/3 MeasureCountInter#18132{(0.685/0.685) staff:2 TIME_THREE 3} vs SlurInter#14913{(0.534/0.906) SLUR_ABOVE}
+INFO  [paganini_24_#2]            SheetReduction 154  | Gutter. Different glyphs 2/3 ArticulationInter#17357{(0.564/0.665) TENUTO} vs SlurInter#14913{(0.534/0.906) SLUR_ABOVE}
+INFO  [paganini_24_#2]            SheetReduction 154  | Gutter. Different glyphs 2/3 ArticulationInter#17372{(0.625/0.802) TENUTO} vs SlurInter#14913{(0.534/0.906) SLUR_ABOVE}
+INFO  [paganini_24_#2]            SheetReduction 154  | Gutter. Different glyphs 4/5 SlurInter#15093{(0.684/0.947) SLUR_BELOW} vs ArticulationInter#17611{ REMOVED(0.798/0.913) ACCENT}
+INFO  [paganini_24_#2]            SheetReduction 154  | Gutter. Different glyphs 4/5 SlurInter#15084{(0.688/0.947) SLUR_BELOW} vs ArticulationInter#17620{ REMOVED(0.798/0.894) ACCENT}
+INFO  [paganini_24_#2]            SheetReduction 154  | Gutter. Different glyphs 5/6 SlurInter#15078{(0.684/0.947) SLUR_BELOW} vs ArticulationInter#17682{ REMOVED(0.799/0.915) ACCENT}
+INFO  [paganini_24_#2]            SheetReduction 154  | Gutter. Different glyphs 5/6 DynamicsInter#17602{(0.257/0.537) DYNAMICS_FP} vs AugmentationDotInter#17725{(0.782/0.889) staff:6 AUGMENTATION_DOT}
+INFO  [paganini_24_#2]            SheetReduction 154  | Gutter. Different glyphs 5/6 DynamicsInter#17602{(0.257/0.537) DYNAMICS_FP} vs AugmentationDotInter#17726{(0.796/0.896) staff:6 AUGMENTATION_DOT}
+INFO  [paganini_24_#2]            SheetReduction 154  | Gutter. Different glyphs 5/6 DynamicsInter#17602{(0.257/0.537) DYNAMICS_FP} vs ArticulationInter#17690{(0.786/0.821) STACCATO}
+INFO  [paganini_24_#2]            SheetReduction 154  | Gutter. Different glyphs 7/8 ArticulationInter#17734{(0.798/0.847) ACCENT} vs SlurInter#14959{(0.699/0.949) SLUR_ABOVE}
+INFO  [paganini_24_#2]            SheetReduction 154  | Gutter. Different glyphs 7/8 ArticulationInter#17737{(0.745/0.790) STACCATO} vs ArticulationInter#17811{(0.797/0.905) ACCENT}
+INFO  [paganini_24_#2]            SheetReduction 154  | Gutter. Different glyphs 8/9 DynamicsInter#17785{(0.330/0.627) DYNAMICS_SF} vs SlurInter#15043{(0.691/0.948) SLUR_ABOVE}
+INFO  [paganini_24_#2]            SheetReduction 154  | Gutter. Different glyphs 10/11 ArticulationInter#17902{(0.795/0.918) STACCATO} vs DynamicsInter#17992{ REMOVED(0.597/0.834) DYNAMICS_MF}
+INFO  [paganini_24_#2]            SheetReduction 154  | Gutter. Different glyphs 10/11 SlurInter#15002{(0.726/0.957) SLUR_BELOW} vs DynamicsInter#17992{ REMOVED(0.597/0.834) DYNAMICS_MF}
+INFO  [paganini_24_#2]            SheetReduction 154  | Gutter. Different glyphs 10/11 ArticulationInter#17928{(0.790/0.902) STACCATO} vs DynamicsInter#18018{ REMOVED(0.586/0.829) DYNAMICS_MF}
+INFO  [paganini_24_#2]            SheetReduction 154  | Gutter. Different glyphs 10/11 BowInter#17945{(0.481/0.522) BOW_DOWN} vs ArticulationInter#18035{(0.321/0.590) ACCENT}
+INFO  [paganini_24_#2]            SheetReduction 154  | Gutter. Different glyphs 10/11 ArticulationInter#17963{(0.799/0.909) STACCATO} vs DynamicsInter#18054{(0.667/0.667) DYNAMICS_F}
+INFO  [paganini_24_#2]            SheetReduction 154  | Gutter. Different glyphs 10/11 DynamicsInter#17968{(0.291/0.578) DYNAMICS_PPP} vs TupletInter#18068{(0.602/0.814) staff:11 TUPLET_THREE}
+INFO  [paganini_24_#2]            SheetReduction 154  | Gutter. Different glyphs 11/12 ArticulationInter#17999{(0.797/0.916) STACCATO} vs DynamicsInter#18074{ REMOVED(0.773/0.921) DYNAMICS_F}
+INFO  [paganini_24_#2]                     Voice 257  | Measure{#3} Voice{#1 excess:1/32} too long
+INFO  [paganini_24_#2]                     Voice 257  | Measure{#4} Voice{#1 excess:1/16} too long
+INFO  [paganini_24_#2]                     Voice 257  | Measure{#11} Voice{#1 excess:1/8} too long
+INFO  [paganini_24_#2]                     Voice 257  | Measure{#12} Voice{#1 excess:1/16} too long
+INFO  [paganini_24_#2]                     Voice 257  | Measure{#6} Voice{#2 excess:3/16} too long
+INFO  [paganini_24_#2]                     Voice 257  | Measure{#6} Voice{#3 excess:3/8} too long
+INFO  [paganini_24_#2]                     Voice 257  | Measure{#12} Voice{#1 excess:1/16} too long
+INFO  [paganini_24_#2]                     Voice 257  | Measure{#4} Voice{#1 excess:1/16} too long
+INFO  [paganini_24_#2]                     Voice 257  | Measure{#2} Voice{#1 excess:1/8} too long
+INFO  [paganini_24_#2]                     Voice 257  | Measure{#4} Voice{#1 excess:1/16} too long
+INFO  [paganini_24_#2]                     Voice 257  | Measure{#8} Voice{#1 excess:1/8} too long
+INFO  [paganini_24_#2]                     Voice 257  | Measure{#14} Voice{#1 excess:1/8} too long
+INFO  [paganini_24_#2]                      Book 2584 | Book{paganini_24_} storing
+INFO  [paganini_24_#2]                      Book 2565 | Stored /book.xml
+INFO  [paganini_24_#2]                DataHolder 348  | Stored /sheet#2/BINARY.png
+INFO  [paganini_24_#2]                     Sheet 1583 | Stored /sheet#2/sheet#2.xml
+INFO  [paganini_24_#2]                      Book 2525 | Book stored as /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.omr
+INFO  [paganini_24_#2]                 SheetStub 1655 | Sheet#2 disposed
+INFO  [paganini_24_#2]                      Book 2050 | End of Stub#2
+INFO  [paganini_24_#3]            StepMonitoring 98   | LOAD
+INFO  [paganini_24_#3]                 SheetStub 1278 | Loaded image #3 2550x3299 from /Users/parsarahmanseresht/.cursor/projects/Users-parsarahmanseresht-Desktop-stuff-cs-projects-musai/attachments/bfc7619a-748e-4206-b90e-75bcd6ec007f/paganini_24_.pdf
+INFO  [paganini_24_#3]            StepMonitoring 98   | BINARY
+INFO  [paganini_24_#3]            StepMonitoring 98   | SCALE
+INFO  [paganini_24_#3]              ScaleBuilder 254  | Beam  guessed height: 12 -- 0.25 of [9..20] range
+INFO  [paganini_24_#3]              ScaleBuilder 271  | Beam measured height: 15 -- 0.55 of [9..20] range at 669% of needed quorum
+INFO  [paganini_24_#3]              ScaleBuilder 401  | Normalized black jitter: 19.05 %
+INFO  [paganini_24_#3]                 ScaleStep 65   | Scale{ interline(19,21,23) line(3,4,7) beam(15)}
+INFO  [paganini_24_#3]            StepMonitoring 98   | GRID
+INFO  [paganini_24_#3]            LinesRetriever 1508 | Global slope: 0.00074
+INFO  [paganini_24_#3]         ClustersRetriever 326  | Retrieved raw line clusters: 11 of sizes [5] with interline(19,21,23)
+INFO  [paganini_24_#3]                 PeakGraph 310  | Systems: #1[1] #2[2] #3[3] #4[4] #5[5] #6[6] #7[7] #8[8] #9[9] #10[10] #11[11]
+INFO  [paganini_24_#3]             SystemManager 134  | Indentation detected for system #1
+INFO  [paganini_24_#3]             SystemManager 134  | Indentation detected for system #4
+INFO  [paganini_24_#3]             SystemManager 134  | Indentation detected for system #6
+INFO  [paganini_24_#3]             SystemManager 134  | Indentation detected for system #9
+INFO  [paganini_24_#3]             SystemManager 744  | 4 pages found in sheet
+INFO  [paganini_24_#3]             SystemManager 800  | Page #1: 1 part along 3 systems
+INFO  [paganini_24_#3]             SystemManager 800  | Page #2: 1 part along 2 systems
+INFO  [paganini_24_#3]             SystemManager 800  | Page #3: 1 part along 3 systems
+INFO  [paganini_24_#3]             SystemManager 800  | Page #4: 1 part along 3 systems
+INFO  [paganini_24_#3]            StepMonitoring 98   | HEADERS
+INFO  [paganini_24_#3]            StepMonitoring 98   | STEM_SEEDS
+INFO  [paganini_24_#3]             StemSeedsStep 86   | stem(5 max:7)
+INFO  [paganini_24_#3]            StepMonitoring 98   | BEAMS
+INFO  [paganini_24_#3]            StepMonitoring 98   | LEDGERS
+INFO  [paganini_24_#3]            StepMonitoring 98   | HEADS
+INFO  [paganini_24_#3]             HeadSeedTally 235  | Scale information: HeadSeeds{NOTEHEAD_BLACK[L:-2.0,R:-2.0]}
+INFO  [paganini_24_#3]            StepMonitoring 98   | STEMS
+INFO  [paganini_24_#3]            StepMonitoring 98   | REDUCTION
+INFO  [paganini_24_#3]             ReductionStep 105  | Stems free length median value: 119 pixels, 5.7 interlines
+INFO  [paganini_24_#3]            StepMonitoring 98   | CUE_BEAMS
+INFO  [paganini_24_#3]              CueBeamsStep 81   | Step CUE_BEAMS is skipped because small heads switch is off
+INFO  [paganini_24_#3]            StepMonitoring 98   | TEXTS
+WARN  [paganini_24_#3]              TesseractOCR 335  | The collection of supported languages is empty
+INFO  [paganini_24_#3]                   OcrUtil 106  | Missing support for 'eng' language(s)
+INFO  [paganini_24_#3]            StepMonitoring 98   | MEASURES
+INFO  [paganini_24_#3]                      Page 307  | 14 raw measures: [5 in system#1, 5 in system#2, 4 in system#3]
+INFO  [paganini_24_#3]                      Page 307  | 12 raw measures: [6 in system#4, 6 in system#5]
+INFO  [paganini_24_#3]                      Page 307  | 13 raw measures: [5 in system#6, 4 in system#7, 4 in system#8]
+INFO  [paganini_24_#3]                      Page 307  | 12 raw measures: [4 in system#9, 3 in system#10, 5 in system#11]
+INFO  [paganini_24_#3]            StepMonitoring 98   | CHORDS
+INFO  [paganini_24_#3]            StepMonitoring 98   | CURVES
+INFO  [paganini_24_#3]              SlursBuilder 240  | Slurs: 57
+INFO  [paganini_24_#3]             CurvesBuilder 532  | Curve: SegmentInfo{#501[458,1113][492,1111] dist:0.49} Too many rookies: 61, giving up!
+INFO  [paganini_24_#3]           SegmentsBuilder 155  | Segments: 39
+INFO  [paganini_24_#3]            StepMonitoring 98   | SYMBOLS
+INFO  [paganini_24_#3]            StepMonitoring 98   | LINKS
+INFO  [paganini_24_#3]                  KeyInter 1198 | No effective key before AlterInter#16830{(0.554) staff:5 NATURAL pitch:-5.0}
+INFO  [paganini_24_#3]                  KeyInter 1198 | No effective key before AlterInter#16999{(0.144) staff:7 NATURAL pitch:-3.0}
+INFO  [paganini_24_#3]                  KeyInter 1198 | No effective key before AlterInter#17031{(0.578) staff:7 NATURAL pitch:-4.0}
+INFO  [paganini_24_#3]             SymbolsLinker 258  | No chord linked to OctaveShiftInter#17159{(0.337) staff:9 QUINDICESIMA ALTA} at java.awt.Point[x=485,y=2402]
+INFO  [paganini_24_#3]                  KeyInter 1331 | Key built KeyInter#17317{(0.795) staff:10 KEY_SHARP_1 pitch:-3.9 fifths:1}
+INFO  [paganini_24_#3]             SymbolsLinker 258  | No chord linked to OctaveShiftInter#17295{(0.190) staff:11 QUINDICESIMA ALTA} at java.awt.Point[x=1964,y=2897]
+INFO  [paganini_24_#3]            StepMonitoring 98   | RHYTHMS
+INFO  [paganini_24_#3]             MeasureRhythm 1044 | Measure{#4} No timeOffset for HeadChordInter#13574{(0.941/0.941) staff:4 slot#7 dur:1/4}
+INFO  [paganini_24_#3]                     Voice 257  | Measure{#4} Voice{#1 excess:1/16} too long
+INFO  [paganini_24_#3]               StackRhythm 224  | S4 MeasureStack#4 no correct rhythm
+INFO  [paganini_24_#3]                     Voice 257  | Measure{#2} Voice{#2 excess:1/16} too long
+INFO  [paganini_24_#3]               StackRhythm 224  | S6 MeasureStack#2 no correct rhythm
+INFO  [paganini_24_#3]                     Voice 257  | Measure{#3} Voice{#1 excess:1/16} too long
+INFO  [paganini_24_#3]               StackRhythm 224  | S6 MeasureStack#3 no correct rhythm
+INFO  [paganini_24_#3]             MeasureRhythm 1044 | Measure{#4} No timeOffset for HeadChordInter#13648{(0.972/0.972) staff:6 slot#5 dur:1/16}
+INFO  [paganini_24_#3]        AbstractChordInter 635  | Measure{#4} No timeOffset for HeadChordInter#13649{(0.962/0.962) staff:6 slot#6 dur:1/16}
+INFO  [paganini_24_#3]                     Voice 257  | Measure{#4} Voice{#1 excess:1/8} too long
+INFO  [paganini_24_#3]               StackRhythm 224  | S6 MeasureStack#4 no correct rhythm
+INFO  [paganini_24_#3]                     Voice 257  | Measure{#7} Voice{#1 excess:3/16} too long
+INFO  [paganini_24_#3]               StackRhythm 224  | S7 MeasureStack#7 no correct rhythm
+INFO  [paganini_24_#3]                     Voice 257  | Measure{#9} Voice{#1 excess:3/16} too long
+INFO  [paganini_24_#3]               StackRhythm 224  | S7 MeasureStack#9 no correct rhythm
+INFO  [paganini_24_#3]             MeasureRhythm 1044 | Measure{#10} No timeOffset for HeadChordInter#13701{(0.957/0.957) staff:8 slot#3 dur:1/16}
+INFO  [paganini_24_#3]        AbstractChordInter 635  | Measure{#10} No timeOffset for HeadChordInter#13702{(0.966/0.966) staff:8 slot#4 dur:1/16}
+INFO  [paganini_24_#3]        AbstractChordInter 635  | Measure{#10} No timeOffset for HeadChordInter#13704{(0.971/0.971) staff:8 slot#6 dur:1/16}
+INFO  [paganini_24_#3]               StackRhythm 224  | S8 MeasureStack#10 no correct rhythm
+INFO  [paganini_24_#3]             MeasureRhythm 1044 | Measure{#12} No timeOffset for HeadChordInter#13722{(0.967/0.967) staff:8 slot#8 dur:1/4}
+INFO  [paganini_24_#3]        AbstractChordInter 635  | Measure{#12} No timeOffset for HeadChordInter#13722{(0.967/0.967) staff:8 slot#8 dur:1/4}
+INFO  [paganini_24_#3]                     Voice 257  | Measure{#12} Voice{#1 excess:1/8} too long
+INFO  [paganini_24_#3]               StackRhythm 224  | S8 MeasureStack#12 no correct rhythm
+INFO  [paganini_24_#3]                     Voice 257  | Measure{#13} Voice{#1 excess:1/8} too long
+INFO  [paganini_24_#3]               StackRhythm 224  | S8 MeasureStack#13 no correct rhythm
+INFO  [paganini_24_#3]                     Voice 257  | Measure{#3} Voice{#1 excess:3/16} too long
+INFO  [paganini_24_#3]               StackRhythm 224  | S9 MeasureStack#3 no correct rhythm
+INFO  [paganini_24_#3]             MeasureRhythm 1044 | Measure{#6} No timeOffset for HeadChordInter#13782{(0.529/0.529) staff:10 slot#7 dur:3/16}
+INFO  [paganini_24_#3]               StackRhythm 224  | S10 MeasureStack#6 no correct rhythm
+INFO  [paganini_24_#3]                     Voice 257  | Measure{#7} Voice{#1 excess:3/8} too long
+INFO  [paganini_24_#3]               StackRhythm 224  | S10 MeasureStack#7 no correct rhythm
+INFO  [paganini_24_#3]                     Voice 257  | Measure{#8} Voice{#1 excess:1/32} too long
+INFO  [paganini_24_#3]               StackRhythm 224  | S11 MeasureStack#8 no correct rhythm
+INFO  [paganini_24_#3]             MeasureRhythm 1044 | Measure{#9} No timeOffset for HeadChordInter#13828{(0.948/0.948) staff:11 slot#11 dur:1/4}
+INFO  [paganini_24_#3]        AbstractChordInter 635  | Measure{#9} No timeOffset for HeadChordInter#13828{(0.948/0.948) staff:11 slot#11 dur:1/4}
+INFO  [paganini_24_#3]        AbstractChordInter 635  | Measure{#9} No timeOffset for HeadChordInter#13829{(0.953/0.953) staff:11 slot#12 dur:1/4}
+INFO  [paganini_24_#3]        AbstractChordInter 635  | Measure{#9} No timeOffset for HeadChordInter#13830{(0.949/0.949) staff:11 slot#13 dur:1/4}
+INFO  [paganini_24_#3]        AbstractChordInter 635  | Measure{#9} No timeOffset for HeadChordInter#13831{(0.960/0.960) staff:11 slot#14 dur:1/4}
+INFO  [paganini_24_#3]        AbstractChordInter 635  | Measure{#9} No timeOffset for HeadChordInter#13832{(0.965/0.965) staff:11 slot#15 dur:1/4}
+INFO  [paganini_24_#3]        AbstractChordInter 635  | Measure{#9} No timeOffset for HeadChordInter#13833{(0.962/0.962) staff:11 slot#16 dur:1/4}
+INFO  [paganini_24_#3]                     Voice 257  | Measure{#9} Voice{#1 excess:1/32} too long
+INFO  [paganini_24_#3]               StackRhythm 224  | S11 MeasureStack#9 no correct rhythm
+INFO  [paganini_24_#3]                     Voice 257  | Measure{#10} Voice{#1 excess:1/4} too long
+INFO  [paganini_24_#3]               StackRhythm 224  | S11 MeasureStack#10 no correct rhythm
+INFO  [paganini_24_#3]            StepMonitoring 98   | PAGE
+INFO  [paganini_24_#3]            SheetReduction 154  | Gutter. Different glyphs 6/7 ArticulationInter#16877{(0.796/0.927) STACCATO} vs DynamicsInter#17000{ REMOVED(0.748/0.910) DYNAMICS_F}
+INFO  [paganini_24_#3]            SheetReduction 154  | Gutter. Different glyphs 6/7 BeamInter#2728{(0.549/0.973) BEAM} vs OctaveShiftInter#17012{(0.538/0.538) staff:7 OTTAVA ALTA}
+INFO  [paganini_24_#3]            SheetReduction 154  | Gutter. Different glyphs 6/7 BeamInter#2728{(0.549/0.973) BEAM} vs ArticulationInter#17018{(0.623/0.797) TENUTO}
+INFO  [paganini_24_#3]            SheetReduction 154  | Gutter. Different glyphs 6/7 BeamInter#2730{(0.762/0.989) BEAM} vs OctaveShiftInter#17012{(0.538/0.538) staff:7 OTTAVA ALTA}
+INFO  [paganini_24_#3]            SheetReduction 154  | Gutter. Different glyphs 6/7 BeamInter#2730{(0.762/0.989) BEAM} vs ArticulationInter#17018{(0.623/0.797) TENUTO}
+INFO  [paganini_24_#3]            SheetReduction 154  | Gutter. Different glyphs 6/7 BeamInter#2732{(0.733/0.988) BEAM} vs OctaveShiftInter#17012{(0.538/0.538) staff:7 OTTAVA ALTA}
+INFO  [paganini_24_#3]            SheetReduction 154  | Gutter. Different glyphs 6/7 BeamInter#2732{(0.733/0.988) BEAM} vs ArticulationInter#17018{(0.623/0.797) TENUTO}
+INFO  [paganini_24_#3]            SheetReduction 154  | Gutter. Different glyphs 6/7 ArticulationInter#16989{(0.792/0.862) STACCATO} vs SlurInter#14053{(0.731/0.956) SLUR_ABOVE}
+INFO  [paganini_24_#3]            SheetReduction 154  | Gutter. Different glyphs 7/8 BeamInter#2800{(0.620/0.933) BEAM} vs SlurInter#14047{(0.663/0.944) SLUR_ABOVE}
+INFO  [paganini_24_#3]            SheetReduction 154  | Gutter. Different glyphs 7/8 ArticulationInter#17032{(0.774/0.909) STACCATO} vs SlurInter#14047{(0.663/0.944) SLUR_ABOVE}
+INFO  [paganini_24_#3]            SheetReduction 154  | Gutter. Different glyphs 7/8 ArticulationInter#17039{(0.793/0.916) STACCATO} vs SlurInter#14047{(0.663/0.944) SLUR_ABOVE}
+INFO  [paganini_24_#3]            SheetReduction 154  | Gutter. Different glyphs 10/11 AlterInter#17210{(0.798/0.916) staff:10 SHARP pitch:9.0} vs DynamicsInter#17281{(0.766/0.766) DYNAMICS_F}
+INFO  [paganini_24_#3]            SheetReduction 154  | Gutter. Different glyphs 10/11 ArticulationInter#17234{(0.797/0.899) STACCATO} vs DynamicsInter#17284{ REMOVED(0.755/0.913) DYNAMICS_F}
+INFO  [paganini_24_#3]            SheetReduction 154  | Gutter. Different glyphs 10/11 SlurInter#13838{(0.683/0.925) SLUR_BELOW} vs DynamicsInter#17284{ REMOVED(0.755/0.913) DYNAMICS_F}
+INFO  [paganini_24_#3]            SheetReduction 154  | Gutter. Different glyphs 10/11 BeamInter#3001{(0.581/0.971) BEAM} vs DynamicsInter#17296{(0.419/0.696) DYNAMICS_PP}
+INFO  [paganini_24_#3]            SheetReduction 154  | Gutter. Different glyphs 10/11 BeamInter#3003{(0.725/0.984) BEAM} vs DynamicsInter#17296{(0.419/0.696) DYNAMICS_PP}
+INFO  [paganini_24_#3]                     Voice 257  | Measure{#4} Voice{#1 excess:1/16} too long
+INFO  [paganini_24_#3]                     Voice 257  | Measure{#2} Voice{#2 excess:1/16} too long
+INFO  [paganini_24_#3]                     Voice 257  | Measure{#3} Voice{#1 excess:1/16} too long
+INFO  [paganini_24_#3]                     Voice 257  | Measure{#4} Voice{#1 excess:1/8} too long
+INFO  [paganini_24_#3]                     Voice 257  | Measure{#7} Voice{#1 excess:3/16} too long
+INFO  [paganini_24_#3]                     Voice 257  | Measure{#9} Voice{#1 excess:3/16} too long
+INFO  [paganini_24_#3]                     Voice 257  | Measure{#12} Voice{#1 excess:1/8} too long
+INFO  [paganini_24_#3]                     Voice 257  | Measure{#13} Voice{#1 excess:1/8} too long
+INFO  [paganini_24_#3]                     Voice 257  | Measure{#3} Voice{#1 excess:3/16} too long
+INFO  [paganini_24_#3]                     Voice 257  | Measure{#7} Voice{#1 excess:3/8} too long
+INFO  [paganini_24_#3]                     Voice 257  | Measure{#8} Voice{#1 excess:1/32} too long
+INFO  [paganini_24_#3]                     Voice 257  | Measure{#9} Voice{#1 excess:1/32} too long
+INFO  [paganini_24_#3]                     Voice 257  | Measure{#10} Voice{#1 excess:1/4} too long
+INFO  [paganini_24_#3]                      Book 2584 | Book{paganini_24_} storing
+INFO  [paganini_24_#3]                      Book 2565 | Stored /book.xml
+INFO  [paganini_24_#3]                DataHolder 348  | Stored /sheet#3/BINARY.png
+INFO  [paganini_24_#3]                     Sheet 1583 | Stored /sheet#3/sheet#3.xml
+INFO  [paganini_24_#3]                      Book 2525 | Book stored as /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.omr
+INFO  [paganini_24_#3]                 SheetStub 1655 | Sheet#3 disposed
+INFO  [paganini_24_#3]                      Book 2050 | End of Stub#3
+INFO  [paganini_24_]                      Book 2057 | End of Book{paganini_24_}
+INFO  [paganini_24_]                 SheetStub 1000 | Loaded /sheet#1/sheet#1.xml
+INFO  [paganini_24_]                 SheetStub 1000 | Loaded /sheet#2/sheet#2.xml
+INFO  [paganini_24_]                     Score 866  | PartCollation needed in {Score 6}
+INFO  [paganini_24_]                     Score 866  | PartCollation needed in {Score 7}
+INFO  [paganini_24_]                     Score 866  | PartCollation needed in {Score 8}
+INFO  [paganini_24_]                     Score 866  | PartCollation needed in {Score 9}
+INFO  [paganini_24_]                 SheetStub 1000 | Loaded /sheet#3/sheet#3.xml
+INFO  [paganini_24_]                     Score 866  | PartCollation needed in {Score 11}
+INFO  [paganini_24_]                     Score 866  | PartCollation needed in {Score 12}
+INFO  [paganini_24_]                     Score 866  | PartCollation needed in {Score 13}
+INFO  [paganini_24_]                      Book 2109 | Scores built: 13
+INFO  [paganini_24_]           PartwiseBuilder 2707 | Exporting sheet(s): [#1]
+INFO  [paganini_24_]             ScoreExporter 164  | Score paganini_24_.mvt1 exported to /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.mvt1.mxl
+INFO  [paganini_24_]           PartwiseBuilder 2707 | Exporting sheet(s): [#1]
+INFO  [paganini_24_]             ScoreExporter 164  | Score paganini_24_.mvt2 exported to /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.mvt2.mxl
+INFO  [paganini_24_]           PartwiseBuilder 2707 | Exporting sheet(s): [#1]
+INFO  [paganini_24_]             ScoreExporter 164  | Score paganini_24_.mvt3 exported to /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.mvt3.mxl
+INFO  [paganini_24_]           PartwiseBuilder 2707 | Exporting sheet(s): [#1]
+INFO  [paganini_24_]             ScoreExporter 164  | Score paganini_24_.mvt4 exported to /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.mvt4.mxl
+INFO  [paganini_24_]           PartwiseBuilder 2707 | Exporting sheet(s): [#2]
+WARN  [paganini_24_]           PartwiseBuilder 980  | Measure{#4} Multirest with no measure count, using default value 1
+INFO  [paganini_24_]             ScoreExporter 164  | Score paganini_24_.mvt5 exported to /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.mvt5.mxl
+INFO  [paganini_24_]           PartwiseBuilder 2707 | Exporting sheet(s): [#2]
+INFO  [paganini_24_]             ScoreExporter 164  | Score paganini_24_.mvt6 exported to /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.mvt6.mxl
+INFO  [paganini_24_]           PartwiseBuilder 2707 | Exporting sheet(s): [#2]
+INFO  [paganini_24_]             ScoreExporter 164  | Score paganini_24_.mvt7 exported to /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.mvt7.mxl
+INFO  [paganini_24_]           PartwiseBuilder 2707 | Exporting sheet(s): [#2]
+WARN  [paganini_24_]           PartwiseBuilder 980  | Measure{#6} Multirest with no measure count, using default value 1
+WARN  [paganini_24_]           PartwiseBuilder 980  | Measure{#7} Multirest with no measure count, using default value 1
+WARN  [paganini_24_]           PartwiseBuilder 980  | Measure{#7} Multirest with no measure count, using default value 1
+WARN  [paganini_24_]           PartwiseBuilder 980  | Measure{#9} Multirest with no measure count, using default value 1
+INFO  [paganini_24_]             ScoreExporter 164  | Score paganini_24_.mvt8 exported to /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.mvt8.mxl
+INFO  [paganini_24_]           PartwiseBuilder 2707 | Exporting sheet(s): [#2]
+INFO  [paganini_24_]             ScoreExporter 164  | Score paganini_24_.mvt9 exported to /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.mvt9.mxl
+INFO  [paganini_24_]           PartwiseBuilder 2707 | Exporting sheet(s): [#3]
+INFO  [paganini_24_]             ScoreExporter 164  | Score paganini_24_.mvt10 exported to /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.mvt10.mxl
+INFO  [paganini_24_]           PartwiseBuilder 2707 | Exporting sheet(s): [#3]
+INFO  [paganini_24_]             ScoreExporter 164  | Score paganini_24_.mvt11 exported to /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.mvt11.mxl
+INFO  [paganini_24_]           PartwiseBuilder 2707 | Exporting sheet(s): [#3]
+INFO  [paganini_24_]             ScoreExporter 164  | Score paganini_24_.mvt12 exported to /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.mvt12.mxl
+INFO  [paganini_24_]           PartwiseBuilder 2707 | Exporting sheet(s): [#3]
+INFO  [paganini_24_]             ScoreExporter 164  | Score paganini_24_.mvt13 exported to /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.mvt13.mxl
+INFO  [paganini_24_]                      Book 2565 | Stored /book.xml
+INFO  [paganini_24_]                      Book 2525 | Book stored as /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/pdf-out/paganini_24_.omr
+INFO  [paganini_24_]                     Score 181  | Closing {Score 1}
+INFO  [paganini_24_]                     Score 181  | Closing {Score 2}
+INFO  [paganini_24_]                     Score 181  | Closing {Score 3}
+INFO  [paganini_24_]                     Score 181  | Closing {Score 4}
+INFO  [paganini_24_]                     Score 181  | Closing {Score 5}
+INFO  [paganini_24_]                     Score 181  | Closing {Score 6}
+INFO  [paganini_24_]                     Score 181  | Closing {Score 7}
+INFO  [paganini_24_]                     Score 181  | Closing {Score 8}
+INFO  [paganini_24_]                     Score 181  | Closing {Score 9}
+INFO  [paganini_24_]                     Score 181  | Closing {Score 10}
+INFO  [paganini_24_]                     Score 181  | Closing {Score 11}
+INFO  [paganini_24_]                     Score 181  | Closing {Score 12}
+INFO  [paganini_24_]                     Score 181  | Closing {Score 13}

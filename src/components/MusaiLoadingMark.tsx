@@ -1,27 +1,32 @@
+"use client";
+
+import { useEffect, useState, type ReactNode } from "react";
+
 /**
- * The one loading mark for the app. A dot travels the three notes at a
- * steady pace. When `progress` is set, that bar is the only bar.
+ * The one loading mark. A dot walks three notes, rests on the first and the
+ * last, then comes back. A progress bar is only shown when `progress` is set
+ * (piece upload, or opening a piece to practise).
  */
 export function MusaiLoadingMark({
   compact = false,
   progress,
+  progressLabel = "Loading the piece",
 }: {
   compact?: boolean;
   progress?: number;
+  progressLabel?: string;
 }) {
   const overall =
     typeof progress === "number" && Number.isFinite(progress)
       ? Math.max(0, Math.min(100, progress))
       : null;
+  const percent = overall == null ? null : Math.round(overall);
   return (
     <div
       className={compact ? "musai-load musai-load--compact" : "musai-load"}
       aria-hidden={overall == null ? true : undefined}
     >
-      <svg
-        className="musai-piece-load__staff"
-        viewBox="0 0 240 88"
-      >
+      <svg className="musai-piece-load__staff" viewBox="0 0 240 88">
         <g className="musai-piece-load__lines">
           <line x1="16" y1="28" x2="224" y2="28" />
           <line x1="16" y1="38" x2="224" y2="38" />
@@ -49,22 +54,21 @@ export function MusaiLoadingMark({
         />
         <circle className="musai-piece-load__dot" cx="0" cy="0" r="4.4" />
       </svg>
-      {overall == null ? (
-        <div className="musai-load__track">
-          <span className="musai-load__fill" />
+      {percent != null ? (
+        <div className="musai-load__meter">
+          <div
+            className="musai-load__overall"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={percent}
+            aria-label={progressLabel}
+          >
+            <span style={{ width: `${percent}%` }} />
+          </div>
+          <p className="musai-load__percent">{percent}%</p>
         </div>
-      ) : (
-        <div
-          className="musai-load__overall"
-          role="progressbar"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={Math.round(overall)}
-          aria-label="Converting the score"
-        >
-          <span style={{ width: `${overall}%` }} />
-        </div>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -110,5 +114,35 @@ export function MusaiLoadingScreen({
       <MusaiLoadingMark />
       <p className="musai-load-screen__copy">{label}</p>
     </div>
+  );
+}
+
+/** Keep a studio’s opening mark up long enough to read as loading. */
+const STUDIO_HOLD_MS = 2600;
+
+export function StudioReveal({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  const [covered, setCovered] = useState(process.env.NODE_ENV !== "test");
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === "test") return;
+    const id = window.setTimeout(() => setCovered(false), STUDIO_HOLD_MS);
+    return () => window.clearTimeout(id);
+  }, []);
+
+  return (
+    <>
+      {children}
+      {covered ? (
+        <div className="musai-studio-reveal">
+          <MusaiLoadingScreen label={label} />
+        </div>
+      ) : null}
+    </>
   );
 }

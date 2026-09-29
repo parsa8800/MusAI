@@ -17,7 +17,7 @@ export function musaiSiteGuideText(): string {
     "Home has Tuner, Tuning trainer, Scale studio, and Piece studio.",
     "Tuner checks whether one pitch is in tune.",
     "Tuning trainer is for practising a single note.",
-    "Scale studio: pick a key, Major or Minor, 1 or 2 octaves, and Up or Up and down. Fingering shows string and finger on violin and viola. Record is under the staff. After a take, notes colour on the staff. The bar fills as that scale is played in tune. My scales is the button at the top and keeps past scales. The Coach button opens this chat even before a recording.",
+    "Scale studio: press Record under the staff and play a scale. MusAI finds the scale from what you play, then you can work from there. You can also choose the scale yourself. The key, major or minor, octaves, and direction are already on the page, so do not walk through those controls. Fingering shows string and finger on violin and viola. After a take, notes colour on the staff. The bar fills as that scale is played in tune. My scales is the button at the top and keeps past scales. The Coach button opens this chat even before a recording.",
     "Piece studio: import a photo, a PDF, or a MusicXML file. MusAI reads the notes into a score you can play along with. You can open the original file too.",
     "Settings chooses the instrument (violin, viola, or piano) and light, dark, or system appearance.",
     "Do not invent other pages, accounts, or payments.",
@@ -39,7 +39,8 @@ export function scaleCoachGuidePrompt(): string {
     musaiSiteGuideText(),
     "Reply with JSON only: {\"reply\":\"...\"}",
     "reply: 1 or 2 short • bullets. Plain words. No hyphens or dashes.",
-    "When you name choices, write them as photo, PDF, or MusicXML in one sentence.",
+    "When you name choices, write them as violin, viola, or piano in one sentence. Do not put choose inside the list.",
+    "How to record a scale has two paths only: play and record so MusAI finds the scale, or choose the scale yourself. Do not list key, major, minor, octaves, or direction.",
     "When someone must do steps in order, give each step its own short sentence that starts with a verb.",
   ].join(" ");
 }
@@ -77,12 +78,14 @@ export function localSiteGuideReply(
     return ensureBulletFeedback("Tuner is on the home page. It checks one pitch");
   }
   if (
-    /\b(settings|dark mode|light mode|theme)\b/.test(q) ||
     /\b(change|switch|set|pick|choose).{0,40}\b(instrument|violin|viola|piano)\b/.test(q)
   ) {
     return ensureBulletFeedback(
-      "Open Settings. Pick violin, viola, or piano, and light or dark",
+      "Go to Settings to change your instrument. Choose violin, viola, or piano",
     );
+  }
+  if (/\b(settings|dark mode|light mode|theme)\b/.test(q)) {
+    return ensureBulletFeedback("Open Settings. Choose light, dark, or system");
   }
   if (/\b(fingering|finger numbers)\b/.test(q)) {
     return ensureBulletFeedback(
@@ -97,7 +100,7 @@ export function localSiteGuideReply(
     return ensureBulletFeedback(
       scale
         ? `Press Record under the staff and play ${scale}`
-        : "Press Record under the staff, play the scale, then stop",
+        : "Record while you play a scale. MusAI finds it, then you can work from there. Or choose the scale yourself",
     );
   }
   if (

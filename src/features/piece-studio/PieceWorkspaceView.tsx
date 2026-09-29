@@ -143,7 +143,7 @@ function PieceWorkspaceShell({
 }
 
 /** First paint — back arrow and the loading mark, until the piece is ready. */
-function PieceWorkspaceOpening() {
+function PieceWorkspaceOpening({ progress }: { progress: number }) {
   return (
     <PieceWorkspaceShell>
       <div
@@ -154,7 +154,10 @@ function PieceWorkspaceOpening() {
         aria-label="Preparing the score"
         data-testid="piece-workspace-opening"
       >
-        <MusaiLoadingMark />
+        <MusaiLoadingMark
+          progress={progress}
+          progressLabel="Opening the piece"
+        />
       </div>
     </PieceWorkspaceShell>
   );
@@ -217,6 +220,7 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
   );
   const [loopPick, setLoopPick] = useState<"start" | "end" | null>(null);
   const [loadHold, setLoadHold] = useState(PIECE_LOAD_HOLD_MS > 0);
+  const [openProgress, setOpenProgress] = useState(8);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [scoreOpenFor, setScoreOpenFor] = useState<string | null>(null);
   const [structured, setStructured] = useState<MusaiScoreV1 | null | undefined>(
@@ -504,15 +508,22 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
     // Hold the full-page opening shell until this piece’s score is ready —
     // do not flash Listen/Practise docks with “Preparing playback…”.
     setStructured(undefined);
+    setOpenProgress(8);
     const pieceId = workspace.pieceId;
     const title = workspace.title;
     const sourceKind = workspace.sourceKind;
     const hasOriginalFile = workspace.hasOriginalFile;
     const sourceFileName = workspace.sourceFileName;
     let cancelled = false;
+    let openTimer = 0;
     void (async () => {
+      setOpenProgress(18);
       let score = await readPieceStructuredScore(pieceId);
+      if (cancelled) return;
+      setOpenProgress(40);
       const recognized = await readPieceRecognizedMusicXml(pieceId);
+      if (cancelled) return;
+      setOpenProgress(62);
       if (recognized) {
         if (!cancelled) {
           setNameSuggestion(
@@ -552,10 +563,19 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
           }
         }
       }
-      if (!cancelled) setStructured(score);
+      if (!cancelled) {
+        setOpenProgress(100);
+        if (process.env.NODE_ENV !== "test") {
+          await new Promise<void>((resolve) => {
+            openTimer = window.setTimeout(resolve, 480);
+          });
+        }
+        if (!cancelled) setStructured(score);
+      }
     })();
     return () => {
       cancelled = true;
+      window.clearTimeout(openTimer);
     };
   }, [scoreLoadKey, slug]);
 
@@ -692,13 +712,13 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
   );
 
   if (piece === undefined) {
-    return <PieceWorkspaceOpening />;
+    return <PieceWorkspaceOpening progress={openProgress} />;
   }
   if (!piece) {
     return <PieceWorkspaceMissing slug={slug} />;
   }
   if (structured === undefined) {
-    return <PieceWorkspaceOpening />;
+    return <PieceWorkspaceOpening progress={openProgress} />;
   }
 
   const setWorkspaceView = (next: "score" | "practise") => {

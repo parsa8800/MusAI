@@ -2,7 +2,7 @@
 
 import { animate, createTimeline, stagger } from "animejs";
 import { useEffect, useRef } from "react";
-import { MUSAI_DUR, MUSAI_EASE, prefersReducedMotion } from "@/lib/motion";
+import { MUSAI_EASE, prefersReducedMotion } from "@/lib/motion";
 
 type EntranceOptions = {
   /** Stagger child selector inside the root (default: `[data-anime-enter]`). */
@@ -46,7 +46,7 @@ export function useAnimeEntrance<T extends HTMLElement>(
 
     for (const el of targets) {
       el.style.opacity = "0";
-      el.style.transform = "translateY(8px)";
+      el.style.transform = "translateY(3px)";
     }
 
     const handles: AnimeHandle[] = [];
@@ -61,27 +61,26 @@ export function useAnimeEntrance<T extends HTMLElement>(
       handles.push(
         animate(targets[0]!, {
           opacity: [0, 1],
-          y: [8, 0],
-          duration: MUSAI_DUR.enter,
+          y: [3, 0],
+          duration: 240,
           ease: MUSAI_EASE.out,
           delay,
         }) as AnimeHandle,
       );
     } else {
       const tl = createTimeline({
-        defaults: { ease: MUSAI_EASE.out, duration: MUSAI_DUR.enter },
+        defaults: { ease: MUSAI_EASE.out, duration: 240 },
         delay,
       });
       tl.add(targets, {
         opacity: [0, 1],
-        y: [8, 0],
-        delay: stagger(42),
+        y: [3, 0],
+        delay: stagger(22),
       });
       handles.push(tl as unknown as AnimeHandle);
     }
 
-    const settleMs =
-      delay + MUSAI_DUR.enter + Math.max(0, targets.length - 1) * 42 + 48;
+    const settleMs = delay + 240 + Math.max(0, targets.length - 1) * 22 + 48;
     const settle = window.setTimeout(releaseTransform, settleMs);
 
     return () => {

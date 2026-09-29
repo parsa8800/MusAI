@@ -17,14 +17,30 @@ describe("formatCoachReadability", () => {
     );
   });
 
-  it("numbers steps and lists the choices under the step that names them", () => {
+  it("puts the choosing word before the instrument list", () => {
     const formatted = formatCoachReadability(
       "• Go to Settings to choose your instrument\n• Select violin, viola, or piano",
     );
     expect(formatted).toBe(
       [
-        "1. Go to Settings to choose your instrument",
-        "2. Select one",
+        "Go to Settings to choose your instrument",
+        "Select:",
+        "• Violin",
+        "• Viola",
+        "• Piano",
+      ].join("\n"),
+    );
+  });
+
+  it("starts an instrument list at the first instrument", () => {
+    expect(
+      formatCoachReadability(
+        "Go to Settings to change your instrument\nChoose\nViolin\nViola\nPiano",
+      ),
+    ).toBe(
+      [
+        "Go to Settings to change your instrument",
+        "Choose:",
         "• Violin",
         "• Viola",
         "• Piano",

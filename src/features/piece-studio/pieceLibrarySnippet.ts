@@ -3,27 +3,78 @@
  * the written opening, not a hand-drawn stand-in.
  *
  * Every card uses the same staff-space window, so a short tune and a wide
- * system render at the same note size. A crowded opening keeps only the
- * first noteheads, so a packed bar does not fill the card.
+ * system render at the same note size.
  */
 type StaffLine = { x0: number; x1: number; y: number };
 
-const SPACES_ABOVE = 4.6;
-const SPACES_BELOW = 3.4;
-const SPACES_WIDE = 30;
-/** Heads in the wide window before the opening is treated as crowded. */
-const CROWDED_HEADS = 18;
-/** How many heads a crowded opening keeps. */
-const OPENING_HEADS = 8;
+const SPACES_ABOVE = 4.5;
+const SPACES_BELOW = 2.35;
+const SPACES_WIDE = 26;
+/** Opening shown on a card: up to the first two complete bars. */
+const OPENING_BARS = 2;
+/** Two bars wider than this shrink the staff, so the card keeps one whole bar. */
+const TWO_BAR_MAX_SPACES = 38;
+/** More heads than this in the opening reads as a clump, so only the start is kept. */
+const CROWDED_HEADS = 9;
+/** Heads a crowded opening keeps, so each note stays readable. */
+const OPENING_HEADS = 4;
 /** How far a glyph may sit and still count as part of this opening. */
-const GATE_ABOVE = 12;
-const GATE_BELOW = 7;
+const GATE_ABOVE = 7;
+const GATE_BELOW = 2.6;
 
 /** Tempo, dynamics, and other worded directions are text on top of the notes. */
 export function stripLibrarySnippetWords(svg: SVGSVGElement): void {
   for (const el of [...svg.querySelectorAll("text")]) {
     el.remove();
   }
+}
+
+const HEAVY_OPENING_ATTACKS = 9;
+const HEAVY_OPENING_KEEP = 5;
+
+/**
+ * A bar full of sixteenths or thirty-seconds becomes a short opening:
+ * the clef, the time signature, and the first few notes, spaced so each
+ * head can be read. Simpler openings are left alone.
+ */
+export function lightenHeavyOpening(xml: string): string | null {
+  const start = xml.search(/<measure\b/i);
+  const partEnd = xml.search(/<\/part>/i);
+  if (start < 0 || partEnd < 0 || partEnd <= start) return null;
+  const region = xml.slice(start, partEnd);
+  const closeAt = region.search(/<\/measure>/i);
+  if (closeAt < 0) return null;
+  const measure = region.slice(0, closeAt + "</measure>".length);
+  const notes = [...measure.matchAll(/<note\b[\s\S]*?<\/note>/gi)].map((match) => match[0]);
+  const attacks = notes.filter((note) => !isChordTone(note) && !isGrace(note));
+  if (attacks.length < HEAVY_OPENING_ATTACKS) return null;
+
+  const kept: string[] = [];
+  let seen = 0;
+  for (const note of notes) {
+    const attack = !isChordTone(note) && !isGrace(note);
+    if (attack) {
+      if (seen >= HEAVY_OPENING_KEEP) break;
+      seen += 1;
+    } else if (seen >= HEAVY_OPENING_KEEP) {
+      break;
+    }
+    kept.push(note.replace(/<beam\b[\s\S]*?<\/beam>/gi, ""));
+  }
+  if (kept.length === 0) return null;
+
+  const openTag = measure.match(/^<measure\b[^>]*>/i)?.[0] ?? "<measure>";
+  const attributes = measure.match(/<attributes\b[\s\S]*?<\/attributes>/i)?.[0] ?? "";
+  const trimmed = `${openTag}${attributes}${kept.join("")}</measure>`;
+  return `${xml.slice(0, start)}${trimmed}${xml.slice(partEnd)}`;
+}
+
+function isChordTone(note: string): boolean {
+  return /<chord[\s/>]/i.test(note);
+}
+
+function isGrace(note: string): boolean {
+  return /<grace[\s/>]/i.test(note);
 }
 
 export function cropSvgToFirstSystem(svg: SVGSVGElement): boolean {
@@ -38,22 +89,25 @@ export function cropSvgToFirstSystem(svg: SVGSVGElement): boolean {
   );
   const x0 = Math.min(...band.map((line) => line.x0)) - spacing * 0.45;
   const y0 = first.top - spacing * SPACES_ABOVE;
-  const wide = spacing * SPACES_WIDE;
-  const width = openingWidth(noteHeads(svg, first), x0, spacing, wide);
   const height = spacing * (4 + SPACES_ABOVE + SPACES_BELOW);
-  const crowded = width < wide - spacing * 0.5;
+  const fallbackRight = x0 + spacing * SPACES_WIDE;
+  const barRight = openingRight(svg, first, x0, fallbackRight);
+  const right = unclumpOpening(svg, first, x0, barRight);
+  dropLaterMeasures(svg, first, right);
   const frame = expandFrameToWholeNotes(svg, {
     x: x0,
     y: y0,
-    width,
+    width: Math.max(spacing * 4, right - x0),
     height,
     gateLeft: x0 - spacing * 1.5,
     gateTop: first.top - spacing * GATE_ABOVE,
-    gateRight: x0 + width,
+    gateRight: right,
     gateBottom: first.bottom + spacing * GATE_BELOW,
-    pad: spacing * 0.45,
-    keepSpans: !crowded,
+    pad: spacing * 0.4,
+    minTop: first.top - spacing * 6.2,
+    maxBottom: y0 + height,
   });
+  dropMarksOutsideOpening(svg, frame, first);
 
   svg.setAttribute(
     "viewBox",
@@ -65,50 +119,248 @@ export function cropSvgToFirstSystem(svg: SVGSVGElement): boolean {
   return true;
 }
 
-type NoteHead = { x: number };
+type Frame = { x: number; y: number; width: number; height: number };
 
 /**
- * A crowded first line (many heads in the wide window) keeps only the
- * opening. A sparse line keeps the full window, so note size stays put.
+ * Right edge on a barline. Two complete bars when they still read at card
+ * size; otherwise the first complete bar. Never a sliced note from the next bar.
  */
-function openingWidth(
-  heads: NoteHead[],
-  x0: number,
-  spacing: number,
-  wide: number,
-): number {
-  const inWindow = heads
-    .filter((head) => head.x >= x0 - spacing && head.x <= x0 + wide)
-    .sort((a, b) => a.x - b.x);
-  if (inWindow.length < CROWDED_HEADS) return wide;
-
-  const kept = inWindow.slice(0, OPENING_HEADS);
-  const last = kept[kept.length - 1];
-  const right = last ? last.x + spacing * 1.6 : x0 + spacing * 12;
-  return Math.min(wide, Math.max(spacing * 12, right - x0));
-}
-
-function noteHeads(
+function openingRight(
   svg: SVGSVGElement,
   staff: { top: number; bottom: number; spacing: number },
-): NoteHead[] {
-  const heads: NoteHead[] = [];
-  const above = staff.top - staff.spacing * 6;
-  const below = staff.bottom + staff.spacing * 6;
-  for (const el of svg.querySelectorAll("g")) {
-    const cls = el.getAttribute("class") ?? "";
-    if (!/(?:^|\s)vf-stavenote(?:\s|$)/.test(cls)) continue;
-    const box = userBox(svg, el);
-    if (!box) continue;
-    const x = (box.x + box.x1) / 2;
-    const y = (box.y + box.y1) / 2;
-    if (y < above || y > below) continue;
-    heads.push({ x });
-  }
-  return heads;
+  x0: number,
+  fallbackRight: number,
+): number {
+  const bars = measureEnds(svg, staff);
+  const fromMeasures = bars.length > 0;
+  const marks = fromMeasures ? bars : barlineXs(svg, staff);
+  const pad = staff.spacing * 0.22;
+  const opensAtLeft = !fromMeasures && marks[0] != null && marks[0] <= x0 + staff.spacing * 5;
+  const endOf = (barCount: number) =>
+    marks[fromMeasures ? barCount - 1 : opensAtLeft ? barCount : barCount - 1];
+  const two = endOf(OPENING_BARS);
+  const one = endOf(1);
+  const twoBarLimit = x0 + staff.spacing * TWO_BAR_MAX_SPACES;
+  if (two != null && two <= twoBarLimit) return two + pad;
+  if (one != null) return one + pad;
+  if (two != null) return two + pad;
+  return Math.min(fallbackRight, x0 + staff.spacing * SPACES_WIDE);
 }
 
-type Frame = { x: number; y: number; width: number; height: number };
+/**
+ * A bar of thirty-second notes fills the card and the heads pile up.
+ * Keep the first few heads so they scale up to the same size as a simple tune.
+ */
+function unclumpOpening(
+  svg: SVGSVGElement,
+  staff: { top: number; bottom: number; spacing: number },
+  x0: number,
+  right: number,
+): number {
+  const heads = noteHeadXs(svg, staff).filter((x) => x >= x0 - staff.spacing && x <= right);
+  if (heads.length < CROWDED_HEADS) return right;
+  const last = heads[OPENING_HEADS - 1];
+  if (last == null) return right;
+  return Math.min(right, last + staff.spacing * 1.55);
+}
+
+function noteHeadXs(
+  svg: SVGSVGElement,
+  staff: { top: number; bottom: number; spacing: number },
+): number[] {
+  const xs: number[] = [];
+  const high = staff.top - staff.spacing * 5;
+  const low = staff.bottom + staff.spacing * 4;
+  for (const el of svg.querySelectorAll(".vf-notehead, .vf-stavenote")) {
+    const box = userBox(svg, el);
+    if (!box) continue;
+    const cy = (box.y + box.y1) / 2;
+    if (cy < high || cy > low) continue;
+    xs.push((box.x + box.x1) / 2);
+  }
+  xs.sort((a, b) => a - b);
+  const unique: number[] = [];
+  for (const x of xs) {
+    if (unique.length === 0 || x - unique[unique.length - 1]! > staff.spacing * 0.35) {
+      unique.push(x);
+    }
+  }
+  return unique;
+}
+
+/** Right edge of each measure on this staff. OSMD draws one group per bar. */
+function measureEnds(
+  svg: SVGSVGElement,
+  staff: { top: number; bottom: number; spacing: number },
+): number[] {
+  const xs: number[] = [];
+  for (const measure of svg.querySelectorAll(".vf-measure")) {
+    const edge = measureEdge(measure, svg);
+    if (!edge) continue;
+    if (edge.y < staff.top - staff.spacing * 0.8) continue;
+    if (edge.y > staff.bottom + staff.spacing * 0.8) continue;
+    xs.push(edge.x1);
+  }
+  xs.sort((a, b) => a - b);
+  const unique: number[] = [];
+  for (const x of xs) {
+    if (unique.length === 0 || x - unique[unique.length - 1]! > staff.spacing * 0.8) {
+      unique.push(x);
+    }
+  }
+  return unique;
+}
+
+function measureEdge(
+  measure: Element,
+  svg: SVGSVGElement,
+): { x0: number; x1: number; y: number } | null {
+  for (const path of measure.querySelectorAll("path")) {
+    const shift = translationOf(path, svg);
+    const seg = horizontalSegment(path);
+    if (!seg || Math.abs(seg.x1 - seg.x0) < 24) continue;
+    const x0 = Math.min(seg.x0, seg.x1) + shift.x;
+    const x1 = Math.max(seg.x0, seg.x1) + shift.x;
+    return { x0, x1, y: (seg.y0 + seg.y1) / 2 + shift.y };
+  }
+  const box = userBox(svg, measure);
+  if (!box) return null;
+  return { x0: box.x, x1: box.x1, y: (box.y + box.y1) / 2 };
+}
+
+function horizontalSegment(
+  el: Element,
+): { x0: number; y0: number; x1: number; y1: number } | null {
+  const match = (el.getAttribute("d") ?? "")
+    .trim()
+    .match(/^M\s*([-\d.]+)[,\s]+([-\d.]+)\s*[LH]\s*([-\d.]+)[,\s]+([-\d.]+)/i);
+  if (!match) return null;
+  const x0 = Number(match[1]);
+  const y0 = Number(match[2]);
+  const x1 = Number(match[3]);
+  const y1 = Number(match[4]);
+  if (![x0, y0, x1, y1].every(Number.isFinite)) return null;
+  if (Math.abs(y1 - y0) > 1.25) return null;
+  return { x0, y0, x1, y1 };
+}
+
+/** Later bars and later systems are removed so a sliced note cannot remain in the card. */
+function dropLaterMeasures(
+  svg: SVGSVGElement,
+  staff: { top: number; bottom: number; spacing: number },
+  right: number,
+): void {
+  for (const measure of [...svg.querySelectorAll(".vf-measure")]) {
+    const edge = measureEdge(measure, svg);
+    if (!edge) continue;
+    const onFirst =
+      edge.y >= staff.top - staff.spacing * 0.8 &&
+      edge.y <= staff.bottom + staff.spacing * 0.8;
+    if (!onFirst || edge.x0 >= right - staff.spacing * 0.4) measure.remove();
+  }
+}
+
+/** Barlines on this staff, from engraved paths when layout boxes are empty. */
+function barlineXs(
+  svg: SVGSVGElement,
+  staff: { top: number; bottom: number; spacing: number },
+): number[] {
+  const xs: number[] = [];
+  const groups = [...svg.querySelectorAll(".vf-stavebarline")];
+  for (const source of groups) {
+    xs.push(...verticalLineXs(source, svg, staff));
+    const box = userBox(svg, source);
+    if (!box) continue;
+    const cy = (box.y + box.y1) / 2;
+    if (cy < staff.top - staff.spacing || cy > staff.bottom + staff.spacing) continue;
+    xs.push(box.x);
+  }
+  xs.sort((a, b) => a - b);
+  const unique: number[] = [];
+  for (const x of xs) {
+    if (unique.length === 0 || x - unique[unique.length - 1]! > staff.spacing * 0.8) {
+      unique.push(x);
+    }
+  }
+  return unique;
+}
+
+function verticalLineXs(
+  root: Element,
+  svg: SVGSVGElement,
+  staff: { top: number; bottom: number; spacing: number },
+): number[] {
+  const xs: number[] = [];
+  const nodes =
+    root === svg
+      ? svg.querySelectorAll("path, line")
+      : root.querySelectorAll("path, line");
+  for (const el of nodes) {
+    const shift = translationOf(el, svg);
+    const seg = verticalSegment(el);
+    if (!seg) continue;
+    const y0 = Math.min(seg.y0, seg.y1) + shift.y;
+    const y1 = Math.max(seg.y0, seg.y1) + shift.y;
+    if (y1 - y0 < staff.spacing * 2.4) continue;
+    if (y0 > staff.top + staff.spacing || y1 < staff.bottom - staff.spacing) continue;
+    xs.push(seg.x + shift.x);
+  }
+  return xs;
+}
+
+function verticalSegment(
+  el: Element,
+): { x: number; y0: number; y1: number } | null {
+  if (el.tagName.toLowerCase() === "line") {
+    const x1 = Number(el.getAttribute("x1"));
+    const x2 = Number(el.getAttribute("x2"));
+    const y1 = Number(el.getAttribute("y1"));
+    const y2 = Number(el.getAttribute("y2"));
+    if (![x1, x2, y1, y2].every(Number.isFinite)) return null;
+    if (Math.abs(x2 - x1) > 1.25) return null;
+    return { x: (x1 + x2) / 2, y0: y1, y1: y2 };
+  }
+  const match = (el.getAttribute("d") ?? "")
+    .trim()
+    .match(/^M\s*([-\d.]+)[,\s]+([-\d.]+)\s*[LH]\s*([-\d.]+)[,\s]+([-\d.]+)\s*$/i);
+  if (!match) return null;
+  const x0 = Number(match[1]);
+  const y0 = Number(match[2]);
+  const x1 = Number(match[3]);
+  const y1 = Number(match[4]);
+  if (![x0, y0, x1, y1].every(Number.isFinite)) return null;
+  if (Math.abs(x1 - x0) > 1.25) return null;
+  return { x: (x0 + x1) / 2, y0, y1 };
+}
+
+/** Hairpins and the next bar or system stay off the card, even if they overlap the frame. */
+function dropMarksOutsideOpening(
+  svg: SVGSVGElement,
+  frame: Frame,
+  staff: { top: number; bottom: number; spacing: number },
+): void {
+  svg.querySelectorAll(".vf-hairpin, .vf-pedal, .vf-volta").forEach((el) => {
+    el.remove();
+  });
+  const right = frame.x + frame.width;
+  const low = staff.bottom + staff.spacing * 3.1;
+  const high = staff.top - staff.spacing * 6.4;
+  for (const el of [...svg.querySelectorAll("g")]) {
+    const cls = el.getAttribute("class") ?? "";
+    if (
+      !/(?:^|\s)vf-(?:stavenote|beam|curve|tie|tuplet|articulation|ornament|annotation)(?:\s|$)/.test(
+        cls,
+      )
+    ) {
+      continue;
+    }
+    const box = userBox(svg, el);
+    if (!box) continue;
+    const cx = (box.x + box.x1) / 2;
+    const cy = (box.y + box.y1) / 2;
+    if (cx > right - staff.spacing * 0.12 || cy > low || cy < high) el.remove();
+  }
+}
 
 /**
  * A note, beam, or clef whose center sits in the opening is kept whole.
@@ -122,20 +374,17 @@ function expandFrameToWholeNotes(
     gateRight: number;
     gateBottom: number;
     pad: number;
-    /** Packed openings must not grow to fit a beam or slur across the pile. */
-    keepSpans: boolean;
+    minTop: number;
+    maxBottom: number;
   },
 ): Frame {
   let x = frame.x;
   let y = frame.y;
   let right = frame.x + frame.width;
-  let bottom = frame.y + frame.height;
+  let bottom = Math.min(frame.y + frame.height, frame.maxBottom);
   const glyphs = svg.querySelectorAll("g");
   for (const el of glyphs) {
     if (!isSnippetGlyph(el)) continue;
-    const cls = el.getAttribute("class") ?? "";
-    const spans = /vf-(?:beam|curve|tie|tuplet)(?:\s|$)/.test(cls);
-    if (spans && !frame.keepSpans) continue;
     const box = userBox(svg, el);
     if (!box) continue;
     const cx = (box.x + box.x1) / 2;
@@ -148,12 +397,13 @@ function expandFrameToWholeNotes(
     ) {
       continue;
     }
+    const cls = el.getAttribute("class") ?? "";
+    const spans = /vf-(?:beam|curve|tie|tuplet)(?:\s|$)/.test(cls);
     const boxLeft = spans ? Math.max(box.x, frame.gateLeft) : box.x;
-    const boxRight = spans ? Math.min(box.x1, frame.gateRight) : box.x1;
     x = Math.min(x, boxLeft - frame.pad);
-    y = Math.min(y, box.y - frame.pad);
-    right = Math.max(right, boxRight + frame.pad);
-    bottom = Math.max(bottom, box.y1 + frame.pad);
+    y = Math.max(frame.minTop, Math.min(y, box.y - frame.pad));
+    right = Math.min(frame.gateRight, Math.max(right, frame.gateRight));
+    bottom = Math.min(frame.maxBottom, Math.max(bottom, box.y1 + frame.pad));
   }
   return { x, y, width: Math.max(1, right - x), height: Math.max(1, bottom - y) };
 }

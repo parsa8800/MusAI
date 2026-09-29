@@ -73,17 +73,18 @@ export function PieceImportDropzone({
           className="musai-page-scan-open"
           onClick={() => setCameraOn(true)}
         >
+          <span className="musai-page-scan-open__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path
+                d="M4.5 8.2h2.9l1.05-1.6h6.1l1.05 1.6h2.9a1 1 0 0 1 1 1v7.6a1 1 0 0 1-1 1h-14a1 1 0 0 1-1-1V9.2a1 1 0 0 1 1-1Z"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinejoin="round"
+              />
+              <circle cx="12" cy="12.55" r="2.35" stroke="currentColor" strokeWidth="1.6" />
+            </svg>
+          </span>
           Take a photo
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path
-              d="M3.2 5.2h2l.7-1.2h3.2l.7 1.2h2.8v6.6H3.2V5.2Z"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.3"
-              strokeLinejoin="round"
-            />
-            <circle cx="8" cy="8.2" r="1.7" fill="none" stroke="currentColor" strokeWidth="1.3" />
-          </svg>
         </button>
       ) : null}
       {cameraOn ? (

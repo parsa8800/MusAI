@@ -29,6 +29,11 @@ export type ScorePaintOptions = {
   viewportHeightPx: number;
   /** Import review: larger staff, fill the card, no sparse “postage stamp” look. */
   purpose?: "workspace" | "import-preview" | "library-snippet";
+  /**
+   * Library cards only. Spreads a note-heavy opening so the heads do not
+   * sit on top of each other. Simple tunes leave this off.
+   */
+  openNoteSpacing?: boolean;
 };
 
 export function isPieceScoreViewMode(v: string): v is PieceScoreViewMode {

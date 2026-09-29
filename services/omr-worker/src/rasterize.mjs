@@ -121,10 +121,14 @@ export function run(command, args, opts = {}) {
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (d) => {
-      stdout += d.toString();
+      const text = d.toString();
+      stdout += text;
+      opts.onChunk?.(text);
     });
     child.stderr.on("data", (d) => {
-      stderr += d.toString();
+      const text = d.toString();
+      stderr += text;
+      opts.onChunk?.(text);
     });
     const timer = setTimeout(() => {
       child.kill("SIGKILL");

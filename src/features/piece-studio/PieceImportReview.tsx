@@ -401,7 +401,7 @@ function ImportLoadingLayout({
     >
       <span className="musai-piece-import-review__a11y">{a11y}</span>
       <div className="musai-piece-import-review__loading-stage">
-        <MusaiLoadingMark progress={progress} />
+        <MusaiLoadingMark progress={progress} progressLabel="Uploading the piece" />
       </div>
     </div>
   );
@@ -423,7 +423,11 @@ function ImportLoadingCompact({
       aria-label={label}
     >
       <span className="musai-piece-import-review__a11y">{label}</span>
-      <MusaiLoadingMark compact progress={progress} />
+      <MusaiLoadingMark
+        compact
+        progress={progress}
+        progressLabel="Uploading the piece"
+      />
     </div>
   );
 }

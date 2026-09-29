@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { MusaiLoadingScreen } from "@/components/MusaiLoadingMark";
+import { MusaiLoadingScreen, StudioReveal } from "@/components/MusaiLoadingMark";
 
 const PieceStudioView = dynamic(
   () =>
@@ -15,5 +15,9 @@ const PieceStudioView = dynamic(
 );
 
 export default function PieceStudioPage() {
-  return <PieceStudioView />;
+  return (
+    <StudioReveal label="Opening Piece studio">
+      <PieceStudioView />
+    </StudioReveal>
+  );
 }

@@ -542,7 +542,8 @@ export function CoachParsaChat({
 }: CoachParsaChatProps) {
   const reduce = usePrefersReducedMotion();
   const formId = useId();
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const threadRef = useRef<HTMLDivElement>(null);
+  const stickToBottomRef = useRef(true);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [awaitingReply, setAwaitingReply] = useState(false);
@@ -617,10 +618,51 @@ export function CoachParsaChat({
   }, [threadKey, messages, bootDone]);
 
   useEffect(() => {
-    const el = bottomRef.current;
-    if (!el || typeof el.scrollIntoView !== "function") return;
-    el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "nearest" });
-  }, [messages, busy, awaitingReply, reduce]);
+    const el = threadRef.current;
+    if (!el) return;
+
+    const pin = () => {
+      if (!stickToBottomRef.current) return;
+      el.scrollTop = el.scrollHeight;
+    };
+
+    const onScroll = () => {
+      const gap = el.scrollHeight - el.scrollTop - el.clientHeight;
+      stickToBottomRef.current = gap < 40;
+    };
+
+    const ro = new ResizeObserver(() => pin());
+    ro.observe(el);
+    const watch = (node: Element) => ro.observe(node);
+    for (const child of el.children) watch(child);
+
+    const mo = new MutationObserver(() => {
+      for (const child of el.children) watch(child);
+      pin();
+    });
+    mo.observe(el, { childList: true, subtree: true, characterData: true });
+    el.addEventListener("scroll", onScroll, { passive: true });
+    pin();
+
+    return () => {
+      ro.disconnect();
+      mo.disconnect();
+      el.removeEventListener("scroll", onScroll);
+    };
+  }, [start, embed]);
+
+  useEffect(() => {
+    stickToBottomRef.current = true;
+    const el = threadRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+    const frame = window.requestAnimationFrame(() => {
+      if (!stickToBottomRef.current) return;
+      const node = threadRef.current;
+      if (node) node.scrollTop = node.scrollHeight;
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [messages, awaitingReply]);
 
   async function sendUserMessage(userText: string) {
     const userMsg: UserMsg = {
@@ -760,6 +802,7 @@ export function CoachParsaChat({
       ) : null}
 
       <div
+        ref={threadRef}
         className={
           embed
             ? `musai-scroll musai-coach-thread${
@@ -799,8 +842,6 @@ export function CoachParsaChat({
             <ThinkingIndicator />
           </div>
         ) : null}
-
-        <div ref={bottomRef} />
       </div>
 
       {showSuggestions ? (

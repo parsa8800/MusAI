@@ -15,6 +15,7 @@ import { run } from "./rasterize.mjs";
  * @param {string} opts.outputDir
  * @param {string} [opts.audiverisBin]
  * @param {number} [opts.timeoutMs]
+ * @param {(line: string) => void} [opts.onLogLine]
  * @returns {Promise<string>} MusicXML text
  */
 export async function runAudiverisExport(opts) {
@@ -51,9 +52,17 @@ export async function runAudiverisExport(opts) {
   ];
 
   console.info(`[omr-worker] audiveris ${args.join(" ")}`);
+  let pending = "";
+  const takeChunk = (chunk) => {
+    pending += chunk;
+    const lines = pending.split(/\r?\n/);
+    pending = lines.pop() ?? "";
+    for (const line of lines) opts.onLogLine?.(line);
+  };
   try {
     const result = await run(bin, args, {
       timeoutMs,
+      onChunk: takeChunk,
       env: {
         JAVA_TOOL_OPTIONS: [
           process.env.JAVA_TOOL_OPTIONS,
@@ -63,6 +72,7 @@ export async function runAudiverisExport(opts) {
           .join(" "),
       },
     });
+    if (pending) opts.onLogLine?.(pending);
     if (result?.stderr) {
       const warnLines = String(result.stderr)
         .split("\n")

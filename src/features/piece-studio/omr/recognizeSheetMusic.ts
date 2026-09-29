@@ -17,6 +17,15 @@ export type RecognizeSheetMusicOptions = {
 };
 
 /**
+ * Worker progress is recognition only. Keep the last stretch for checking
+ * the score and opening it to practise.
+ */
+export function pieceUploadPercentFromJob(jobPercent: number): number {
+  const clamped = Math.max(0, Math.min(100, jobPercent));
+  return Math.round(8 + clamped * 0.84);
+}
+
+/**
  * Browser entry: submit a recognition job, then poll until MusicXML is ready.
  * Falls back to a single POST when the backend has no job API (legacy HTTP).
  * Never blocks on Audiveris inside the Next.js process — the worker does that.
@@ -26,7 +35,7 @@ export async function recognizeSheetMusic(
   options: RecognizeSheetMusicOptions = {},
 ): Promise<string> {
   options.onPhase?.("uploading");
-  options.onProgress?.(8);
+  options.onProgress?.(6);
   pieceImportLog("UPLOAD", "start", {
     where: "client→/api/piece-omr/jobs",
     fileName: file.name,
@@ -66,8 +75,10 @@ export async function recognizeSheetMusic(
       status: submitRes.status,
     });
     options.onPhase?.("processing");
-    options.onProgress?.(16);
-    return pollRecognitionJob(jobId, options.onProgress);
+    options.onProgress?.(12);
+    return pollRecognitionJob(jobId, (percent) =>
+      options.onProgress?.(pieceUploadPercentFromJob(percent)),
+    );
   }
 
   // Job API unavailable for this provider — try legacy sync recognize.
@@ -169,7 +180,7 @@ async function pollRecognitionJob(
     }
     const status = typeof data.status === "string" ? data.status : "";
     if (typeof data.progress === "number" && Number.isFinite(data.progress)) {
-      onProgress?.(Math.max(0, Math.min(100, data.progress)));
+      onProgress?.(data.progress);
     }
     pieceImportLog("OMR", "ok", {
       where: "client poll",

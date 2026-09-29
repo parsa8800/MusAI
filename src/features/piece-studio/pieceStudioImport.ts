@@ -245,7 +245,7 @@ export async function importPieceFromFile(
     ? "musicxml"
     : sourceKindFromFile(file.name, file.type);
   deps.onPhase?.("uploading");
-  deps.onProgress?.(8);
+  deps.onProgress?.(4);
   pieceImportLog("UPLOAD", "start", {
     where: "importPieceFromFile",
     fileName: file.name,
@@ -289,7 +289,6 @@ export async function importPieceFromFile(
   }
 
   deps.onPhase?.("processing");
-  deps.onProgress?.(16);
   const recognize =
     deps.recognizeSheet ??
     ((f: File) =>
@@ -330,6 +329,7 @@ export async function importPieceFromFile(
       where: "temporary import ready for review (not catalogued)",
       sessionId: draft.sessionId,
     });
+    deps.onProgress?.(100);
     return { status: "ready", draft };
   } catch (err) {
     pieceImportFail("OMR", err, {

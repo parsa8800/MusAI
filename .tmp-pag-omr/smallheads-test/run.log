@@ -1,0 +1,150 @@
+Picked up JAVA_TOOL_OPTIONS: -Djava.awt.headless=true
+INFO  []                      Main 259  | Running in batch mode
+WARN  []                 Languages 142  | *** No installed OCR languages ***
+INFO  []             AliasPatterns 146  | Alias patterns: [(IMSLP[0-9]*)-.*]
+INFO  []                      Main 194  | Submitting 1 task(s) in sequence:
+    Input "/Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/raster/page-1.png"
+INFO  [page-1]                      Book 560  | 1 sheet in /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/raster/page-1.png
+INFO  []                      Book 2565 | Stored /book.xml
+INFO  []                      Book 2525 | Book stored as /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/smallheads-test/page-1.omr
+INFO  []                      Book 1929 | Book reaching PAGE on sheets:[#1]
+INFO  [page-1]            StepMonitoring 98   | LOAD
+INFO  [page-1]                 SheetStub 1278 | Loaded image #1 1870x2420 from /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/raster/page-1.png
+INFO  [page-1]                 ImageUtil 152  | Converting max RGB to gray
+INFO  [page-1]            StepMonitoring 98   | BINARY
+INFO  [page-1]            StepMonitoring 98   | SCALE
+INFO  [page-1]              ScaleBuilder 254  | Beam  guessed height:  9 -- 0.25 of [7..15] range
+INFO  [page-1]              ScaleBuilder 271  | Beam measured height: 11 -- 0.50 of [7..15] range at 690% of needed quorum
+INFO  [page-1]              ScaleBuilder 401  | Normalized black jitter: 18.75 %
+INFO  [page-1]                 ScaleStep 65   | Scale{ interline(14,16,17) line(2,3,5) beam(11)}
+INFO  [page-1]            StepMonitoring 98   | GRID
+INFO  [page-1]            LinesRetriever 1508 | Global slope: 0.00209
+INFO  [page-1]         ClustersRetriever 326  | Retrieved raw line clusters: 11 of sizes [5] with interline(14,16,17)
+INFO  [page-1]                 PeakGraph 310  | Systems: #1[1] #2[2] #3[3] #4[4] #5[5] #6[6] #7[7] #8[8] #9[9] #10[10] #11[11]
+INFO  [page-1]             SystemManager 134  | Indentation detected for system #1
+INFO  [page-1]             SystemManager 134  | Indentation detected for system #4
+INFO  [page-1]             SystemManager 134  | Indentation detected for system #7
+INFO  [page-1]             SystemManager 134  | Indentation detected for system #10
+INFO  [page-1]             SystemManager 744  | 4 pages found in sheet
+INFO  [page-1]             SystemManager 800  | Page #1: 1 part along 3 systems
+INFO  [page-1]             SystemManager 800  | Page #2: 1 part along 3 systems
+INFO  [page-1]             SystemManager 800  | Page #3: 1 part along 3 systems
+INFO  [page-1]             SystemManager 800  | Page #4: 1 part along 2 systems
+INFO  [page-1]                      Book 543  | Created scores: [{Score 1}, {Score 2}, {Score 3}, {Score 4}]
+INFO  [page-1]            StepMonitoring 98   | HEADERS
+INFO  [page-1]            StepMonitoring 98   | STEM_SEEDS
+INFO  [page-1]             StemSeedsStep 86   | stem(4 max:5)
+INFO  [page-1]            StepMonitoring 98   | BEAMS
+INFO  [page-1]            StepMonitoring 98   | LEDGERS
+INFO  [page-1]            StepMonitoring 98   | HEADS
+INFO  [page-1]             HeadSeedTally 235  | Scale information: HeadSeeds{NOTEHEAD_VOID[L:-0.1] NOTEHEAD_BLACK[L:-1.0,R:-1.0] NOTEHEAD_BLACK_SMALL[L:-0.8,R:-0.6]}
+INFO  [page-1]            StepMonitoring 98   | STEMS
+INFO  [page-1]            StepMonitoring 98   | REDUCTION
+INFO  [page-1]            BeamGroupInter 1123 | Separating beams SmallBeamInter#2681{(0.395/0.593) BEAM_SMALL} and SmallBeamInter#2683{(0.412/0.605) BEAM_SMALL}
+INFO  [page-1]            BeamGroupInter 1123 | Separating beams SmallBeamInter#2685{(0.470/0.686) BEAM_SMALL} and SmallBeamInter#2687{(0.488/0.697) BEAM_SMALL}
+INFO  [page-1]             ReductionStep 105  | Stems free length median value: 44 pixels, 2.8 interlines
+INFO  [page-1]            StepMonitoring 98   | CUE_BEAMS
+INFO  [page-1]            StepMonitoring 98   | TEXTS
+WARN  [page-1]              TesseractOCR 335  | The collection of supported languages is empty
+INFO  [page-1]                   OcrUtil 106  | Missing support for 'eng' language(s)
+INFO  [page-1]            StepMonitoring 98   | MEASURES
+INFO  [page-1]                      Page 307  | 14 raw measures: [5 in system#1, 5 in system#2, 4 in system#3]
+INFO  [page-1]                      Page 307  | 13 raw measures: [5 in system#4, 4 in system#5, 4 in system#6]
+INFO  [page-1]                      Page 307  | 14 raw measures: [5 in system#7, 5 in system#8, 4 in system#9]
+INFO  [page-1]                      Page 307  | 13 raw measures: [7 in system#10, 6 in system#11]
+INFO  [page-1]            StepMonitoring 98   | CHORDS
+INFO  [page-1]            StepMonitoring 98   | CURVES
+INFO  [page-1]              SlursBuilder 240  | Slurs: 82
+INFO  [page-1]           SegmentsBuilder 155  | Segments: 70
+INFO  [page-1]            StepMonitoring 98   | SYMBOLS
+INFO  [page-1]            StepMonitoring 98   | LINKS
+INFO  [page-1]                  KeyInter 1198 | No effective key before AlterInter#15823{(0.782) staff:3 NATURAL pitch:-2.0}
+INFO  [page-1]                  KeyInter 1198 | No effective key before AlterInter#16085{(0.751) staff:7 NATURAL pitch:0.0}
+INFO  [page-1]                  KeyInter 1198 | No effective key before AlterInter#16098{(0.783) staff:7 NATURAL pitch:-2.0}
+INFO  [page-1]                  KeyInter 1198 | No effective key before AlterInter#16147{(0.733) staff:7 NATURAL pitch:0.0}
+INFO  [page-1]                  KeyInter 1198 | No effective key before AlterInter#16179{(0.770) staff:8 NATURAL pitch:-5.0}
+INFO  [page-1]                  KeyInter 1198 | No effective key before AlterInter#16187{(0.789) staff:8 NATURAL pitch:-3.0}
+INFO  [page-1]                  KeyInter 1198 | No effective key before AlterInter#16199{(0.793) staff:8 NATURAL pitch:-4.0}
+INFO  [page-1]                  KeyInter 1198 | No effective key before AlterInter#16223{(0.790) staff:8 NATURAL pitch:-2.0}
+INFO  [page-1]            StepMonitoring 98   | RHYTHMS
+INFO  [page-1]             MeasureRhythm 1044 | Measure{#2} No timeOffset for RestChordInter#15777{(0.786/0.786) staff:1 slot#2 dur:1/16}
+INFO  [page-1]        AbstractChordInter 635  | Measure{#2} No timeOffset for RestChordInter#15777{(0.786/0.786) staff:1 slot#2 dur:1/16}
+INFO  [page-1]               StackRhythm 224  | S1 MeasureStack#2 no correct rhythm
+INFO  [page-1]                     Voice 257  | Measure{#3} Voice{#1 excess:1/16} too long
+INFO  [page-1]               StackRhythm 224  | S1 MeasureStack#3 no correct rhythm
+INFO  [page-1]             MeasureRhythm 1044 | Measure{#7} No timeOffset for RestChordInter#15795{(0.780/0.780) staff:2 slot#2 dur:1/16}
+INFO  [page-1]        AbstractChordInter 635  | Measure{#7} No timeOffset for RestChordInter#15795{(0.780/0.780) staff:2 slot#2 dur:1/16}
+INFO  [page-1]               StackRhythm 224  | S2 MeasureStack#7 no correct rhythm
+INFO  [page-1]                     Voice 257  | Measure{#8} Voice{#1 excess:1/16} too long
+INFO  [page-1]               StackRhythm 224  | S2 MeasureStack#8 no correct rhythm
+INFO  [page-1]                     Voice 257  | Measure{#2} Voice{#1 excess:1/8} too long
+INFO  [page-1]               StackRhythm 224  | S4 MeasureStack#2 no correct rhythm
+INFO  [page-1]                     Voice 257  | Measure{#3} Voice{#1 excess:1/4} too long
+INFO  [page-1]               StackRhythm 224  | S4 MeasureStack#3 no correct rhythm
+INFO  [page-1]                     Voice 257  | Measure{#4} Voice{#1 excess:1/4} too long
+INFO  [page-1]               StackRhythm 224  | S4 MeasureStack#4 no correct rhythm
+INFO  [page-1]             MeasureRhythm 1044 | Measure{#7} No timeOffset for HeadChordInter#14255{(0.584/0.584) staff:5 slot#7 dur:1/2}
+INFO  [page-1]        AbstractChordInter 635  | Measure{#7} No timeOffset for HeadChordInter#14255{(0.584/0.584) staff:5 slot#7 dur:1/2}
+INFO  [page-1]        AbstractChordInter 635  | Measure{#7} No timeOffset for HeadChordInter#14259{(0.941/0.941) staff:5 slot#10 dur:1/8}
+INFO  [page-1]             MeasureRhythm 1044 | Measure{#7} No timeOffset for HeadChordInter#14262{(0.711/0.711) staff:5 slot#11 dur:1/4}
+INFO  [page-1]                     Voice 257  | Measure{#7} Voice{#1 excess:1/4} too long
+INFO  [page-1]               StackRhythm 224  | S5 MeasureStack#7 no correct rhythm
+INFO  [page-1]                     Voice 257  | Measure{#8} Voice{#1 excess:1/4} too long
+INFO  [page-1]               StackRhythm 224  | S5 MeasureStack#8 no correct rhythm
+INFO  [page-1]                     Voice 257  | Measure{#9} Voice{#1 excess:1/4} too long
+INFO  [page-1]               StackRhythm 224  | S5 MeasureStack#9 no correct rhythm
+INFO  [page-1]                     Voice 257  | Measure{#10} Voice{#1 excess:1/4} too long
+INFO  [page-1]               StackRhythm 224  | S6 MeasureStack#10 no correct rhythm
+INFO  [page-1]                     Voice 257  | Measure{#11} Voice{#1 excess:1/4} too long
+INFO  [page-1]               StackRhythm 224  | S6 MeasureStack#11 no correct rhythm
+INFO  [page-1]                     Voice 257  | Measure{#12} Voice{#1 excess:1/4} too long
+INFO  [page-1]               StackRhythm 224  | S6 MeasureStack#12 no correct rhythm
+INFO  [page-1]                     Voice 257  | Measure{#2} Voice{#1 excess:1/32} too long
+INFO  [page-1]               StackRhythm 224  | S7 MeasureStack#2 no correct rhythm
+INFO  [page-1]             MeasureRhythm 1044 | Measure{#3} No timeOffset for HeadChordInter#14319{(0.959/0.959) staff:7 slot#5 dur:1/16}
+INFO  [page-1]               StackRhythm 224  | S7 MeasureStack#3 no correct rhythm
+INFO  [page-1]             MeasureRhythm 1044 | Measure{#13} No timeOffset for HeadChordInter#14396{(0.943/0.943) staff:9 slot#5 dur:1/16}
+INFO  [page-1]               StackRhythm 224  | S9 MeasureStack#13 no correct rhythm
+INFO  [page-1]             MeasureRhythm 1044 | Measure{#14} No timeOffset for HeadChordInter#14404{(0.799/0.799) staff:9 slot#3 dur:1/4}
+INFO  [page-1]        AbstractChordInter 635  | Measure{#14} No timeOffset for HeadChordInter#14404{(0.799/0.799) staff:9 slot#3 dur:1/4}
+INFO  [page-1]        AbstractChordInter 635  | Measure{#14} No timeOffset for HeadChordInter#14405{(0.935/0.935) staff:9 slot#4 dur:1/4}
+INFO  [page-1]             MeasureRhythm 1044 | Measure{#14} No timeOffset for HeadChordInter#14407{(0.943/0.943) staff:9 slot#5 dur:1/8}
+INFO  [page-1]        AbstractChordInter 635  | Measure{#14} No timeOffset for HeadChordInter#14409{(0.771/0.771) staff:9 slot#5 dur:1/8}
+INFO  [page-1]        AbstractChordInter 635  | Measure{#14} No timeOffset for HeadChordInter#14407{(0.943/0.943) staff:9 slot#5 dur:1/8}
+INFO  [page-1]               StackRhythm 224  | S9 MeasureStack#14 no correct rhythm
+INFO  [page-1]            StepMonitoring 98   | PAGE
+INFO  [page-1]            SheetReduction 154  | Gutter. Different glyphs 8/9 ArticulationInter#16204{(0.448/0.634) MARCATO_BELOW} vs ArticulationInter#16283{(0.380/0.664) STACCATO}
+INFO  [page-1]            SheetReduction 154  | Gutter. Different glyphs 9/10 ArticulationInter#16285{(0.796/0.911) STACCATO} vs SlurInter#14650{(0.687/0.949) SLUR_ABOVE}
+INFO  [page-1]                     Voice 257  | Measure{#3} Voice{#1 excess:1/16} too long
+INFO  [page-1]                     Voice 257  | Measure{#8} Voice{#1 excess:1/16} too long
+INFO  [page-1]                     Voice 257  | Measure{#2} Voice{#1 excess:1/8} too long
+INFO  [page-1]                     Voice 257  | Measure{#3} Voice{#1 excess:1/4} too long
+INFO  [page-1]                     Voice 257  | Measure{#4} Voice{#1 excess:1/4} too long
+INFO  [page-1]                     Voice 257  | Measure{#7} Voice{#1 excess:1/4} too long
+INFO  [page-1]                     Voice 257  | Measure{#8} Voice{#1 excess:1/4} too long
+INFO  [page-1]                     Voice 257  | Measure{#9} Voice{#1 excess:1/4} too long
+INFO  [page-1]                     Voice 257  | Measure{#10} Voice{#1 excess:1/4} too long
+INFO  [page-1]                     Voice 257  | Measure{#11} Voice{#1 excess:1/4} too long
+INFO  [page-1]                     Voice 257  | Measure{#12} Voice{#1 excess:1/4} too long
+INFO  [page-1]                     Voice 257  | Measure{#2} Voice{#1 excess:1/32} too long
+INFO  [page-1]                      Book 2584 | Book{page-1} storing
+INFO  [page-1]                      Book 2565 | Stored /book.xml
+INFO  [page-1]                DataHolder 348  | Stored /sheet#1/BINARY.png
+INFO  [page-1]                     Sheet 1583 | Stored /sheet#1/sheet#1.xml
+INFO  [page-1]                      Book 2525 | Book stored as /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/smallheads-test/page-1.omr
+INFO  [page-1]                 SheetStub 1655 | Sheet disposed
+INFO  [page-1]                      Book 2050 | End of Stub#1
+INFO  [page-1]                      Book 2057 | End of Book{page-1}
+INFO  [page-1]                 SheetStub 1000 | Loaded /sheet#1/sheet#1.xml
+INFO  [page-1]           PartwiseBuilder 2707 | Exporting sheet(s): [#1]
+INFO  [page-1]             ScoreExporter 164  | Score page-1.mvt1 exported to /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/smallheads-test/page-1.mvt1.mxl
+INFO  [page-1]           PartwiseBuilder 2707 | Exporting sheet(s): [#1]
+INFO  [page-1]             ScoreExporter 164  | Score page-1.mvt2 exported to /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/smallheads-test/page-1.mvt2.mxl
+INFO  [page-1]           PartwiseBuilder 2707 | Exporting sheet(s): [#1]
+INFO  [page-1]             ScoreExporter 164  | Score page-1.mvt3 exported to /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/smallheads-test/page-1.mvt3.mxl
+INFO  [page-1]           PartwiseBuilder 2707 | Exporting sheet(s): [#1]
+INFO  [page-1]             ScoreExporter 164  | Score page-1.mvt4 exported to /Users/parsarahmanseresht/Desktop/stuff/cs projects/musai/.tmp-pag-omr/smallheads-test/page-1.mvt4.mxl
+INFO  [page-1]                     Score 181  | Closing {Score 1}
+INFO  [page-1]                     Score 181  | Closing {Score 2}
+INFO  [page-1]                     Score 181  | Closing {Score 3}
+INFO  [page-1]                     Score 181  | Closing {Score 4}
