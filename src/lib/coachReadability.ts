@@ -53,13 +53,19 @@ function stepCore(text: string): string {
   return text.replace(/^(?:and|then)\s+/i, "").trim();
 }
 
-function listLead(lead: string): string {
-  const trimmed = capitalizeFirst(lead.trim());
-  if (/^(?:Select|Choose|Pick|Add)$/.test(trimmed)) return `${trimmed} one`;
-  return trimmed;
+const LIST_INTRO = /^(?:select|choose|pick|add)$/i;
+
+function listIntroLabel(word: string): string {
+  const trimmed = capitalizeFirst(word.replace(/:$/, "").trim());
+  return `${trimmed}:`;
+}
+
+function isBareIntro(text: string): boolean {
+  return LIST_INTRO.test(stepCore(text).replace(/:$/, "").trim());
 }
 
 function isStep(text: string): boolean {
+  if (isBareIntro(text)) return false;
   return STEP_VERB.test(stepCore(text));
 }
 
@@ -98,7 +104,7 @@ function choiceListMatch(line: string): RegExpMatchArray | null {
 
 function extractChoiceList(
   line: string,
-): { lead: string; items: string[]; rest: string } | null {
+): { lead: string; intro: string; items: string[]; rest: string } | null {
   const match = choiceListMatch(line);
   if (!match || match.index == null) return null;
   const raw = match[0];
@@ -107,11 +113,31 @@ function extractChoiceList(
     .map(cleanItem)
     .filter((item) => item.length > 0 && item.split(/\s+/).length <= 5);
   if (items.length < 3) return null;
-  const lead = line
+  let lead = line
     .slice(0, match.index)
     .replace(/\b(?:a|an)\s*$/i, "")
     .replace(/[,\s]+$/g, "")
     .trim();
+  let intro = "";
+  const introTail = lead.match(/^(.*?)(?:^|[\s,]+)(select|choose|pick|add)$/i);
+  if (introTail) {
+    const before = (introTail[1] ?? "").replace(/[,\s]+$/g, "").trim();
+    intro = capitalizeFirst(introTail[2] ?? "");
+    lead = before;
+  } else if (LIST_INTRO.test(lead)) {
+    intro = capitalizeFirst(lead);
+    lead = "";
+  }
+  if (items[0] && LIST_INTRO.test(items[0])) {
+    if (!intro) intro = items[0];
+    items.shift();
+  }
+  const prefixed = items[0]?.match(/^(select|choose|pick|add)\s+(.+)$/i);
+  if (prefixed) {
+    if (!intro) intro = capitalizeFirst(prefixed[1] ?? "");
+    items[0] = cleanItem(prefixed[2] ?? "");
+  }
+  if (items.length < 2) return null;
   let rest = line
     .slice(match.index + raw.length)
     .replace(/^[,\s]+/g, "")
@@ -121,14 +147,15 @@ function extractChoiceList(
     items[items.length - 1] = `${items[items.length - 1]} ${rest}`;
     rest = "";
   }
-  return { lead, items, rest };
+  return { lead, intro, items, rest };
 }
 
 function sentenceToBlocks(sentence: string): Block[] {
   const list = extractChoiceList(sentence);
   if (list) {
     const blocks: Block[] = [];
-    if (list.lead) blocks.push({ kind: "prose", text: listLead(list.lead) });
+    if (list.lead) blocks.push({ kind: "prose", text: capitalizeFirst(list.lead) });
+    if (list.intro) blocks.push({ kind: "prose", text: listIntroLabel(list.intro) });
     blocks.push({ kind: "items", items: list.items });
     if (list.rest) blocks.push(...sentenceToBlocks(capitalizeFirst(stepCore(list.rest))));
     return blocks;
@@ -167,6 +194,36 @@ function renderBlocks(blocks: Block[]): string {
   return lines.join("\n");
 }
 
+function absorbIntroLists(blocks: Block[]): Block[] {
+  const out: Block[] = [];
+  for (let index = 0; index < blocks.length; index += 1) {
+    const block = blocks[index];
+    if (!block || block.kind !== "prose" || !isBareIntro(block.text)) {
+      if (block) out.push(block);
+      continue;
+    }
+    const items: string[] = [];
+    let next = index + 1;
+    while (next < blocks.length) {
+      const candidate = blocks[next];
+      if (!candidate || candidate.kind !== "prose" || isStep(candidate.text) || isBareIntro(candidate.text)) {
+        break;
+      }
+      if (candidate.text.split(/\s+/).length > 4) break;
+      items.push(cleanItem(candidate.text));
+      next += 1;
+    }
+    if (items.length >= 2) {
+      out.push({ kind: "prose", text: listIntroLabel(block.text) });
+      out.push({ kind: "items", items });
+      index = next - 1;
+      continue;
+    }
+    out.push(block);
+  }
+  return out;
+}
+
 /** Shape a coach reply so choices read as dots and ordered actions as numbers. */
 export function formatCoachReadability(text: string): string {
   const source = text
@@ -179,5 +236,5 @@ export function formatCoachReadability(text: string): string {
       blocks.push(...sentenceToBlocks(sentence));
     }
   }
-  return renderBlocks(blocks);
+  return renderBlocks(absorbIntroLists(blocks));
 }

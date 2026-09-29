@@ -151,7 +151,8 @@ export function scaleCoachChatSystemPrompt(
     "",
     "Reply with JSON only: {\"reply\":\"...\"}",
     "reply: 1 • bullet. 2 only if they asked how to practise. Each max ~10 easy words. No hyphens or dashes.",
-    "When you name choices, write them as photo, PDF, or MusicXML in one sentence.",
+    "When you name choices, write them as violin, viola, or piano in one sentence. Do not put choose inside the list.",
+    "How to record a scale has two paths only: play and record so MusAI finds the scale, or choose the scale yourself. Do not list key, major, minor, octaves, or direction.",
     "When someone must do steps in order, give each step its own short sentence that starts with a verb.",
   ].join(" ");
 }

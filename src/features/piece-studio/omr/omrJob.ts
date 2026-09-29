@@ -43,4 +43,4 @@ export function isOmrJobCapable(
 }
 
 export const OMR_JOB_DEFAULT_MAX_WAIT_MS = 300_000;
-export const OMR_JOB_DEFAULT_POLL_MS = 1_500;
+export const OMR_JOB_DEFAULT_POLL_MS = 800;

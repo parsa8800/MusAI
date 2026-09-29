@@ -13,9 +13,17 @@ describe("localSiteGuideReply", () => {
   });
 
   it("answers instrument settings", () => {
-    expect(localSiteGuideReply("How do I change my instrument?")).toMatch(
-      /Settings/i,
-    );
+    const reply = localSiteGuideReply("How do I change my instrument?");
+    expect(reply).toMatch(/Settings/i);
+    expect(reply).toMatch(/violin, viola, or piano/i);
+  });
+
+  it("explains recording without listing the scale controls", () => {
+    const reply = localSiteGuideReply("How do I record a scale?");
+    expect(reply).toMatch(/finds it/i);
+    expect(reply).toMatch(/choose the scale yourself/i);
+    expect(reply).not.toMatch(/octave/i);
+    expect(reply).not.toMatch(/Major or Minor/i);
   });
 
   it("names the scale on the staff when they ask how to record", () => {

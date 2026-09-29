@@ -64,6 +64,22 @@ describe("PieceImportDropzone", () => {
     expect(zone).toHaveAttribute("data-state", "idle");
   });
 
+  it("shows a camera control when the device can take a photo", async () => {
+    const original = navigator.mediaDevices;
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: { getUserMedia: vi.fn() },
+    });
+    render(<PieceImportDropzone onFile={vi.fn()} compact />);
+    const button = await screen.findByRole("button", { name: "Take a photo" });
+    expect(button.querySelector("svg")).toBeTruthy();
+    expect(button.querySelector(".musai-page-scan-open__icon")).toBeTruthy();
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: original,
+    });
+  });
+
   it("rejects an unsupported type through the shared gate", () => {
     const onFile = vi.fn();
     const onReject = vi.fn();

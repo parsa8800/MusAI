@@ -6,8 +6,6 @@ import { useInstrument } from "@/components/InstrumentProvider";
 import { MusaiLoadingMark } from "@/components/MusaiLoadingMark";
 import { NoteRing } from "@/components/NoteRing";
 import { MusaiCaptureDock } from "@/components/MusaiCaptureDock";
-import { MusaiFloatingMiniRecorder } from "@/components/MusaiFloatingMiniRecorder";
-import { useFloatingMiniRecorder } from "@/hooks/useFloatingMiniRecorder";
 import { useSyncedRecorderUi } from "@/hooks/useSyncedRecorderUi";
 import { createAudioContext } from "@/lib/audioContext";
 import {
@@ -100,11 +98,6 @@ export function IntonationUpload() {
   } = useSyncedRecorderUi(
     isRecording,
     streamRef,
-  );
-  const miniEnabled = inputMode === "record" && status !== "loading";
-  const { miniMounted, miniVisible } = useFloatingMiniRecorder(
-    mainRecorderRef,
-    miniEnabled,
   );
 
   const handleAudioFileSelected = useCallback(
@@ -439,15 +432,6 @@ export function IntonationUpload() {
           </div>
       </div>
 
-      <MusaiFloatingMiniRecorder
-        mounted={miniMounted}
-        visible={miniVisible}
-        isRecording={isRecording}
-        onStartRecording={() => void startRecording()}
-        onStopRecording={stopRecording}
-        elapsedLabel={elapsedLabel}
-        levelBars={levelBars}
-      />
     </section>
   );
 }

@@ -131,13 +131,20 @@ export async function processRecognitionJob(opts) {
       }
     }
 
-    updateJob(jobId, { progress: 38 });
+    const heard = { sheetCount: 1, percent: 18 };
     console.info(
       `[omr-worker] job ${jobId}: OMR start inputs=${audiverisInputs.length}`,
     );
     const musicXml = await runAudiverisExport({
       inputPaths: audiverisInputs,
       outputDir: outDir,
+      onLogLine: (line) => {
+        const next = progressFromAudiverisLine(line, heard);
+        if (next != null && next > heard.percent) {
+          heard.percent = next;
+          updateJob(jobId, { progress: next });
+        }
+      },
     });
 
     if (!musicXml?.includes("score-partwise") && !musicXml?.includes("score-timewise")) {
@@ -171,6 +178,53 @@ export async function processRecognitionJob(opts) {
     // Always clean temp files; job record keeps MusicXML in memory briefly.
     await safeRm(workDir);
   }
+}
+
+const AUDIVERIS_STEPS = [
+  "LOAD",
+  "BINARY",
+  "SCALE",
+  "GRID",
+  "HEADERS",
+  "STEM_SEEDS",
+  "BEAMS",
+  "LEDGERS",
+  "HEADS",
+  "STEMS",
+  "REDUCTION",
+  "CUE_BEAMS",
+  "TEXTS",
+  "MEASURES",
+  "CHORDS",
+  "CURVES",
+  "SYMBOLS",
+  "LINKS",
+  "RHYTHMS",
+  "PAGE",
+];
+
+/**
+ * Map one Audiveris log line onto 16–96. Sheet count comes from
+ * "N sheets in …" before the first step, so a long score does not
+ * reach the top of the bar on page one.
+ * @param {string} line
+ * @param {{ sheetCount: number }} state
+ * @returns {number | null}
+ */
+function progressFromAudiverisLine(line, state) {
+  const count = line.match(/\b(\d+) sheets in\b/);
+  if (count) state.sheetCount = Math.max(1, Number(count[1]));
+  const stepName = line.match(/StepMonitoring\s+\d+\s+\|\s+([A-Z0-9_]+)/);
+  if (!stepName) return null;
+  const ctx = line.match(/\[([^\]]+)\]/);
+  const sheetNo = ctx?.[1]?.match(/#(\d+)\s*$/);
+  const sheetIndex = sheetNo ? Math.max(0, Number(sheetNo[1]) - 1) : 0;
+  const stepIndex = AUDIVERIS_STEPS.indexOf(stepName[1]);
+  if (stepIndex < 0) return null;
+  const sheets = Math.max(state.sheetCount || 1, sheetIndex + 1);
+  const frac =
+    (sheetIndex + (stepIndex + 1) / AUDIVERIS_STEPS.length) / sheets;
+  return Math.round(16 + Math.min(1, frac) * 80);
 }
 
 function mapEngineError(err) {

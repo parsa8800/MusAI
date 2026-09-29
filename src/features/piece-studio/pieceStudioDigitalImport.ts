@@ -31,7 +31,7 @@ function newSessionId(): string {
  */
 export async function importDigitalScoreFromFile(
   file: File,
-  deps: Pick<ImportPieceDeps, "onPhase"> = {},
+  deps: Pick<ImportPieceDeps, "onPhase" | "onProgress"> = {},
 ): Promise<PieceImportResult> {
   const fallbackTitle = titleFromFileName(file.name);
   const baseDraft = (): Omit<
@@ -53,6 +53,7 @@ export async function importDigitalScoreFromFile(
   });
 
   deps.onPhase?.("validating");
+  deps.onProgress?.(12);
   try {
     musicXmlPreviewLog("MUSICXML_SELECTED", {
       fileName: file.name,
@@ -60,6 +61,7 @@ export async function importDigitalScoreFromFile(
       bytes: file.size,
     });
     const xml = await musicXmlFromFile(file);
+    deps.onProgress?.(48);
     musicXmlPreviewLog("MUSICXML_READ", {
       chars: xml.length,
       head: xml.slice(0, 48),
@@ -71,6 +73,7 @@ export async function importDigitalScoreFromFile(
       fallbackTitle,
       "score.musicxml",
     );
+    deps.onProgress?.(84);
     musicXmlPreviewLog("MUSICXML_VALID", {
       chars: musicXml.length,
       parts: structured.parts.length,
@@ -109,6 +112,7 @@ export async function importDigitalScoreFromFile(
       sessionId: draft.sessionId,
       musicXmlChars: musicXml.length,
     });
+    deps.onProgress?.(100);
     return { status: "ready", draft };
   } catch (err) {
     if (process.env.NODE_ENV !== "production") {

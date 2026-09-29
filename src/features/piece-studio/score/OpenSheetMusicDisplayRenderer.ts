@@ -254,6 +254,16 @@ export function createOpenSheetMusicDisplayRenderer(): ScoreRenderer {
           drawFingerings: false,
           drawMeasureNumbers: false,
         });
+        if (options?.openNoteSpacing && osmd.EngravingRules) {
+          const spacing = osmd.EngravingRules as {
+            VoiceSpacingMultiplierVexflow?: number;
+            VoiceSpacingAddendVexflow?: number;
+            MinNoteDistance?: number;
+          };
+          spacing.VoiceSpacingMultiplierVexflow = 2.4;
+          spacing.VoiceSpacingAddendVexflow = 22;
+          spacing.MinNoteDistance = 8;
+        }
       }
       applyPieceOsmdPageMargins(osmd.EngravingRules ?? null, viewMode, purpose);
       let zoom = pieceOsmdZoomForPresentation(

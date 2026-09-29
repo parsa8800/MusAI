@@ -66,17 +66,6 @@ export function PieceStudioView() {
   const importGenerationRef = useRef(0);
 
   useEffect(() => {
-    if (phase !== "processing") return;
-    const started = performance.now();
-    const id = window.setInterval(() => {
-      const t = (performance.now() - started) / 80_000;
-      const eased = 18 + (1 - Math.exp(-2.1 * t)) * 64;
-      setConvertProgress((prev) => Math.max(prev ?? 0, Math.min(86, eased)));
-    }, 500);
-    return () => window.clearInterval(id);
-  }, [phase]);
-
-  useEffect(() => {
     let cancelled = false;
     void purgeIncompleteImports().then(() => {
       if (!cancelled) setPieces(listPieceWorkspaces());
@@ -125,7 +114,7 @@ export function PieceStudioView() {
     await discardPieceImport(importDraftRef.current);
     setImportDraft(null);
     setPhase("uploading");
-    setConvertProgress(8);
+    setConvertProgress(4);
     try {
       const result = await importPieceFromFile(file, new Date(), {
         onPhase: (next) => {
@@ -142,6 +131,18 @@ export function PieceStudioView() {
           await discardPieceImport(result.draft);
         }
         return;
+      }
+      if (result.status === "ready") {
+        setConvertProgress(100);
+        if (process.env.NODE_ENV !== "test") {
+          await new Promise((resolve) => {
+            window.setTimeout(resolve, 560);
+          });
+        }
+        if (generation !== importGenerationRef.current) {
+          await discardPieceImport(result.draft);
+          return;
+        }
       }
       tapFeedback("medium");
       if (result.status === "committed") {

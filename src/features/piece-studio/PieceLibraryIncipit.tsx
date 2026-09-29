@@ -8,6 +8,7 @@ import {
 } from "@/features/piece-studio/score/osmdTheme";
 import {
   cropSvgToFirstSystem,
+  lightenHeavyOpening,
   stripLibrarySnippetWords,
 } from "@/features/piece-studio/pieceLibrarySnippet";
 
@@ -28,12 +29,17 @@ export function PieceLibraryIncipit({ musicXml }: { musicXml: string | null }) {
       try {
         await renderer.mount(host);
         if (cancelled) return;
-        await renderer.load({ format: "musicxml", content: musicXml });
+        const opening = lightenHeavyOpening(musicXml);
+        await renderer.load({
+          format: "musicxml",
+          content: opening ?? musicXml,
+        });
         if (cancelled) return;
         const cardWidth = host.parentElement?.getBoundingClientRect().width ?? 0;
         renderer.paint(readPieceOsmdTheme(), {
           viewMode: "continuous",
           purpose: "library-snippet",
+          openNoteSpacing: opening != null,
           viewportWidthPx: Math.max(360, Math.round(cardWidth) || 420),
           viewportHeightPx: 160,
         });

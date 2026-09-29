@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { MusaiLoadingScreen } from "@/components/MusaiLoadingMark";
+import { MusaiLoadingScreen, StudioReveal } from "@/components/MusaiLoadingMark";
 import { PracticeHubBackLink } from "@/components/PracticeHubBackLink";
 import { ScaleWorkspace } from "@/components/ScaleWorkspace";
 import { parseScaleWorkspaceSlug } from "@/lib/scaleWorkspace";
@@ -33,7 +33,9 @@ export default async function ScaleWorkspacePage({
 
   return (
     <Suspense fallback={<MusaiLoadingScreen label="Opening your scale" />}>
-      <ScaleWorkspace identity={identity} />
+      <StudioReveal label="Opening your scale">
+        <ScaleWorkspace identity={identity} />
+      </StudioReveal>
     </Suspense>
   );
 }

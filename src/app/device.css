@@ -126,7 +126,7 @@
   }
 
   html[data-musai-device="phone"] .musai-settings {
-    padding-top: max(0.45rem, env(safe-area-inset-top));
+    padding-top: 0;
     padding-bottom: max(0.4rem, env(safe-area-inset-bottom));
   }
 
@@ -136,30 +136,62 @@
   }
 }
 
-/* Piece page camera. Kept here so it applies even if the main sheet is stale. */
+/* Piece page camera — a small action under Add music, not a second panel. */
 .musai-page-scan-open {
   align-self: center;
   display: inline-flex;
   width: auto;
+  max-width: 100%;
+  min-height: 2.15rem;
   align-items: center;
-  gap: 0.35rem;
-  margin: 0.05rem 0 0;
-  border: 0;
-  background: transparent;
-  padding: 0.2rem 0.4rem;
-  font-size: 0.8125rem;
-  font-weight: 550;
+  justify-content: center;
+  gap: 0.45rem;
+  margin: 0.7rem auto 0;
+  padding: 0.22rem 0.85rem 0.22rem 0.28rem;
+  border: 1px solid color-mix(in srgb, var(--musai-ink) 14%, var(--musai-border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--musai-surface-2) 86%, var(--musai-bg));
+  box-shadow: none;
+  color: var(--musai-ink);
+  font-size: 0.8rem;
+  font-weight: 560;
   letter-spacing: -0.01em;
-  color: color-mix(in srgb, var(--musai-muted) 35%, var(--musai-ink));
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.musai-page-scan-open__icon {
+  display: flex;
+  width: 1.55rem;
+  height: 1.55rem;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--piece-invite) 22%, transparent);
+  color: var(--piece-invite);
 }
 
 .musai-page-scan-open svg {
   width: 0.95rem;
   height: 0.95rem;
+  display: block;
+  opacity: 1;
 }
 
 .musai-page-scan-open:hover {
+  border-color: color-mix(in srgb, var(--piece-invite) 48%, var(--musai-border));
+  background: color-mix(in srgb, var(--piece-invite) 10%, var(--musai-surface-2));
   color: var(--musai-ink);
+}
+
+.musai-page-scan-open:hover .musai-page-scan-open__icon {
+  background: color-mix(in srgb, var(--piece-invite) 32%, transparent);
+}
+
+.musai-page-scan-open:focus-visible {
+  outline: 2px solid var(--piece-invite);
+  outline-offset: 3px;
 }
 
 .musai-page-scan {
@@ -303,5 +335,134 @@
   font-weight: 650;
   font-variant-numeric: tabular-nums;
   color: color-mix(in srgb, var(--musai-muted) 28%, var(--musai-ink));
+}
+
+/* Piece library scrolls with the studio, not inside a short box. */
+.musai-piece-home {
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding-bottom: 0;
+}
+
+.musai-piece-home::-webkit-scrollbar {
+  display: none;
+}
+
+.musai-piece-home__shell[data-has-library="true"] {
+  flex: 0 0 auto;
+  overflow: visible;
+  scroll-snap-type: none;
+  padding-bottom: 2.75rem;
+}
+
+.musai-piece-home__library,
+.musai-piece-library {
+  max-height: none;
+  overflow: visible;
+}
+
+.musai-piece-home__library {
+  gap: 0.85rem;
+  margin-top: 2.15rem;
+}
+
+.musai-piece-home__library-head {
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  padding-top: 0.15rem;
+}
+
+.musai-piece-home__library-head::after {
+  content: "";
+  width: 1.7rem;
+  height: 2px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--piece-invite) 70%, transparent);
+}
+
+.musai-piece-home__library-title {
+  font-size: 1.35rem;
+  font-weight: 620;
+  letter-spacing: -0.025em;
+  color: var(--musai-ink);
+}
+
+@media (min-width: 720px) {
+  .musai-piece-library {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.musai-piece-remove__panel {
+  text-align: center;
+}
+
+/* Card hover must not light the piece menu. Only the button itself does. */
+.musai-piece-library__item:hover .musai-piece-library__more:not(:hover):not(:focus-visible):not([aria-expanded="true"]),
+.musai-piece-library__item:focus-within .musai-piece-library__more:not(:hover):not(:focus-visible):not([aria-expanded="true"]) {
+  color: var(--musai-ink);
+  border-color: color-mix(in srgb, var(--musai-ink) 28%, var(--musai-border));
+  background: color-mix(in srgb, var(--musai-surface-2) 92%, var(--musai-bg));
+}
+
+/* Longer note phrase, even if the main sheet is a stale chunk. */
+@media (prefers-reduced-motion: no-preference) {
+  .musai-piece-load__glow--1,
+  .musai-piece-load__glow--2,
+  .musai-piece-load__glow--3,
+  .musai-piece-load__dot {
+    animation-duration: 4.8s;
+    animation-timing-function: linear;
+  }
+}
+
+.musai-load__meter {
+  display: flex;
+  width: 76%;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.45rem;
+}
+
+.musai-load__overall {
+  position: relative;
+  width: 100%;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--musai-ink) 10%, transparent);
+}
+
+.musai-load__overall > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--musai-accent);
+  transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.musai-load__percent {
+  margin: 0;
+  text-align: center;
+  font-size: 0.95rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: var(--musai-ink);
+}
+
+.musai-studio-reveal {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  background: var(--musai-bg);
+}
+
+.musai-studio-reveal .musai-load-screen {
+  min-height: 100%;
 }
 

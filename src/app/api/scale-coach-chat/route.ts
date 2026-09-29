@@ -143,6 +143,22 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing user message" }, { status: 400 });
   }
 
+  const site = localSiteGuideReply(
+    lastUser.text,
+    preview ??
+      (session
+        ? {
+            scaleLabel: session.scaleLabel,
+            scaleKind: session.scaleKind,
+            octaveLabel: session.octaveSpan === 2 ? "2 octaves" : "1 octave",
+            instrumentId: session.instrumentId,
+          }
+        : undefined),
+  );
+  if (site) {
+    return NextResponse.json({ reply: site, source: "template" as const });
+  }
+
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   const llmEnabled = isOpenAiLlmEnabled();
 

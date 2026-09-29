@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   cropSvgToFirstSystem,
+  lightenHeavyOpening,
   stripLibrarySnippetWords,
 } from "@/features/piece-studio/pieceLibrarySnippet";
 
@@ -99,11 +100,11 @@ describe("cropSvgToFirstSystem", () => {
         },
       }) as DOMRect;
     svg.getBoundingClientRect = () => rect(0, 0, 500, 200);
-    note.getBoundingClientRect = () => rect(300, -28, 36, 24);
+    note.getBoundingClientRect = () => rect(120, -28, 36, 24);
     expect(cropSvgToFirstSystem(svg)).toBe(true);
     const box = svg.getAttribute("viewBox")?.split(/\s+/).map(Number) ?? [];
-    expect(box[1] ?? 0).toBeLessThan(-6);
-    expect((box[0] ?? 0) + (box[2] ?? 0)).toBeGreaterThan(330);
+    expect(box[1] ?? 0).toBeLessThan(0);
+    expect((box[0] ?? 0) + (box[2] ?? 0)).toBeGreaterThan(150);
   });
 
   it("leaves out a note whose center sits past the opening", () => {
@@ -179,46 +180,167 @@ describe("cropSvgToFirstSystem", () => {
     expect((box[0] ?? 0) + (box[2] ?? 0)).toBeLessThan(360);
   });
 
-  it("keeps only the opening when the first line is crowded with noteheads", () => {
-    const widthFor = (count: number, step: number) => {
-      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-      svg.setAttribute("viewBox", "0 0 800 200");
-      svg.innerHTML = [40, 50, 60, 70, 80]
-        .map((y) => `<path d="M30 ${y} L700 ${y}"/>`)
-        .join("");
-      const notes: SVGElement[] = [];
-      for (let i = 0; i < count; i += 1) {
-        const note = document.createElementNS("http://www.w3.org/2000/svg", "g");
-        note.setAttribute("class", "vf-stavenote");
-        svg.appendChild(note);
-        notes.push(note);
-      }
-      const rect = (left: number, top: number, width: number, height: number) =>
-        ({
-          left,
-          top,
-          width,
-          height,
-          right: left + width,
-          bottom: top + height,
-          x: left,
-          y: top,
-          toJSON() {
-            return {};
-          },
-        }) as DOMRect;
-      svg.getBoundingClientRect = () => rect(0, 0, 800, 200);
-      notes.forEach((note, i) => {
-        note.getBoundingClientRect = () => rect(70 + i * step, 52, 8, 8);
-      });
-      expect(cropSvgToFirstSystem(svg)).toBe(true);
-      const box = svg.getAttribute("viewBox")?.split(/\s+/).map(Number) ?? [];
-      return box[2] ?? 0;
-    };
+  it("stops the frame above the next system", () => {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 500 400");
+    svg.innerHTML = [
+      ...[40, 50, 60, 70, 80].map((y) => `<path d="M30 ${y} L460 ${y}"/>`),
+      ...[200, 210, 220, 230, 240].map((y) => `<path d="M30 ${y} L460 ${y}"/>`),
+    ].join("");
+    const slur = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    slur.setAttribute("class", "vf-curve");
+    svg.appendChild(slur);
+    const rect = (left: number, top: number, width: number, height: number) =>
+      ({
+        left,
+        top,
+        width,
+        height,
+        right: left + width,
+        bottom: top + height,
+        x: left,
+        y: top,
+        toJSON() {
+          return {};
+        },
+      }) as DOMRect;
+    svg.getBoundingClientRect = () => rect(0, 0, 500, 400);
+    slur.getBoundingClientRect = () => rect(80, 55, 40, 160);
+    expect(cropSvgToFirstSystem(svg)).toBe(true);
+    const box = svg.getAttribute("viewBox")?.split(/\s+/).map(Number) ?? [];
+    expect((box[1] ?? 0) + (box[3] ?? 0)).toBeLessThan(200);
+  });
 
-    const crowded = widthFor(20, 12);
-    const sparse = widthFor(4, 40);
-    expect(crowded).toBeLessThan(230);
-    expect(sparse).toBeGreaterThan(280);
+  it("keeps the first two bars instead of the rest of the system", () => {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 800 200");
+    svg.innerHTML = [40, 50, 60, 70, 80]
+      .map((y) => `<path d="M30 ${y} L760 ${y}"/>`)
+      .join("");
+    const bars = [36, 140, 250, 520].map((x) => {
+      const bar = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      bar.setAttribute("class", "vf-stavebarline");
+      svg.appendChild(bar);
+      return { bar, x };
+    });
+    const rect = (left: number, top: number, width: number, height: number) =>
+      ({
+        left,
+        top,
+        width,
+        height,
+        right: left + width,
+        bottom: top + height,
+        x: left,
+        y: top,
+        toJSON() {
+          return {};
+        },
+      }) as DOMRect;
+    svg.getBoundingClientRect = () => rect(0, 0, 800, 200);
+    for (const { bar, x } of bars) {
+      bar.getBoundingClientRect = () => rect(x, 40, 2, 40);
+    }
+    expect(cropSvgToFirstSystem(svg)).toBe(true);
+    const box = svg.getAttribute("viewBox")?.split(/\s+/).map(Number) ?? [];
+    const right = (box[0] ?? 0) + (box[2] ?? 0);
+    expect(right).toBeGreaterThan(240);
+    expect(right).toBeLessThan(400);
+  });
+
+  it("ends on a measure so the next bar is not sliced", () => {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    const staff = [40, 50, 60, 70, 80]
+      .map((y) => `<path d="M30 ${y} L760 ${y}"/>`)
+      .join("");
+    const measure = (x0: number, x1: number, y = 40) =>
+      `<g class="vf-measure"><path d="M${x0} ${y} L${x1} ${y}"/></g>`;
+    svg.innerHTML = [
+      staff,
+      measure(40, 180),
+      measure(180, 320),
+      measure(320, 700),
+      measure(40, 180, 200),
+    ].join("");
+    expect(cropSvgToFirstSystem(svg)).toBe(true);
+    const box = svg.getAttribute("viewBox")?.split(/\s+/).map(Number) ?? [];
+    const right = (box[0] ?? 0) + (box[2] ?? 0);
+    expect(right).toBeGreaterThan(310);
+    expect(right).toBeLessThan(360);
+    expect(svg.querySelectorAll(".vf-measure")).toHaveLength(2);
+    expect((box[1] ?? 0) + (box[3] ?? 0)).toBeLessThan(160);
+  });
+
+  it("keeps only the start of a bar when the notes are packed together", () => {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 800 200");
+    svg.innerHTML = [
+      ...[40, 50, 60, 70, 80].map((y) => `<path d="M30 ${y} L760 ${y}"/>`),
+      `<g class="vf-measure"><path d="M40 40 L520 40"/></g>`,
+    ].join("");
+    const heads = Array.from({ length: 16 }, (_, i) => {
+      const head = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      head.setAttribute("class", "vf-notehead");
+      svg.appendChild(head);
+      return { head, x: 90 + i * 22 };
+    });
+    const rect = (left: number, top: number, width: number, height: number) =>
+      ({
+        left,
+        top,
+        width,
+        height,
+        right: left + width,
+        bottom: top + height,
+        x: left,
+        y: top,
+        toJSON() {
+          return {};
+        },
+      }) as DOMRect;
+    svg.getBoundingClientRect = () => rect(0, 0, 800, 200);
+    for (const { head, x } of heads) {
+      head.getBoundingClientRect = () => rect(x, 48, 10, 8);
+    }
+    expect(cropSvgToFirstSystem(svg)).toBe(true);
+    const box = svg.getAttribute("viewBox")?.split(/\s+/).map(Number) ?? [];
+    const right = (box[0] ?? 0) + (box[2] ?? 0);
+    expect(right).toBeGreaterThan(160);
+    expect(right).toBeLessThan(220);
+    expect(svg.querySelector(".vf-measure")).toBeTruthy();
+  });
+});
+
+describe("lightenHeavyOpening", () => {
+  function measure(notes: string, number = 1): string {
+    return `<measure number="${number}"><attributes><divisions>4</divisions><clef><sign>G</sign><line>2</line></clef></attributes>${notes}</measure>`;
+  }
+  function note(step: string, extra = ""): string {
+    return `<note>${extra}<pitch><step>${step}</step><octave>5</octave></pitch><duration>1</duration><type>16th</type><beam number="1">continue</beam></note>`;
+  }
+
+  it("leaves a short opening unchanged", () => {
+    const xml = `<score-partwise><part>${measure([1, 2, 3, 4].map(() => note("C")).join(""))}${measure(note("D"), 2)}</part></score-partwise>`;
+    expect(lightenHeavyOpening(xml)).toBeNull();
+  });
+
+  it("keeps the first few notes of a packed bar and drops the rest", () => {
+    const packed = Array.from({ length: 12 }, (_, i) => note(String.fromCharCode(65 + (i % 7)))).join("");
+    const xml = `<score-partwise><part>${measure(packed)}${measure(note("D"), 2)}</part></score-partwise>`;
+    const light = lightenHeavyOpening(xml);
+    expect(light).toBeTruthy();
+    expect(light?.match(/<note\b/g)?.length).toBe(5);
+    expect(light).not.toContain("measure number=\"2\"");
+    expect(light).toContain("<clef>");
+    expect(light).not.toContain("<beam");
+  });
+
+  it("keeps chord tones with the note they belong to", () => {
+    const chord = `<note><chord/><pitch><step>E</step><octave>5</octave></pitch><duration>1</duration><type>16th</type></note>`;
+    const packed = [note("C"), chord, ...Array.from({ length: 10 }, () => note("D"))].join("");
+    const xml = `<score-partwise><part>${measure(packed)}</part></score-partwise>`;
+    const light = lightenHeavyOpening(xml);
+    expect(light?.match(/<note\b/g)?.length).toBe(6);
+    expect(light).toContain("<chord/>");
   });
 });

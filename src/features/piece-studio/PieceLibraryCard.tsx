@@ -115,7 +115,7 @@ export function PieceLibraryCard({
       setRemoveError(
         err instanceof Error
           ? err.message
-          : "Couldn’t remove this piece. Try again.",
+          : "Couldn’t remove this piece",
       );
     } finally {
       removingRef.current = false;
@@ -149,7 +149,7 @@ export function PieceLibraryCard({
                 {isMachinePieceTitle(model.title) ? "Remove this piece" : model.title}
               </p>
               <p id={descId} className="musai-piece-remove__lead">
-                Saved practice goes with it.
+                Saved practice goes with it
               </p>
               {removeError ? (
                 <p className="musai-piece-remove__error" role="alert">
