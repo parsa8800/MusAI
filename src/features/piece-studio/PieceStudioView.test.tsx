@@ -8,6 +8,8 @@ import {
   savePieceRecognizedMusicXml,
   savePieceStructuredScore,
 } from "@/features/piece-studio/pieceStudioFiles";
+import { importPieceFromFile } from "@/features/piece-studio/pieceStudioImport";
+import { clearActivePieceImport } from "@/features/piece-studio/pieceImportResume";
 import { PIECE_STUDIO_SCHEMA_VERSION } from "@/features/piece-studio/pieceStudioTypes";
 import { OMR_COPY } from "@/features/piece-studio/omr/omrProvider";
 import { parseMusicXmlToScore } from "@/features/piece-studio/score/parseMusicXml";
@@ -20,9 +22,10 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("PieceStudioView", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     clearPieceCatalog();
     clearPieceFileMemory();
+    await clearActivePieceImport();
     push.mockClear();
     vi.stubGlobal(
       "fetch",
@@ -290,5 +293,23 @@ describe("PieceStudioView", () => {
     });
     expect(screen.getByRole("heading", { name: "Etude" })).toBeInTheDocument();
     expect(push).not.toHaveBeenCalled();
+  });
+
+  it("reopens a finished upload after the page refreshes", async () => {
+    const file = new File(["%PDF-1.4"], "Beach Holiday.pdf", {
+      type: "application/pdf",
+    });
+    await importPieceFromFile(file, new Date(), {
+      recognizeSheet: async () => TWINKLE_XML,
+    });
+
+    render(<PieceStudioView />);
+
+    expect(await screen.findByRole("heading", { name: "Twinkle" })).toBeInTheDocument();
+    expect(screen.getByTestId("piece-import-review")).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: OMR_COPY.originalLabel })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("tab", { name: OMR_COPY.musaiScoreLabel }),
+    ).not.toBeInTheDocument();
   });
 });

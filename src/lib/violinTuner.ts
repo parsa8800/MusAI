@@ -1,10 +1,10 @@
 import {
   centsFromTarget,
   formatNoteLabel,
-  matchHzToPitchClass,
   midiToHz,
   pitchClassLabel,
 } from "@/lib/intonation";
+import { scoreForAbsCents } from "@/lib/intonationScore";
 import { getInstrument } from "@/lib/instrument/catalog";
 import { tunerStringsFor } from "@/lib/instrument/helpers";
 import { OPEN_STRINGS } from "@/lib/instrument/openStrings";
@@ -43,17 +43,12 @@ export type TunerReading = {
   direction: "low" | "high" | "in_tune" | "unclear";
 };
 
-/**
- * Stay on the current open string unless another is clearly closer.
- * Stops a slightly flat A from flipping to a G♯ letter.
- */
-const STRING_HOLD_CENTS = 180;
-const SWITCH_MARGIN_CENTS = 35;
-
-/** A string must stay inside this window to count as in tune. */
+/** A note must stay inside this window to count as in tune. */
 export const TUNER_IN_TUNE_CENTS = 12;
 /** Outside this, the pitch is clearly sharp or flat. */
 const TUNER_NEAR_CENTS = 32;
+/** Near the end of the needle, the miss is large. */
+const TUNER_VERY_OFF_CENTS = 42;
 /** About a second of steady in-tune time before a string locks green. */
 export const IN_TUNE_HOLD_MS = 1000;
 /** Ignore brief pitch dropouts so bow changes do not reset the hold. */
@@ -133,15 +128,6 @@ export function advanceTunerHold(
   return { hold: null, lock: null, progress: 0 };
 }
 
-function rankOpenStrings(heardHz: number, instrument: InstrumentProfile) {
-  return tunerStringsFor(instrument)
-    .map((s) => {
-      const match = matchHzToPitchClass(heardHz, s.pitchClass);
-      return { string: s, match, abs: Math.abs(match.cents) };
-    })
-    .sort((a, b) => a.abs - b.abs || a.string.refMidi - b.string.refMidi);
-}
-
 export function pruneTunedToInstrument(
   tuned: ReadonlySet<TunerStringId>,
   instrument: InstrumentProfile,
@@ -160,13 +146,10 @@ export function revealedSlots(
   );
 }
 
-function chromaticReading(
-  heardHz: number,
-  instrument: InstrumentProfile,
-): TunerReading | null {
-  const raw = Math.round(69 + 12 * Math.log2(heardHz / 440));
-  if (!Number.isFinite(raw)) return null;
-  const targetMidi = Math.min(instrument.midiMax, Math.max(instrument.midiMin, raw));
+/** Nearest chromatic note. Not clamped to an instrument range or open string. */
+function chromaticReading(heardHz: number): TunerReading | null {
+  const targetMidi = Math.round(69 + 12 * Math.log2(heardHz / 440));
+  if (!Number.isFinite(targetMidi)) return null;
   const targetHz = midiToHz(targetMidi);
   const cents = Math.round(centsFromTarget(heardHz, targetHz) * 10) / 10;
   const abs = Math.abs(cents);
@@ -184,7 +167,7 @@ function chromaticReading(
     pitchClassName: pitchClassLabel(pitchClass),
     stringId: null,
     cents,
-    score: abs <= TUNER_IN_TUNE_CENTS ? 1 : Math.max(0, 1 - abs / 100),
+    score: scoreForAbsCents(abs),
     tone,
     direction,
   };
@@ -192,65 +175,34 @@ function chromaticReading(
 
 export function identifyTunerPitch(
   heardHz: number,
-  previousStringId: TunerStringId | null = null,
-  instrument: InstrumentProfile = getActiveInstrument(),
+  _previousStringId: TunerStringId | null = null,
+  _instrument: InstrumentProfile = getActiveInstrument(),
 ): TunerReading | null {
   if (!Number.isFinite(heardHz) || heardHz <= 0) return null;
-  if (instrument.openStrings.length === 0) {
-    return chromaticReading(heardHz, instrument);
+  return chromaticReading(heardHz);
+}
+
+/** How far the note is, without a cent count. */
+export function tunerCentsLabel(reading: TunerReading | null): string {
+  if (!reading) return "";
+  if (reading.direction === "in_tune") return "In tune";
+  const abs = Math.abs(reading.cents);
+  const way = reading.direction === "low" ? "flat" : "sharp";
+  if (abs <= TUNER_NEAR_CENTS) return `A little ${way}`;
+  if (abs < TUNER_VERY_OFF_CENTS) {
+    return way === "flat" ? "Flat" : "Sharp";
   }
-
-  const ranked = rankOpenStrings(heardHz, instrument);
-  const nearest = ranked[0];
-  if (!nearest) return null;
-
-  let chosen = nearest;
-  if (previousStringId) {
-    const prev = ranked.find((row) => row.string.id === previousStringId);
-    if (
-      prev &&
-      prev.abs <= STRING_HOLD_CENTS &&
-      !(nearest.abs + SWITCH_MARGIN_CENTS < prev.abs)
-    ) {
-      chosen = prev;
-    }
-  }
-
-  const match = chosen.match;
-  const abs = Math.abs(match.cents);
-  const tone = tunerTone(abs);
-  const direction: TunerReading["direction"] =
-    abs <= TUNER_IN_TUNE_CENTS
-      ? "in_tune"
-      : match.cents > 0
-        ? "high"
-        : "low";
-
-  return {
-    heardHz,
-    heardLabel: formatNoteLabel(Math.round(69 + 12 * Math.log2(heardHz / 440))),
-    targetMidi: match.targetMidi,
-    targetHz: match.targetHz,
-    targetLabel: formatNoteLabel(match.targetMidi),
-    pitchClass: chosen.string.pitchClass,
-    pitchClassName: pitchClassLabel(chosen.string.pitchClass),
-    stringId: chosen.string.id,
-    cents: Math.round(match.cents * 10) / 10,
-    score: match.score,
-    tone,
-    direction,
-  };
+  return way === "flat" ? "Very flat" : "Very sharp";
 }
 
 export function tunerCueCopy(
   reading: TunerReading | null,
-  instrument: InstrumentProfile = getActiveInstrument(),
+  _instrument: InstrumentProfile = getActiveInstrument(),
 ): {
   headline: string;
   hint: string;
 } {
-  const waiting =
-    instrument.openStrings.length === 0 ? "Play a note" : "Play a string";
+  const waiting = "Play a note";
   if (!reading) {
     return { headline: waiting, hint: "" };
   }

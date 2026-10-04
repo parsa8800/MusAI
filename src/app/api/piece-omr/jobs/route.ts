@@ -72,7 +72,7 @@ export async function POST(req: Request) {
       providerId: provider.id,
     });
     return NextResponse.json(
-      { error: OMR_COPY.scanningUnavailable },
+      { error: OMR_COPY.scanningUnavailable, code: "unavailable" },
       { status: 503 },
     );
   }
@@ -81,7 +81,7 @@ export async function POST(req: Request) {
       providerId: provider.id,
     });
     return NextResponse.json(
-      { error: OMR_COPY.readingNotReady },
+      { error: OMR_COPY.readingNotReady, code: "sync" },
       { status: 503 },
     );
   }

@@ -48,11 +48,15 @@ export type PieceCoachContextV1 = {
 };
 
 function whereFromEvent(event: PieceFeedbackEventV1): string {
+  if (event.category === "tempo") return "The whole piece";
   if (event.measure) return `Bar ${event.measure}`;
   return "In this take";
 }
 
-function improveFirstFromKind(kind: PieceFeedbackKind): string {
+function improveFirstFromKind(
+  kind: PieceFeedbackKind,
+  explanation = "",
+): string {
   switch (kind) {
     case "sharp":
       return "Settle the high notes";
@@ -67,7 +71,9 @@ function improveFirstFromKind(kind: PieceFeedbackKind): string {
     case "late":
       return "Arrive with the beat";
     case "duration":
-      return "Give notes their full length";
+      return /too long/i.test(explanation)
+        ? "Let the next note arrive"
+        : "Give notes their full length";
     case "rushing":
       return "Keep the tempo steady";
     case "slowing":
@@ -101,11 +107,12 @@ function whatFromKind(
     case "late":
       return "Arrived a little late";
     case "duration":
-      return "Notes were cut short";
-    case "rushing":
-      return "Getting ahead of the beat";
+      return /too long/i.test(explanation)
+        ? "Held a little too long"
+        : "Held a little too short";
     case "slowing":
-      return "Falling behind the beat";
+    case "rushing":
+      return explanation.replace(/\.$/, "") || "The beat did not stay steady";
     case "too_loud":
       return "Louder than written";
     case "too_soft":
@@ -121,7 +128,7 @@ function whatFromKind(
   }
 }
 
-function practiseFromKind(kind: PieceFeedbackKind): string {
+function practiseFromKind(kind: PieceFeedbackKind, explanation = ""): string {
   switch (kind) {
     case "sharp":
     case "flat":
@@ -131,12 +138,18 @@ function practiseFromKind(kind: PieceFeedbackKind): string {
     case "unstable":
       return "Hold the note quietly until it sits still.";
     case "early":
+      return "Wait for the beat.";
     case "late":
+      return "Start it with the beat.";
     case "duration":
-      return "Tap the beat, then play just this bar.";
+      return /held too long|too long/i.test(explanation)
+        ? "Let the next note come in sooner."
+        : "Hold it for the full beat.";
     case "rushing":
     case "slowing":
-      return "Play under tempo, then bring it back up.";
+      return /all the way/i.test(explanation)
+        ? "Keep the speed you start with."
+        : "Stay with the speed of the opening.";
     case "too_loud":
     case "too_soft":
       return "Play once quietly, then as written.";
@@ -176,10 +189,13 @@ export function coachFocusItemFromEvent(
     onsetQuarters: normalized.onsetQuarters,
     recordingTimeSec: normalized.recordingTimeSec,
     explanation: normalized.explanation,
-    improveFirst: improveFirstFromKind(normalized.kind),
+    improveFirst: improveFirstFromKind(
+      normalized.kind,
+      normalized.explanation,
+    ),
     where: whereFromEvent(normalized),
     what: whatFromKind(normalized.kind, normalized.explanation),
-    practise: practiseFromKind(normalized.kind),
+    practise: practiseFromKind(normalized.kind, normalized.explanation),
     coach: coachFromEvent(normalized),
   };
 }

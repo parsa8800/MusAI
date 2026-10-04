@@ -3,6 +3,8 @@ import {
   localPieceAskReply,
   localPieceCoachReply,
   pieceAskSuggestions,
+  pieceCoachFollowPrompt,
+  pieceCoachIdlePrompts,
   pieceCoachOpenerText,
   pieceCoachSuggestedQuestions,
   prioritizePieceCoachIssues,
@@ -70,8 +72,10 @@ describe("pieceCoachChat", () => {
 
   it("lists a priority order when asked what next", () => {
     const reply = localPieceCoachReply("What next?", pitch, [tempo, pitch]);
-    expect(reply).toMatch(/First: Running slightly sharp/i);
-    expect(reply).toMatch(/Then: Getting ahead of the beat/i);
+    expect(reply).toMatch(/Bar 2/);
+    expect(reply).toMatch(/Running slightly sharp/i);
+    expect(reply).toMatch(/Getting ahead of the beat/i);
+    expect(reply).not.toMatch(/[-—–]/);
   });
 
   it("answers questions about the written piece without a take", () => {
@@ -96,6 +100,17 @@ describe("pieceCoachChat", () => {
     expect(localPieceAskReply("How fast is it?", piece)).toMatch(/120/);
     expect(localPieceAskReply("Where should I start?", piece)).toMatch(/slowly/i);
     expect(localPieceAskReply("Was I in tune?", piece)).toMatch(/record a take/i);
+  });
+
+  it("offers two starters and one follow-up", () => {
+    expect(pieceCoachIdlePrompts()).toEqual([
+      "What key is this?",
+      "Where should I start?",
+    ]);
+    expect(pieceCoachFollowPrompt(pitch)).toBe("How do I practise this?");
+    expect(pieceCoachFollowPrompt(null)).toBe(
+      "How should I practise the opening?",
+    );
   });
 
   it("offers a few follow-up chips", () => {

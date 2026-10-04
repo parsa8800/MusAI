@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PieceWorkspaceView } from "@/features/piece-studio/PieceWorkspaceView";
-import { clearPieceCatalog, upsertPieceWorkspace } from "@/features/piece-studio/pieceStudioCatalog";
+import { clearPieceCatalog, upsertPieceWorkspace, getPieceWorkspaceById } from "@/features/piece-studio/pieceStudioCatalog";
 import {
   clearPieceFileMemory,
   savePieceRecognizedMusicXml,
@@ -11,6 +11,11 @@ import { PIECE_STUDIO_SCHEMA_VERSION } from "@/features/piece-studio/pieceStudio
 import { parseMusicXmlToScore } from "@/features/piece-studio/score/parseMusicXml";
 import { TWINKLE_XML } from "@/features/piece-studio/score/musicXmlFixtures";
 import { clearCoachMemory } from "@/lib/coachThreadMemory";
+import {
+  PIECE_FEEDBACK_CATEGORIES,
+  PIECE_FEEDBACK_SCHEMA_VERSION,
+} from "@/features/piece-studio/feedback/pieceFeedbackTypes";
+import { appendPieceAttempt } from "@/features/piece-studio/practice/piecePracticeAttempts";
 
 const replace = vi.fn();
 let search = new URLSearchParams();
@@ -128,7 +133,7 @@ describe("PieceWorkspaceView", () => {
     expect(screen.queryByRole("heading", { name: "Tips" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /open coach/i }));
     await waitFor(() => {
-      expect(screen.getByPlaceholderText(/Ask your coach/i)).toBeEnabled();
+      expect(screen.getByPlaceholderText(/Ask your teacher/i)).toBeEnabled();
     });
     expect(screen.getByRole("heading", { name: "Canon in D" })).toBeInTheDocument();
     expect(replace).toHaveBeenCalledWith(
@@ -225,11 +230,11 @@ describe("PieceWorkspaceView", () => {
     expect(await screen.findByRole("heading", { name: "Canon in D" })).toBeInTheDocument();
     fireEvent.click(await screen.findByRole("button", { name: /open coach/i }));
     await waitFor(() => {
-      expect(screen.getByPlaceholderText(/Ask your coach/i)).toBeEnabled();
+      expect(screen.getByPlaceholderText(/Ask your teacher/i)).toBeEnabled();
     });
     fireEvent.click(screen.getByRole("tab", { name: "Practise" }));
     await waitFor(() => {
-      expect(screen.getByPlaceholderText(/Ask your coach/i)).toBeEnabled();
+      expect(screen.getByPlaceholderText(/Ask your teacher/i)).toBeEnabled();
     });
     expect(screen.queryByRole("heading", { name: "Tips" })).not.toBeInTheDocument();
     expect(screen.queryByTestId("piece-feedback-preview")).not.toBeInTheDocument();
@@ -377,5 +382,75 @@ describe("PieceWorkspaceView", () => {
       await screen.findByText(/doesn’t have timing to play yet/i),
     ).toBeInTheDocument();
     expect(screen.queryByText(/once the page can be read/i)).not.toBeInTheDocument();
+  });
+
+  it("hides tuning colours without deleting takes, then shows the next take", async () => {
+    const score = parseMusicXmlToScore(TWINKLE_XML, "Canon in D");
+    await savePieceStructuredScore("canon", score);
+    const pitchReport = (attemptId: string) => ({
+      schemaVersion: PIECE_FEEDBACK_SCHEMA_VERSION,
+      pieceId: "canon",
+      attemptId,
+      skills: PIECE_FEEDBACK_CATEGORIES.map((category) => ({
+        category,
+        status: category === "pitch" ? ("ready" as const) : ("not_ready" as const),
+        events: [],
+      })),
+      events: [],
+      pitchNotes: [{ noteIndex: 0, cents: 3, heardSec: 0.4 }],
+    });
+    const attemptFields = {
+      recordedAt: "2026-01-02T12:00:00.000Z",
+      durationSec: 4,
+      score0to100: 90,
+      notesHeard: 1,
+      notesExpected: 1,
+      inTunePercent: 100,
+      averageAbsCents: 3,
+      feedback: "This take sat well in tune.",
+      progressPercent: 90,
+      hasRecording: false,
+    };
+    await appendPieceAttempt({
+      pieceId: "canon",
+      report: pitchReport("a1"),
+      attempt: { attemptId: "a1", ...attemptFields },
+    });
+    search = new URLSearchParams("view=practise");
+    render(<PieceWorkspaceView slug="canon-in-d" />);
+
+    const stage = () =>
+      document.querySelector(".musai-piece-workspace__practise-stage");
+    await waitFor(() => {
+      expect(stage()).toHaveAttribute("data-pitch-colours", "on");
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Score options" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Plain" }));
+    expect(screen.getByRole("tab", { name: "Plain" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(stage()).toHaveAttribute("data-pitch-colours", "off");
+    expect(getPieceWorkspaceById("canon")?.attempts).toHaveLength(1);
+
+    await appendPieceAttempt({
+      pieceId: "canon",
+      report: pitchReport("a2"),
+      attempt: { attemptId: "a2", ...attemptFields },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Canon in D" }));
+    fireEvent.change(screen.getByTestId("piece-name-input"), {
+      target: { value: "Canon" },
+    });
+    fireEvent.keyDown(screen.getByTestId("piece-name-input"), { key: "Enter" });
+
+    expect(await screen.findByRole("tab", { name: "Tuning" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await waitFor(() => {
+      expect(stage()).toHaveAttribute("data-pitch-colours", "on");
+    });
+    expect(getPieceWorkspaceById("canon")?.attempts).toHaveLength(2);
   });
 });

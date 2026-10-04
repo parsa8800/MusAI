@@ -187,6 +187,10 @@ export function createOpenSheetMusicDisplayRenderer(): ScoreRenderer {
       // (`getStave` / empty staffEntries) unless it fills them itself.
       if (osmd.EngravingRules) {
         osmd.EngravingRules.FillEmptyMeasuresWithWholeRest = 1; // YesVisible
+        // Follow the line breaks read from the page instead of refitting
+        // however many bars fit the screen.
+        osmd.EngravingRules.NewSystemAtXMLNewSystemAttribute = true;
+        osmd.EngravingRules.NewSystemAtXMLNewPageAttribute = true;
       }
       // Do not call enableOrDisableCursors here — OSMD cursor elements exist
       // only after the first render().

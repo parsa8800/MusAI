@@ -1,11 +1,20 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 
 /**
  * The one loading mark. A dot walks three notes, rests on the first and the
  * last, then comes back. A progress bar is only shown when `progress` is set
  * (piece upload, or opening a piece to practise).
+ *
+ * Real progress is the floor. The bar eases up to it, then keeps a slowing
+ * crawl so a long reading step never looks frozen. It does not reach the
+ * end until the read actually finishes.
  */
 export function MusaiLoadingMark({
   compact = false,
@@ -16,15 +25,20 @@ export function MusaiLoadingMark({
   progress?: number;
   progressLabel?: string;
 }) {
-  const overall =
+  const target =
     typeof progress === "number" && Number.isFinite(progress)
       ? Math.max(0, Math.min(100, progress))
       : null;
-  const percent = overall == null ? null : Math.round(overall);
+  const shown = useDisplayedProgress(target);
+  const percent = shown == null ? null : Math.round(shown);
+  const fill = shown == null ? 0 : shown;
+  const scale = Math.max(0, Math.min(1, fill / 100));
+  const drawn = percent != null && percent >= 100;
+
   return (
     <div
       className={compact ? "musai-load musai-load--compact" : "musai-load"}
-      aria-hidden={overall == null ? true : undefined}
+      aria-hidden={shown == null ? true : undefined}
     >
       <svg className="musai-piece-load__staff" viewBox="0 0 240 88">
         <g className="musai-piece-load__lines">
@@ -57,20 +71,126 @@ export function MusaiLoadingMark({
       {percent != null ? (
         <div className="musai-load__meter">
           <div
-            className="musai-load__overall"
+            className={
+              drawn
+                ? "musai-load__overall musai-load__overall--done"
+                : "musai-load__overall"
+            }
             role="progressbar"
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={percent}
             aria-label={progressLabel}
           >
-            <span style={{ width: `${percent}%` }} />
+            <span
+              className="musai-load__glow"
+              aria-hidden="true"
+              style={{ transform: `scaleX(${scale})` }}
+            />
+            <span className="musai-load__track">
+              <span
+                className="musai-load__fill"
+                style={{ transform: `scaleX(${scale})` }}
+              />
+            </span>
+            <span
+              className="musai-load__tip"
+              aria-hidden="true"
+              style={{ left: `${scale * 100}%` }}
+            />
           </div>
           <p className="musai-load__percent">{percent}%</p>
         </div>
       ) : null}
     </div>
   );
+}
+
+/**
+ * Real progress is the floor. Catch up to it quickly, then keep a slowing
+ * crawl so a long step never leaves the bar sitting on one number.
+ * The crawl stays well short of done until the read actually finishes.
+ */
+export function advanceDisplayedProgress(
+  value: number,
+  goal: number,
+  dt: number,
+): number {
+  const dtMs = Math.min(48, Math.max(0, dt));
+  const target = Math.max(0, Math.min(100, goal));
+  let next = value;
+
+  if (target >= 100) {
+    const gap = 100 - next;
+    next = Math.min(
+      100,
+      next + Math.max(gap * (1 - Math.exp(-dtMs / 130)), dtMs * 0.09),
+    );
+  } else if (next < target) {
+    const gap = target - next;
+    next = Math.min(
+      target,
+      next + Math.max(gap * (1 - Math.exp(-dtMs / 200)), dtMs * 0.03),
+    );
+  } else {
+    const ceiling = 92;
+    const room = ceiling - next;
+    if (room > 0) {
+      const ahead = next - target;
+      const perMs = Math.max(
+        0.00085 * Math.min(1, room / 4),
+        0.0024 * Math.exp(-ahead / 12) * Math.min(1, room / 5),
+      );
+      next = Math.min(ceiling, next + dtMs * perMs);
+    }
+  }
+
+  return Math.max(value, next);
+}
+
+/**
+ * Ease toward real progress, then keep moving through the quiet stretches
+ * between reader updates.
+ */
+function useDisplayedProgress(target: number | null): number | null {
+  const [shown, setShown] = useState<number | null>(null);
+  const valueRef = useRef(0);
+  const targetRef = useRef(target);
+  const activeRef = useRef(false);
+  targetRef.current = target;
+
+  useEffect(() => {
+    if (target == null) {
+      activeRef.current = false;
+      valueRef.current = 0;
+      setShown(null);
+      return;
+    }
+
+    if (!activeRef.current) {
+      activeRef.current = true;
+      valueRef.current = target;
+      setShown(target);
+    }
+
+    let frame = 0;
+    let last = performance.now();
+
+    const step = (now: number) => {
+      const dt = Math.max(0, now - last);
+      last = now;
+      const goal = targetRef.current ?? 0;
+      const value = advanceDisplayedProgress(valueRef.current, goal, dt);
+      valueRef.current = value;
+      setShown(value);
+      frame = window.requestAnimationFrame(step);
+    };
+
+    frame = window.requestAnimationFrame(step);
+    return () => window.cancelAnimationFrame(frame);
+  }, [target == null]);
+
+  return shown;
 }
 
 function LoadNote({

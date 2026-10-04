@@ -7,6 +7,7 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { unzipSync, strFromU8 } from "./mxl.mjs";
 import { pickOrMergeExportedScores } from "./mergePartwiseMusicXml.mjs";
+import { recoverPrintedDynamics } from "./recoverPrintedDynamics.mjs";
 import { run } from "./rasterize.mjs";
 
 /**
@@ -94,7 +95,7 @@ export async function runAudiverisExport(opts) {
     throw wrapped;
   }
 
-  const musicXml = await findExportedMusicXml(opts.outputDir);
+  const musicXml = await findExportedMusicXml(opts.outputDir, opts.inputPaths);
   if (!musicXml) {
     const err = new Error("Audiveris finished without a MusicXML export");
     err.code = "NO_EXPORT";
@@ -118,9 +119,27 @@ function audiverisFailureDetail(err) {
  * Collect every MusicXML/.mxl under dir (and one level of nest), then merge
  * Audiveris multi-movement exports (*.mvtN.mxl) into one continuous score.
  */
-export async function findExportedMusicXml(dir) {
+export async function findExportedMusicXml(dir, inputPaths) {
   const collected = await collectExportedScores(dir);
-  const merged = pickOrMergeExportedScores(collected);
+  const sheetsByStem = await loadSheetXmlsByStem(dir);
+  const pngByStem = await loadPngsByStem(inputPaths);
+  const withMarks = collected.map((entry) => {
+    const stem = path
+      .basename(entry.name)
+      .replace(/\.(mxl|musicxml|xml)$/i, "");
+    const sheets = sheetsByStem.get(stem);
+    if (!sheets || sheets.length === 0) return entry;
+    const png = pngByStem.get(stem) ?? null;
+    return {
+      ...entry,
+      text: recoverPrintedDynamics(
+        entry.text,
+        sheets,
+        sheets.map((_, index) => (index === 0 ? png : null)),
+      ),
+    };
+  });
+  const merged = pickOrMergeExportedScores(withMarks);
   if (merged && collected.length > 1) {
     const mvtCount = collected.filter((e) => /\.mvt\d+/i.test(e.name)).length;
     console.info(
@@ -128,6 +147,83 @@ export async function findExportedMusicXml(dir) {
     );
   }
   return merged;
+}
+
+/**
+ * The page photo uses the same stem as the export (`page-1.png` / `page-1.mxl`).
+ * Hairpins the reader missed are measured from that image.
+ * @param {string[] | undefined} inputPaths
+ */
+async function loadPngsByStem(inputPaths) {
+  /** @type {Map<string, Uint8Array>} */
+  const map = new Map();
+  for (const full of inputPaths || []) {
+    if (!/\.png$/i.test(String(full))) continue;
+    try {
+      const bytes = new Uint8Array(await readFile(full));
+      map.set(path.basename(full).replace(/\.png$/i, ""), bytes);
+    } catch {
+      /* The reader export still stands without the page image. */
+    }
+  }
+  return map;
+}
+
+/**
+ * Audiveris stores glyph confidence in the .omr book next to the .mxl.
+ * @param {string} dir
+ * @returns {Promise<Map<string, string[]>>}
+ */
+async function loadSheetXmlsByStem(dir) {
+  /** @type {Map<string, string[]>} */
+  const map = new Map();
+  const omrPaths = await listOmrFiles(dir);
+  for (const full of omrPaths) {
+    const stem = path.basename(full).replace(/\.omr$/i, "");
+    try {
+      const buf = await readFile(full);
+      const files = unzipSync(new Uint8Array(buf));
+      const sheetNames = Object.keys(files)
+        .filter((name) =>
+          /sheet#\d+\/sheet#\d+\.xml$/i.test(name.replace(/\\/g, "/")),
+        )
+        .sort((a, b) => sheetIndex(a) - sheetIndex(b));
+      const sheets = sheetNames.map((name) => strFromU8(files[name]));
+      if (sheets.length > 0) map.set(stem, sheets);
+    } catch {
+      /* The MusicXML export still stands without the book file. */
+    }
+  }
+  return map;
+}
+
+async function listOmrFiles(dir) {
+  /** @type {string[]} */
+  const found = [];
+  const names = await readdir(dir);
+  for (const name of names) {
+    const full = path.join(dir, name);
+    if (name.toLowerCase().endsWith(".omr")) found.push(full);
+  }
+  for (const name of names) {
+    const full = path.join(dir, name);
+    try {
+      const nested = await readdir(full);
+      for (const child of nested) {
+        if (child.toLowerCase().endsWith(".omr")) {
+          found.push(path.join(full, child));
+        }
+      }
+    } catch {
+      /* not a directory */
+    }
+  }
+  return found;
+}
+
+function sheetIndex(name) {
+  const match = String(name).match(/sheet#(\d+)/i);
+  return match ? Number(match[1]) : 0;
 }
 
 async function audiverisExists(bin) {

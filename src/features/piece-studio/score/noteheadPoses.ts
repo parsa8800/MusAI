@@ -28,6 +28,13 @@ const NOTEHEAD_SELECTORS = [
 
 const STAVENOTE_FALLBACK = "g.vf-stavenote, g.vf-note";
 
+/** Rests share the notehead class. Notehead ovals are neither tall nor flat bars. */
+function isRestShapedGlyph(width: number, height: number): boolean {
+  if (width < 1 || height < 1) return false;
+  if (height > width * 1.6) return true;
+  return width > height * 2.2;
+}
+
 function isGraceOrCueHead(node: Element): boolean {
   let el: Element | null = node;
   for (let i = 0; i < 8 && el; i += 1) {
@@ -145,10 +152,10 @@ export function collectNoteheadTargets(wrap: HTMLElement): DomNoteTarget[] {
       if (isGraceOrCueHead(node)) continue;
       const r = node.getBoundingClientRect();
       if (r.width < 1 && r.height < 1) continue;
-      // OSMD paints some rests with the notehead class. They are tall and
-      // narrow; real heads are oval. Leaving them in shifts the playhead
-      // onto the rest instead of the note that was played.
-      if (r.height > r.width * 1.6) continue;
+      // OSMD paints rests with the notehead class. A quarter rest is tall
+      // and narrow; a half or whole rest is a flat bar. Counting either as
+      // a note shifts every later colour onto the wrong head.
+      if (isRestShapedGlyph(r.width, r.height)) continue;
       const width = Math.max(r.width, 1);
       const height = Math.max(r.height, 1);
       const x = r.left - wrapRect.left + wrap.scrollLeft + width * 0.5;

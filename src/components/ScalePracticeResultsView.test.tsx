@@ -385,6 +385,7 @@ describe("ScalePracticeResultsView", () => {
     );
 
     expect(screen.queryByRole("heading", { name: "Tips" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("progressbar", { name: "Progress" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Play a scale" })).toBeVisible();
     expect(screen.getByTestId("studio-capture")).toBeInTheDocument();
 

@@ -129,6 +129,7 @@ export function PieceListenControls({
   measureCount,
   unavailable,
   instrumentStatus = "ready",
+  sampleName = "piano",
   subscribeTime,
   getCurrentSec,
   onToggle,
@@ -156,6 +157,8 @@ export function PieceListenControls({
   measureCount: number;
   unavailable: string | null;
   instrumentStatus?: PieceInstrumentStatus;
+  /** Sound named in the load-error line. */
+  sampleName?: string;
   subscribeTime?: (listener: PiecePlaybackTimeListener) => () => void;
   getCurrentSec?: () => number;
   onToggle: () => void;
@@ -294,7 +297,6 @@ export function PieceListenControls({
 
   const loadingSamples = instrumentStatus === "loading";
   const sampleError = instrumentStatus === "error";
-  const sampleName = "piano";
   const canControl = ready && !loadingSamples && !sampleError;
   const loopActive = loop != null;
   const loopCue =

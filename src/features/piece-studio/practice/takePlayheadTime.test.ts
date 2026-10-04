@@ -5,6 +5,7 @@ import {
 } from "@/features/piece-studio/playback/playbackTimeline";
 import {
   recordingTimeToScoreTime,
+  scoreTimeToRecordingTime,
   takePlayheadAnchors,
   type ScoreTimeAnchor,
 } from "@/features/piece-studio/practice/takePlayheadTime";
@@ -36,6 +37,17 @@ describe("recordingTimeToScoreTime", () => {
     const mid = recordingTimeToScoreTime(1.0, 4, 3, anchors);
     expect(mid).toBeGreaterThan(0);
     expect(mid).toBeLessThan(1);
+  });
+
+  it("seeks the recording to the note the playhead is moved onto", () => {
+    expect(scoreTimeToRecordingTime(6, 8, 12, [])).toBeCloseTo(4);
+    expect(scoreTimeToRecordingTime(0, 4, 3, anchors)).toBeCloseTo(0.5);
+    expect(scoreTimeToRecordingTime(1, 4, 3, anchors)).toBeCloseTo(1.5);
+    expect(scoreTimeToRecordingTime(2, 4, 3, anchors)).toBeCloseTo(2.5);
+    for (const score of [0, 0.4, 1, 1.6, 2]) {
+      const audio = scoreTimeToRecordingTime(score, 4, 3, anchors);
+      expect(recordingTimeToScoreTime(audio, 4, 3, anchors)).toBeCloseTo(score);
+    }
   });
 
   it("approaches the first note during the opening silence", () => {

@@ -143,7 +143,11 @@ export function coachIssuesFromFocus(
     const note = noteForFocus(item, notes);
     const span = pieceFeedbackSpanWholeNotes({
       category: item.category,
-      onsetQuarters: item.onsetQuarters ?? note?.onsetQuarters ?? 0,
+      onsetQuarters:
+        note?.absoluteOnsetQuarters ??
+        item.onsetQuarters ??
+        note?.onsetQuarters ??
+        0,
       durationQuarters: note?.durationQuarters ?? null,
     });
     return {

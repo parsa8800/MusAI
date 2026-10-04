@@ -12,17 +12,20 @@ import { TWINKLE_XML } from "@/features/piece-studio/score/musicXmlFixtures";
 
 const startRecording = vi.fn(async () => undefined);
 const stopRecording = vi.fn();
-const setCaptureMode = vi.fn();
 const setSelectedMicId = vi.fn();
 const refreshMicDevices = vi.fn(async () => undefined);
 const handleFileChange = vi.fn();
 const discardRecording = vi.fn();
-const loadSampleTake = vi.fn();
+const discardClip = vi.fn();
+const captureState = vi.hoisted(() => ({
+  mode: "record" as "record" | "upload",
+}));
+const setCaptureMode = vi.hoisted(() => vi.fn());
 
 vi.mock("@/features/piece-studio/practice/usePiecePracticeCapture", () => ({
   usePiecePracticeCapture: () => ({
     selectId: "mic",
-    captureMode: "record",
+    captureMode: captureState.mode,
     setCaptureMode,
     isRecording: false,
     recordedBlob: null,
@@ -37,8 +40,8 @@ vi.mock("@/features/piece-studio/practice/usePiecePracticeCapture", () => ({
     refreshMicDevices,
     startRecording,
     stopRecording,
-    loadSampleTake,
     discardRecording,
+    discardClip,
     streamRef: { current: null },
     elapsedLabel: "0:00",
     lastTakeLabel: null,
@@ -85,8 +88,10 @@ describe("PiecePractiseDock", () => {
   beforeEach(() => {
     clearPieceCatalog();
     clearPieceFileMemory();
+    captureState.mode = "record";
     startRecording.mockClear();
     stopRecording.mockClear();
+    setCaptureMode.mockClear();
     upsertPieceWorkspace(piece);
   });
 
@@ -108,7 +113,15 @@ describe("PiecePractiseDock", () => {
     expect(record).toBeInTheDocument();
     expect(record).toHaveAttribute("data-recording", "false");
     expect(record).toHaveClass("musai-vm-trigger--studio");
-    expect(screen.getByRole("button", { name: "Record" })).toBe(record);
+    expect(record).toHaveAccessibleName("Record");
+    expect(screen.getByRole("tab", { name: "Record" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByRole("tab", { name: "Import" })).toHaveAttribute(
+      "aria-selected",
+      "false",
+    );
     expect(
       screen.queryByText("Record", { selector: ".musai-rec-stage__caption" }),
     ).not.toBeInTheDocument();
@@ -119,16 +132,47 @@ describe("PiecePractiseDock", () => {
     expect(screen.queryByText("00:00.00")).not.toBeInTheDocument();
     expect(screen.queryByText(/Analyse/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Mic & import/i)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/Import a take/i)).not.toBeInTheDocument();
     expect(
       screen.getByRole("combobox", { name: /^Microphone$/i }),
     ).toBeInTheDocument();
     expect(screen.queryByText(/Default microphone/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/^RECORD$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("RECORD")).not.toBeInTheDocument();
     expect(screen.queryByTestId("piece-score-pdf")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /PDF/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sample take" })).not.toBeInTheDocument();
     fireEvent.click(record);
     expect(startRecording).toHaveBeenCalled();
+  });
+
+  it("imports a pre-recorded take from the shared capture dock", () => {
+    const view = render(
+      <PiecePractiseDock
+        piece={piece}
+        structured={parseMusicXmlToScore(TWINKLE_XML, "Twinkle")}
+        onAttemptSaved={() => undefined}
+      />,
+    );
+    fireEvent.click(screen.getByRole("tab", { name: "Import" }));
+    expect(setCaptureMode).toHaveBeenCalledWith("upload");
+    captureState.mode = "upload";
+    view.rerender(
+      <PiecePractiseDock
+        piece={piece}
+        structured={parseMusicXmlToScore(TWINKLE_XML, "Twinkle")}
+        onAttemptSaved={() => undefined}
+      />,
+    );
+    expect(screen.getByRole("tab", { name: "Import" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(document.querySelector("[data-mode='upload']")).toHaveAttribute(
+      "data-active",
+      "true",
+    );
+    expect(screen.getByText("Import audio")).toBeInTheDocument();
+    expect(screen.getByText("Drop a file or tap to choose")).toBeInTheDocument();
+    expect(screen.getByTestId("musai-rec-anchor")).toBeInTheDocument();
   });
 
   it("does not show Best / Latest / attempts on the practise dock", () => {
@@ -229,7 +273,7 @@ describe("PiecePractiseDock", () => {
     expect(screen.getByTestId("piece-practise-take-audio")).not.toHaveAttribute(
       "controls",
     );
-    expect(screen.getByRole("button", { name: "Play Take 1" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Play last take" })).toBeInTheDocument();
     expect(screen.getByText("Last take")).toBeInTheDocument();
     expect(screen.queryByText("0:00 / 0:08")).not.toBeInTheDocument();
     expect(screen.queryByText("0:00 / 0:00")).not.toBeInTheDocument();
@@ -238,5 +282,94 @@ describe("PiecePractiseDock", () => {
     });
     const clock = onPlayheadClock.mock.calls.at(-1)?.[0];
     expect(clock?.getCurrentSec()).toBe(0);
+  });
+
+  it("hides a computer-generated sample take", async () => {
+    await savePieceAttemptRecording(
+      "p1",
+      "sample",
+      new Blob(["RIFF"], { type: "audio/wav; musai-sample=1" }),
+    );
+    const practised = {
+      ...piece,
+      attempts: [
+        {
+          attemptId: "sample",
+          recordedAt: "2026-01-03T12:00:00.000Z",
+          attemptNumber: 1,
+          durationSec: 8,
+          score0to100: 80,
+          notesHeard: 6,
+          notesExpected: 7,
+          inTunePercent: 75,
+          averageAbsCents: 14,
+          feedback: "Try again when you’re ready.",
+          progressPercent: 80,
+          hasRecording: true,
+        },
+      ],
+    };
+    render(
+      <PiecePractiseDock
+        piece={practised}
+        structured={parseMusicXmlToScore(TWINKLE_XML, "Twinkle")}
+        onAttemptSaved={() => undefined}
+      />,
+    );
+    expect(screen.queryByText("Sample take")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("piece-take-replay")).not.toBeInTheDocument();
+    expect(screen.queryByText("Last take")).not.toBeInTheDocument();
+  });
+
+  it("offers a plain score only when a take has tuning colours", () => {
+    render(
+      <PiecePractiseDock
+        piece={piece}
+        structured={parseMusicXmlToScore(TWINKLE_XML, "Twinkle")}
+        onAttemptSaved={() => undefined}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "Score options" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Plain" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Tuning" })).not.toBeInTheDocument();
+  });
+
+  it("asks the workspace to hide or show tuning colours", () => {
+    const onTogglePitchColours = vi.fn();
+    const view = render(
+      <PiecePractiseDock
+        piece={piece}
+        structured={parseMusicXmlToScore(TWINKLE_XML, "Twinkle")}
+        onAttemptSaved={() => undefined}
+        showPitchColourToggle
+        pitchColoursOn
+        onTogglePitchColours={onTogglePitchColours}
+      />,
+    );
+    expect(screen.queryByRole("tab", { name: "Tuning" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Colours from this take")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Score options" }));
+    expect(screen.getByRole("tab", { name: "Tuning" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    fireEvent.click(screen.getByRole("tab", { name: "Plain" }));
+    expect(onTogglePitchColours).toHaveBeenCalledTimes(1);
+
+    view.rerender(
+      <PiecePractiseDock
+        piece={piece}
+        structured={parseMusicXmlToScore(TWINKLE_XML, "Twinkle")}
+        onAttemptSaved={() => undefined}
+        showPitchColourToggle
+        pitchColoursOn={false}
+        onTogglePitchColours={onTogglePitchColours}
+      />,
+    );
+    expect(screen.getByRole("tab", { name: "Plain" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.queryByText("Notes without colours")).not.toBeInTheDocument();
   });
 });

@@ -36,20 +36,24 @@ import {
 import {
   coachIssueById,
   coachIssuesFromEvents,
-  coachIssuesFromMock,
   collapsePieceCoachIssues,
   type PieceCoachIssueView,
 } from "@/features/piece-studio/feedback/visual/pieceCoachIssueView";
 import { PieceAskCoach } from "@/features/piece-studio/feedback/visual/PieceAskCoach";
+import { PieceRhythmHighlightPopup } from "@/features/piece-studio/feedback/visual/PieceRhythmHighlightPopup";
 import {
   readCoachMemory,
   writeCoachOpen,
 } from "@/lib/coachThreadMemory";
 import type { PieceAskContext } from "@/features/piece-studio/feedback/visual/pieceCoachChat";
+import { pitchMarksFromTake } from "@/features/piece-studio/feedback/visual/piecePitchScoreMap";
+import { dynamicLetterMarksFromIssues } from "@/features/piece-studio/feedback/visual/pieceDynamicsScoreMap";
 import {
-  pitchMarksFromTake,
-  pitchNoteMarksFromIssues,
-} from "@/features/piece-studio/feedback/visual/piecePitchScoreMap";
+  rhythmHighlightExplanation,
+  rhythmHighlightsFromIssues,
+  rhythmRunForIssueId,
+} from "@/features/piece-studio/feedback/visual/pieceRhythmScoreMap";
+import { isGeneratedPieceSampleRecording } from "@/features/piece-studio/practice/synthesizePieceSampleTake";
 import type { PiecePitchNoteV1 } from "@/features/piece-studio/feedback/pieceFeedbackTypes";
 import type { PieceScoreHighlight } from "@/features/piece-studio/score/OsmdScoreAdapter";
 import {
@@ -72,6 +76,7 @@ import { expectedNotesFromScore } from "@/features/piece-studio/score/expectedNo
 import {
   heardSecondsForRecording,
   recordingTimeToScoreTime,
+  scoreTimeToRecordingTime,
   takePlayheadAnchors,
 } from "@/features/piece-studio/practice/takePlayheadTime";
 import type { MusaiScoreV1 } from "@/features/piece-studio/score/musaiScore";
@@ -227,6 +232,7 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
     undefined,
   );
   const [previewId, setPreviewId] = useState<string | null>(null);
+  const [rhythmExplainId, setRhythmExplainId] = useState<string | null>(null);
   const [coachOpen, setCoachOpen] = useState(false);
   const coachMemoryKey = piece?.pieceId ? `piece:${piece.pieceId}` : null;
   const [liveCoachIssues, setLiveCoachIssues] = useState<PieceCoachIssueView[]>(
@@ -240,6 +246,10 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
     null,
   );
   const pauseTakeRef = useRef<(() => void) | null>(null);
+  const seekTakeRef = useRef<
+    ((scoreSec: number, resume: boolean) => void) | null
+  >(null);
+  const takePlayingRef = useRef<(() => boolean) | null>(null);
   const { instrument } = useInstrument();
   const playback = usePiecePlayback(structured ?? null, {
     loadInstrument: true,
@@ -252,7 +262,6 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
   }, [pieceId]);
   const timelineRef = useRef(playback.timeline);
   timelineRef.current = playback.timeline;
-  const [sampleIssues, setSampleIssues] = useState<PieceCoachIssueView[]>([]);
   const latestAttempt = piece?.attempts.at(-1) ?? null;
   const hasLivePitch = Boolean(livePitchNotes && livePitchNotes.length > 0);
   const hasLiveCoach = Boolean(
@@ -260,8 +269,7 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
       liveCoachReady &&
       (liveCoachIssues.length > 0 || hasLivePitch),
   );
-  const usingSamplePrototype = !hasLiveCoach;
-  const rawCoachIssues = usingSamplePrototype ? sampleIssues : liveCoachIssues;
+  const rawCoachIssues = liveCoachIssues;
   const coachIssues = useMemo(
     () => collapsePieceCoachIssues(rawCoachIssues),
     [rawCoachIssues],
@@ -269,10 +277,18 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
   const previewIssue = coachIssueById(coachIssues, previewId);
   const showPreview = view === "practise" && coachIssues.length > 0;
 
-  const highlight = useMemo((): PieceScoreHighlight | null => {
+  const focusedHighlight = useMemo((): PieceScoreHighlight | null => {
     if (!showPreview || !previewIssue) return null;
-    // Pitch is painted on noteheads only — no plates / washes.
-    if (previewIssue.category === "pitch") return null;
+    // Pitch colours noteheads. Rhythm uses a staff rectangle. Dynamics
+    // colours the written letters. None of those use this focused wash.
+    if (
+      previewIssue.category === "pitch" ||
+      previewIssue.category === "rhythm" ||
+      previewIssue.category === "dynamics" ||
+      previewIssue.category === "tempo"
+    ) {
+      return null;
+    }
     return {
       id: previewIssue.id,
       startWholeNotes: previewIssue.startWholeNotes,
@@ -285,31 +301,39 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
     };
   }, [showPreview, previewIssue]);
 
-  const pitchMarks = useMemo(() => {
-    if (view !== "practise") return [];
-    if (hasLivePitch && structured) {
-      return pitchMarksFromTake(
-        expectedNotesFromScore(structured),
-        livePitchNotes ?? [],
-      );
-    }
-    if (!showPreview) return [];
-    return pitchNoteMarksFromIssues(coachIssues);
-  }, [
-    view,
-    hasLivePitch,
-    structured,
-    livePitchNotes,
-    showPreview,
-    coachIssues,
-  ]);
+  const [pitchColoursOn, setPitchColoursOn] = useState(true);
+  const latestAttemptId = latestAttempt?.attemptId ?? null;
+  useEffect(() => {
+    setPitchColoursOn(true);
+  }, [latestAttemptId]);
 
-  /** Non-pitch focused overlays only — pitch never uses highlight washes. */
+  const pitchMarks = useMemo(() => {
+    if (view !== "practise" || !hasLivePitch || !structured || !pitchColoursOn) {
+      return [];
+    }
+    return pitchMarksFromTake(
+      expectedNotesFromScore(structured),
+      livePitchNotes ?? [],
+    );
+  }, [view, hasLivePitch, structured, livePitchNotes, pitchColoursOn]);
+
+  const dynamicMarks = useMemo(() => {
+    if (view !== "practise" || !structured) return [];
+    return dynamicLetterMarksFromIssues(
+      expectedNotesFromScore(structured),
+      coachIssues,
+    );
+  }, [view, structured, coachIssues]);
+
+  /** Pitch stays on noteheads. Every rhythm miss gets a staff rectangle. */
   const highlights = useMemo((): PieceScoreHighlight[] => {
     if (!showPreview) return [];
-    if (previewIssue?.category === "pitch") return [];
-    return highlight ? [highlight] : [];
-  }, [showPreview, previewIssue, highlight]);
+    const rhythm = rhythmHighlightsFromIssues(
+      coachIssues,
+      previewIssue?.category === "rhythm" ? previewIssue.id : null,
+    );
+    return focusedHighlight ? [focusedHighlight, ...rhythm] : rhythm;
+  }, [showPreview, coachIssues, previewIssue, focusedHighlight]);
 
   const wholeNotesToSeconds = useCallback((wholeNotes: number) => {
     const tl = timelineRef.current;
@@ -317,10 +341,37 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
     return secondsAtQuarter(tl.tempoSpans, wholeNotes * 4);
   }, []);
 
+  const rhythmNoteLabels = useMemo(() => {
+    const notes = expectedNotesFromScore(structured ?? null);
+    return new Map(notes.map((note) => [note.noteIndex, note.label]));
+  }, [structured]);
+
+  const rhythmRun = useMemo(() => {
+    if (!showPreview || !rhythmExplainId) return null;
+    const run = rhythmRunForIssueId(coachIssues, rhythmExplainId);
+    return run && run.length > 0 ? run : null;
+  }, [showPreview, coachIssues, rhythmExplainId]);
+
+  const rhythmExplanation = useMemo(() => {
+    if (!rhythmRun) return null;
+    return rhythmHighlightExplanation(rhythmRun, rhythmNoteLabels);
+  }, [rhythmRun, rhythmNoteLabels]);
+
+  const rhythmKey = rhythmRun?.map((issue) => issue.id).join("|") ?? null;
+  const seenRhythmRef = useRef(new Set<string>());
+  const claimRhythm = useCallback((key: string) => {
+    if (seenRhythmRef.current.has(key)) return false;
+    seenRhythmRef.current.add(key);
+    return true;
+  }, []);
+
   const onHighlightSelect = useCallback((id: string) => {
     tapFeedback("medium");
     setPreviewId(id);
-  }, []);
+    setRhythmExplainId(rhythmRunForIssueId(coachIssues, id) ? id : null);
+    setCoachOpen(true);
+    if (coachMemoryKey) writeCoachOpen(coachMemoryKey, true);
+  }, [coachMemoryKey, coachIssues]);
 
   const togglePlayback = playback.toggle;
   const restartPlayback = playback.restart;
@@ -360,27 +411,38 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
     }
     let cancelled = false;
     setLiveCoachReady(false);
-    void readPieceFeedbackReport(piece.pieceId, attempt.attemptId).then(
-      (report) => {
+    const pieceId = piece.pieceId;
+    const attemptId = attempt.attemptId;
+    void (async () => {
+      if (attempt.hasRecording) {
+        const blob = await readPieceAttemptRecording(pieceId, attemptId);
         if (cancelled) return;
-        if (!report) {
+        if (blob && isGeneratedPieceSampleRecording(blob)) {
           setLiveCoachIssues([]);
           setLivePitchNotes(null);
           setLiveCoachReady(true);
           return;
         }
-        const ctx = buildPieceCoachContext(report);
-        const notes = expectedNotesFromScore(structured ?? null);
-        setLiveCoachIssues(coachIssuesFromEvents(ctx.events, notes));
-        setLivePitchNotes(report.pitchNotes ?? null);
+      }
+      const report = await readPieceFeedbackReport(pieceId, attemptId);
+      if (cancelled) return;
+      if (!report) {
+        setLiveCoachIssues([]);
+        setLivePitchNotes(null);
         setLiveCoachReady(true);
-        setPreviewId(
-          ctx.events.find((event) => event.category === "pitch")?.eventId ??
-            ctx.events[0]?.eventId ??
-            null,
-        );
-      },
-    );
+        return;
+      }
+      const ctx = buildPieceCoachContext(report);
+      const notes = expectedNotesFromScore(structured ?? null);
+      setLiveCoachIssues(coachIssuesFromEvents(ctx.events, notes));
+      setLivePitchNotes(report.pitchNotes ?? null);
+      setLiveCoachReady(true);
+      setPreviewId(
+        ctx.events.find((event) => event.category === "pitch")?.eventId ??
+          ctx.events[0]?.eventId ??
+          null,
+      );
+    })();
     return () => {
       cancelled = true;
     };
@@ -444,7 +506,7 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
         if (!note) return issue;
         const span = pieceFeedbackSpanWholeNotes({
           category: issue.category,
-          onsetQuarters: note.onsetQuarters,
+          onsetQuarters: note.absoluteOnsetQuarters,
           durationQuarters: note.durationQuarters,
         });
         return {
@@ -460,25 +522,6 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
   const scoreLoadKey =
     piece === undefined ? "loading" : piece === null ? "missing" : piece.pieceId;
   const audioLoadKey = `${scoreLoadKey}:${piece?.sourceKind ?? ""}:${piece?.hasOriginalFile ? "1" : "0"}`;
-
-  useEffect(() => {
-    if (view !== "practise" || !structured) {
-      setSampleIssues([]);
-      return;
-    }
-    let cancelled = false;
-    void import(
-      "@/features/piece-studio/feedback/visual/mockPieceFeedbackPreview"
-    ).then((mod) => {
-      if (cancelled) return;
-      setSampleIssues(
-        coachIssuesFromMock(mod.mockPieceFeedbackIssues(structured)),
-      );
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [view, structured]);
 
   useEffect(() => {
     if (!piece) return;
@@ -666,6 +709,25 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
       ),
     [],
   );
+  const scoreTimeToAudio = useCallback(
+    (scoreSec: number, audioDurationSec: number) =>
+      scoreTimeToRecordingTime(
+        scoreSec,
+        audioDurationSec,
+        takeMapRef.current.scoreDurationSec,
+        takeMapRef.current.anchors,
+      ),
+    [],
+  );
+  const onTakeScrubPreview = useCallback(() => {
+    pauseTakeRef.current?.();
+  }, []);
+  const onTakeScrubCommit = useCallback((scoreSec: number, resume: boolean) => {
+    seekTakeRef.current?.(scoreSec, resume);
+  }, []);
+  const onTakeSeek = useCallback((scoreSec: number) => {
+    seekTakeRef.current?.(scoreSec, takePlayingRef.current?.() ?? false);
+  }, []);
 
   const playbackNoteTimes = useMemo(
     () =>
@@ -785,18 +847,41 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
       }
       wholeNotesToSeconds={wholeNotesToSeconds}
       onSeekFromScore={
-        listenPlayhead && !loopPick ? playback.seekAndPlay : undefined
+        listenPlayhead && !loopPick
+          ? playback.seekAndPlay
+          : practisePlayhead
+            ? onTakeSeek
+            : undefined
       }
       onLoopMark={listenPlayhead && loopPick ? onLoopMark : undefined}
       loopSpan={listenPlayhead ? loopSpan : null}
       loopPicking={Boolean(listenPlayhead && loopPick)}
-      onScrubPreview={listenPlayhead ? playback.scrubPreview : undefined}
-      onScrubCommit={listenPlayhead ? playback.commitScrub : undefined}
-      getPlaying={listenPlayhead ? playback.getPlaying : undefined}
+      onScrubPreview={
+        listenPlayhead
+          ? playback.scrubPreview
+          : practisePlayhead
+            ? onTakeScrubPreview
+            : undefined
+      }
+      onScrubCommit={
+        listenPlayhead
+          ? playback.commitScrub
+          : practisePlayhead
+            ? onTakeScrubCommit
+            : undefined
+      }
+      getPlaying={
+        listenPlayhead
+          ? playback.getPlaying
+          : practisePlayhead
+            ? () => takePlayingRef.current?.() ?? false
+            : undefined
+      }
       playbackNotes={playbackNoteTimes}
-      highlight={highlight}
+      highlight={focusedHighlight}
       highlights={highlights}
       pitchMarks={pitchMarks}
+      dynamicMarks={dynamicMarks}
       onHighlightSelect={onHighlightSelect}
       onScoreOpen={markScoreOpen}
     />
@@ -824,6 +909,9 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
             structured,
           )}
           instrumentStatus={playback.instrumentStatus}
+          sampleName={
+            instrument.listenSoundfont === "violin" ? "violin" : "piano"
+          }
           subscribeTime={playback.subscribeTime}
           getCurrentSec={playback.getCurrentSec}
           onToggle={onTogglePlayback}
@@ -849,6 +937,13 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
     <div
       className="musai-piece-workspace__practise-stage"
       data-practise={practising ? "true" : "false"}
+      data-pitch-colours={
+        practising && hasLivePitch
+          ? pitchMarks.length > 0
+            ? "on"
+            : "off"
+          : "none"
+      }
     >
       <div
         className="musai-piece-workspace__stage"
@@ -860,20 +955,32 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
         {coachOpen ? (
           <aside
             id="piece-coach"
-            className="musai-studio-coach-drawer"
-            aria-label="Coach"
+            className="musai-studio-coach-drawer musai-teacher-panel"
+            aria-label="Teacher"
           >
+            {rhythmExplanation && rhythmKey ? (
+              <PieceRhythmHighlightPopup
+                key={rhythmKey}
+                place={rhythmExplanation.place}
+                notes={rhythmExplanation.notes}
+                memoryKey={rhythmKey}
+                claimFresh={claimRhythm}
+                onClose={() => setRhythmExplainId(null)}
+              />
+            ) : null}
             <PieceAskCoach
               pieceId={piece.pieceId}
               context={askContext}
               issue={hasLiveCoach ? previewIssue : null}
               issues={hasLiveCoach ? coachIssues : []}
+              suppressCue={Boolean(rhythmExplanation)}
             />
           </aside>
         ) : null}
         <StudioCoachLauncher
           open={coachOpen}
           controlsId="piece-coach"
+          label="Teacher"
           onToggle={() =>
             setCoachOpen((open) => {
               const next = !open;
@@ -890,7 +997,13 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
           onAttemptSaved={() => setCatalogTick((n) => n + 1)}
           onPlayheadClock={setPractiseClock}
           mapTakeTime={mapTakeTime}
+          scoreTimeToAudio={scoreTimeToAudio}
           pauseTakeRef={pauseTakeRef}
+          seekTakeRef={seekTakeRef}
+          takePlayingRef={takePlayingRef}
+          showPitchColourToggle={hasLivePitch}
+          pitchColoursOn={pitchColoursOn}
+          onTogglePitchColours={() => setPitchColoursOn((on) => !on)}
         />
       ) : null}
       {loadingCover ? null : listenDock}

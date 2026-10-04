@@ -29,9 +29,12 @@ import {
   importPieceFromFile,
   needsImportReview,
   purgeIncompleteImports,
+  restorePieceImportSession,
+  resumeActivePieceImport,
   type ImportPiecePhase,
   type PieceImportDraft,
 } from "@/features/piece-studio/pieceStudioImport";
+import { clearActivePieceImport } from "@/features/piece-studio/pieceImportResume";
 import { OMR_COPY } from "@/features/piece-studio/omr/omrProvider";
 import { pieceWorkspaceHref, PIECE_STUDIO_HREF } from "@/features/piece-studio/pieceStudioRoutes";
 import type { PieceWorkspaceV1 } from "@/features/piece-studio/pieceStudioTypes";
@@ -64,12 +67,53 @@ export function PieceStudioView() {
   const [committing, setCommitting] = useState(false);
   importDraftRef.current = importDraft;
   const importGenerationRef = useRef(0);
+  const phaseRef = useRef(phase);
+  phaseRef.current = phase;
 
   useEffect(() => {
     let cancelled = false;
-    void purgeIncompleteImports().then(() => {
-      if (!cancelled) setPieces(listPieceWorkspaces());
-    });
+    void (async () => {
+      await purgeIncompleteImports();
+      if (cancelled) return;
+      setPieces(listPieceWorkspaces());
+      if (importDraftRef.current || phaseRef.current) return;
+      const restored = await restorePieceImportSession();
+      if (cancelled || !restored) return;
+      if (importDraftRef.current || phaseRef.current) return;
+      if (restored.status === "ready" || restored.status === "failed") {
+        setImportDraft(restored.draft);
+        return;
+      }
+      const generation = ++importGenerationRef.current;
+      setPhase("processing");
+      setConvertProgress(restored.progress);
+      try {
+        const result = await resumeActivePieceImport(
+          restored.file,
+          restored.jobId,
+          {
+            onPhase: (next) => {
+              if (generation !== importGenerationRef.current) return;
+              setPhase(next);
+            },
+            onProgress: (percent) => {
+              if (generation !== importGenerationRef.current) return;
+              setConvertProgress((prev) => Math.max(prev ?? 0, percent));
+            },
+          },
+        );
+        if (generation !== importGenerationRef.current || cancelled) {
+          return;
+        }
+        setImportDraft(result.draft);
+      } catch (err) {
+        if (generation !== importGenerationRef.current || cancelled) return;
+        setError(err instanceof Error ? err.message : "Couldn’t import that file.");
+        setConvertProgress(null);
+      } finally {
+        if (generation === importGenerationRef.current) setPhase(null);
+      }
+    })();
     return () => {
       cancelled = true;
     };
@@ -92,7 +136,7 @@ export function PieceStudioView() {
     };
   }, [pieces]);
 
-  // Abandon temporary import if the user leaves Piece Studio mid-review.
+  // Legacy unconfirmed catalog rows only. A refresh must keep the active upload.
   useEffect(() => {
     return () => {
       void discardPieceImport(importDraftRef.current);
@@ -102,6 +146,7 @@ export function PieceStudioView() {
   const clearDraft = async () => {
     importGenerationRef.current += 1;
     await discardPieceImport(importDraftRef.current);
+    await clearActivePieceImport();
     setImportDraft(null);
     setPhase(null);
     setConvertProgress(null);

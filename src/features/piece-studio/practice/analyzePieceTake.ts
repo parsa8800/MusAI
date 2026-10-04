@@ -46,6 +46,7 @@ export function analyzePieceTake(input: {
           mono: input.mono,
           sampleRateHz: input.sampleRateHz,
           expectedMidis: expectedNotes.map((n) => n.midi),
+          durationQuarters: expectedNotes.map((n) => n.durationQuarters),
           ...activePiecePitchWindow(),
         })
       : null;

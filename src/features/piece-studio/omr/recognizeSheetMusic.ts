@@ -14,6 +14,8 @@ export type RecognizeSheetMusicOptions = {
   onPhase?: (phase: RecognizeSheetPhase) => void;
   /** 0–100 for the whole file → MusicXML conversion. Only moves forward. */
   onProgress?: (percent: number) => void;
+  /** Fired once the server has accepted the file, before polling finishes. */
+  onJobAccepted?: (jobId: string) => void;
 };
 
 /**
@@ -57,6 +59,25 @@ export async function recognizeSheetMusic(
     throw new Error(OMR_COPY.unavailable);
   }
 
+  if (submitRes.status === 503) {
+    let body: { error?: unknown; code?: unknown } = {};
+    try {
+      body = (await submitRes.clone().json()) as typeof body;
+    } catch {
+      body = {};
+    }
+    // Only a reader that has no job API should use the one-shot endpoint.
+    // "Scanner isn't configured" uses the same sentence, and retrying it
+    // turned into "Couldn't read this score" on the hosted site.
+    if (body.code === "sync") {
+      pieceImportLog("OMR", "ok", {
+        where: "client falling back to sync POST /api/piece-omr",
+      });
+      options.onPhase?.("processing");
+      return recognizeSheetMusicSync(file);
+    }
+  }
+
   if (submitRes.status === 202) {
     let data: { jobId?: unknown; error?: unknown } = {};
     try {
@@ -74,31 +95,12 @@ export async function recognizeSheetMusic(
       jobId,
       status: submitRes.status,
     });
+    options.onJobAccepted?.(jobId);
     options.onPhase?.("processing");
     options.onProgress?.(12);
     return pollRecognitionJob(jobId, (percent) =>
       options.onProgress?.(pieceUploadPercentFromJob(percent)),
     );
-  }
-
-  // Job API unavailable for this provider — try legacy sync recognize.
-  if (submitRes.status === 503) {
-    let syncFallback = false;
-    try {
-      const body = (await submitRes.clone().json()) as { error?: unknown };
-      syncFallback =
-        typeof body.error === "string" &&
-        body.error === OMR_COPY.readingNotReady;
-    } catch {
-      syncFallback = false;
-    }
-    if (syncFallback) {
-      pieceImportLog("OMR", "ok", {
-        where: "client falling back to sync POST /api/piece-omr",
-      });
-      options.onPhase?.("processing");
-      return recognizeSheetMusicSync(file);
-    }
   }
 
   let errBody: { error?: unknown } = {};
@@ -151,6 +153,17 @@ async function recognizeSheetMusicSync(file: File): Promise<string> {
     typeof data.error === "string" && data.error.trim()
       ? data.error
       : OMR_COPY.failed,
+  );
+}
+
+/** Keep polling a job that was already accepted. Used after a page refresh. */
+export async function resumeSheetMusicJob(
+  jobId: string,
+  options: RecognizeSheetMusicOptions = {},
+): Promise<string> {
+  options.onPhase?.("processing");
+  return pollRecognitionJob(jobId, (percent) =>
+    options.onProgress?.(pieceUploadPercentFromJob(percent)),
   );
 }
 

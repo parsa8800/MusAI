@@ -24,10 +24,11 @@ describe("PieceTakeReplay", () => {
     Object.defineProperty(audio, "ended", { value: false, writable: true });
 
     expect(screen.getByText("Last take")).toBeInTheDocument();
+    expect(screen.queryByText("Hear this recording")).not.toBeInTheDocument();
     expect(screen.queryByText("0:00 / 0:08")).not.toBeInTheDocument();
     expect(screen.queryByText("0:00 / 0:00")).not.toBeInTheDocument();
     expect(screen.queryByText(/^0:00$/)).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Play Take 3" }));
+    fireEvent.click(screen.getByRole("button", { name: "Play last take" }));
     expect(play).toHaveBeenCalled();
   });
 });

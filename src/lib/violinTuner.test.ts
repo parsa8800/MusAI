@@ -7,6 +7,7 @@ import {
   IN_TUNE_HOLD_MS,
   pruneTunedToInstrument,
   revealedSlots,
+  tunerCentsLabel,
   tunerCueCopy,
   type TunerReading,
 } from "@/lib/violinTuner";
@@ -181,6 +182,28 @@ describe("piano chromatic tuner", () => {
 
   it("asks for a note while waiting", () => {
     expect(tunerCueCopy(null, piano).headline).toBe("Play a note");
+  });
+});
+
+describe("tunerCentsLabel", () => {
+  it("says how far the note is without a cent count", () => {
+    expect(tunerCentsLabel(null)).toBe("");
+    expect(tunerCentsLabel(identifyTunerPitch(440))).toBe("In tune");
+    expect(
+      tunerCentsLabel(identifyTunerPitch(440 * Math.pow(2, -20 / 1200))),
+    ).toBe("A little flat");
+    expect(
+      tunerCentsLabel(identifyTunerPitch(440 * Math.pow(2, 22 / 1200))),
+    ).toBe("A little sharp");
+    expect(
+      tunerCentsLabel(identifyTunerPitch(440 * Math.pow(2, 38 / 1200))),
+    ).toBe("Sharp");
+    expect(
+      tunerCentsLabel(identifyTunerPitch(440 * Math.pow(2, -46 / 1200))),
+    ).toBe("Very flat");
+    expect(
+      tunerCentsLabel(identifyTunerPitch(440 * Math.pow(2, 46 / 1200))),
+    ).toBe("Very sharp");
   });
 });
 

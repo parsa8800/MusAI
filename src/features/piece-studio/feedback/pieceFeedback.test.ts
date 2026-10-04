@@ -55,7 +55,7 @@ describe("piece feedback architecture", () => {
     });
   });
 
-  it("runs PitchAnalyzer independently of deferred rhythm analysis", () => {
+  it("keeps rhythm not ready when there is nothing to judge", () => {
     expect(PitchAnalyzer.category).toBe("pitch");
     expect(RhythmAnalyzer.analyze({
       pieceId: "p",
@@ -124,7 +124,7 @@ describe("piece feedback architecture", () => {
     expect(missed[0]?.severity).toBe("focus");
   });
 
-  it("does not invent rhythm, tempo, dynamics, or consistency", () => {
+  it("does not invent tempo, dynamics, or consistency", () => {
     const score = parseMusicXmlToScore(TWINKLE_XML, "Twinkle");
     const sampleRate = 44100;
     const mono = concat([
@@ -139,7 +139,11 @@ describe("piece feedback architecture", () => {
       sampleRateHz: sampleRate,
       durationSec: mono.length / sampleRate,
     });
-    const unimplemented = PIECE_FEEDBACK_CATEGORIES.filter((c) => c !== "pitch");
+    const rhythm = report.skills.find((s) => s.category === "rhythm");
+    expect(rhythm?.status).toBe("ready");
+    const unimplemented = PIECE_FEEDBACK_CATEGORIES.filter(
+      (c) => c !== "pitch" && c !== "rhythm",
+    );
     for (const category of unimplemented) {
       const skill = report.skills.find((s) => s.category === category);
       expect(skill).toEqual({ category, status: "not_ready", events: [] });

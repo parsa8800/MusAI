@@ -32,6 +32,10 @@ export type PieceOsmdEngravingRules = {
    * OMR merges often leave empty bars that crash engraving when left as No.
    */
   FillEmptyMeasuresWithWholeRest?: number;
+  /** Honor MusicXML `print new-system` so a scanned line stays one line. */
+  NewSystemAtXMLNewSystemAttribute?: boolean;
+  /** A scanned new page is another line in the endless practice view. */
+  NewSystemAtXMLNewPageAttribute?: boolean;
   /** OSMD units. Default −6 parks the tempo in the left margin. */
   MetronomeMarkXShift?: number;
   MetronomeMarkYShift?: number;

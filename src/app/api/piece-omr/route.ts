@@ -117,7 +117,7 @@ export async function POST(req: Request) {
       explicitProvider: process.env.MUSAI_OMR_PROVIDER ?? null,
     });
     return NextResponse.json(
-      { error: OMR_COPY.unavailable },
+      { error: OMR_COPY.scanningUnavailable, code: "unavailable" },
       { status: 503 },
     );
   }

@@ -116,6 +116,15 @@ function zipOrSpreadSamples(
     return notes.map((note) => poseFromSample(only, note));
   }
 
+  // Fewer heads than attacks: keep the opening notes locked to the heads
+  // we have. Stretching them across the short list parked the bar behind
+  // the note that was sounding.
+  if (samples.length < notes.length) {
+    return notes.map((note, i) =>
+      poseFromSample(samples[Math.min(i, samples.length - 1)]!, note),
+    );
+  }
+
   return notes.map((note, i) => {
     const u = i / Math.max(1, notes.length - 1);
     const idx = Math.round(u * (samples.length - 1));

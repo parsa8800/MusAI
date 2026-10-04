@@ -2,8 +2,10 @@
  * Make Audiveris multi-movement merges safe for OpenSheetMusicDisplay
  * without rewriting the recognized pitches.
  *
- * Layout-only: shared divisions, drop print/staff-details, fill truly empty
- * bars, strip illegal beams. Keep keys, times, clefs, tuplets, and chords.
+ * Layout: shared divisions, keep the printed line breaks, drop other page
+ * furniture. Staccato dots and fermatas from a scan are often not on the page,
+ * so those are removed. Dynamics and hairpins stay. Keys, times, clefs,
+ * tuplets, and chords stay.
  * Mirror of `services/omr-worker/src/mergePartwiseMusicXml.mjs`.
  */
 
@@ -14,6 +16,7 @@ export function prepareMusicXmlForEngraving(xml: string): string {
   let out = stripDoctype(xml);
   out = normalizeDivisions(out, ENGRAVING_DIVISIONS);
   out = stripPrintBlocks(out);
+  out = stripScannerMarks(out);
   out = stripLeftBarlines(out);
   out = stripStaffDetails(out);
   out = closeUnmatchedOctaveShifts(out);
@@ -29,8 +32,38 @@ function stripDoctype(xml: string): string {
   return xml.replace(/<!DOCTYPE[^>]*>/i, "");
 }
 
+/**
+ * Audiveris records which measure starts each printed line (`new-system` /
+ * `new-page`). Keep only that. Page margins and measure-numbering fight the
+ * practice layout and are not the music.
+ */
 function stripPrintBlocks(xml: string): string {
-  return xml.replace(/<print\b[\s\S]*?<\/print>/gi, "");
+  const keepBreak = (_full: string, attrs: string) => {
+    const flags: string[] = [];
+    if (/\bnew-system\s*=\s*["']yes["']/i.test(attrs)) {
+      flags.push('new-system="yes"');
+    }
+    if (/\bnew-page\s*=\s*["']yes["']/i.test(attrs)) {
+      flags.push('new-page="yes"');
+    }
+    return flags.length > 0 ? `<print ${flags.join(" ")}/>` : "";
+  };
+  return xml
+    .replace(/<print\b([^>]*?)\/>/gi, keepBreak)
+    .replace(/<print\b([^>]*)>([\s\S]*?)<\/print>/gi, keepBreak);
+}
+
+/**
+ * Photo and PDF reading often invents staccato dots and fermatas.
+ * Dynamics and hairpins are real musical marks and stay.
+ * Slurs, ties, and fingerings stay too.
+ */
+function stripScannerMarks(xml: string): string {
+  return xml
+    .replace(/<articulations\b[^>]*\/>/gi, "")
+    .replace(/<articulations\b[\s\S]*?<\/articulations>/gi, "")
+    .replace(/<fermata\b[^>]*\/>/gi, "")
+    .replace(/<fermata\b[\s\S]*?<\/fermata>/gi, "");
 }
 
 function stripLeftBarlines(xml: string): string {

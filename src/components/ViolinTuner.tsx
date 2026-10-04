@@ -4,37 +4,37 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { PitchDetector } from "pitchy";
 import { createAudioContext } from "@/lib/audioContext";
 import { describeMicOpenError, getMicStream } from "@/lib/micStream";
-import { useInstrument } from "@/components/InstrumentProvider";
 import { prefersReducedMotion } from "@/lib/motion";
-import { rmsFromTimeDomain } from "@/lib/recordingWaveform";
-import type { TunerMotionFrame } from "@/lib/tunerStringMotion";
 import {
   IDLE_TUNER_METER,
   stepTunerMeter,
-  TUNER_METER_FIT_CENTS,
   TUNER_METER_SPAN_CENTS,
-  tunerMeterPercents,
   tunerMeterSide,
 } from "@/lib/tunerMeterMotion";
-import { tunerStringsFor } from "@/lib/instrument";
-import { ViolinTunerFigure } from "@/components/ViolinTunerFigure";
 import {
-  advanceTunerHold,
-  ALL_TUNED_RESET_MS,
+  IDLE_TUNER_COPY,
+  IDLE_TUNER_COPY_HOLD,
+  IDLE_TUNER_REEL,
+  stepTunerCopy,
+  stepTunerReel,
+  tunerReelNote,
+  type TunerPhraseSample,
+  type TunerReelMotion,
+  type TunerSettledCopy,
+} from "@/lib/tunerNoteReel";
+import {
   identifyTunerPitch,
   PITCH_SILENCE_MS,
-  pruneTunedToInstrument,
-  TUNER_IN_TUNE_CENTS,
-  tunerCueCopy,
-  type TunerHoldState,
-  type TunerOpenString,
+  tunerCentsLabel,
   type TunerReading,
-  type TunerStringId,
 } from "@/lib/violinTuner";
 
 const FRAME = 4096;
-const MIN_HZ = 80;
-const MAX_HZ = 2000;
+const MIN_HZ = 40;
+const MAX_HZ = 4200;
+const NEEDLE_SWING_DEG = 52;
+const DIAL_TICKS = [-50, -20, 0, 20, 50] as const;
+const REEL_CELL_PX = 92;
 
 function useGlidingTunerCents(sample: number | null): number {
   const sampleRef = useRef(sample);
@@ -65,192 +65,202 @@ function useGlidingTunerCents(sample: number | null): number {
   return shown;
 }
 
-function PitchBalanceMeter({
-  reading,
-  holding,
-  holdProgress,
-  idle,
-}: {
-  reading: TunerReading | null;
-  holding: boolean;
-  holdProgress: number;
-  idle: boolean;
-}) {
-  const shown = useGlidingTunerCents(reading ? reading.cents : null);
-  const side = tunerMeterSide(shown);
-  const flat = reading != null && side === "low";
-  const sharp = reading != null && side === "high";
-  const inTune = reading != null && side === "in_tune";
-  const { left, fillLeft, fillWidth } = tunerMeterPercents(shown);
-  const showNeedle = reading != null || Math.abs(shown) >= 0.8;
-  const fitted = Math.abs(shown) <= TUNER_METER_FIT_CENTS;
-  const needleTone = fitted || inTune ? "ok" : shown < 0 ? "low" : shown > 0 ? "high" : "ok";
-  const wellPct = (TUNER_IN_TUNE_CENTS / TUNER_METER_SPAN_CENTS) * 100;
+function needleDegrees(cents: number): number {
+  const clamped = Math.max(
+    -TUNER_METER_SPAN_CENTS,
+    Math.min(TUNER_METER_SPAN_CENTS, cents),
+  );
+  return (clamped / TUNER_METER_SPAN_CENTS) * NEEDLE_SWING_DEG;
+}
+
+function dialPoint(cents: number, radius: number): { x: number; y: number } {
+  const rad = (needleDegrees(cents) * Math.PI) / 180;
+  return {
+    x: 140 + Math.sin(rad) * radius,
+    y: 168 - Math.cos(rad) * radius,
+  };
+}
+
+function useGlidingReel(sample: TunerReading | null): TunerReelMotion {
+  const sampleRef = useRef(sample);
+  sampleRef.current = sample;
+  const motionRef = useRef(IDLE_TUNER_REEL);
+  const [motion, setMotion] = useState(IDLE_TUNER_REEL);
+
+  useEffect(() => {
+    let raf = 0;
+    let last = performance.now();
+    const frame = (now: number) => {
+      const reading = sampleRef.current;
+      const next = stepTunerReel(
+        motionRef.current,
+        reading
+          ? { pitchClass: reading.pitchClass, cents: reading.cents }
+          : null,
+        now - last,
+        prefersReducedMotion(),
+      );
+      last = now;
+      motionRef.current = next;
+      setMotion((prev) =>
+        prev.resting === next.resting && Math.abs(prev.shown - next.shown) < 0.0008
+          ? prev
+          : next,
+      );
+      raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  return motion;
+}
+
+function useSettledTunerCopy(sample: TunerPhraseSample | null): TunerSettledCopy {
+  const sampleRef = useRef(sample);
+  sampleRef.current = sample;
+  const holdRef = useRef(IDLE_TUNER_COPY_HOLD);
+  const [shown, setShown] = useState<TunerSettledCopy>(IDLE_TUNER_COPY);
+
+  useEffect(() => {
+    let raf = 0;
+    const frame = (now: number) => {
+      const next = stepTunerCopy(holdRef.current, sampleRef.current, now);
+      holdRef.current = next;
+      setShown((prev) =>
+        prev.name === next.shown.name &&
+        prev.phrase === next.shown.phrase &&
+        prev.side === next.shown.side
+          ? prev
+          : next.shown,
+      );
+      raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  return shown;
+}
+
+function letterPresence(distance: number): { opacity: number; scale: number } {
+  const d = Math.abs(distance);
+  return {
+    opacity: Math.max(0, 1 - d / 2.65),
+    scale: 1 - Math.min(d, 2.2) * 0.07,
+  };
+}
+
+function TunerReel({ reading }: { reading: TunerReading | null }) {
+  const motion = useGlidingReel(reading);
+  const start = Math.floor(motion.shown) - 5;
+  const letters = [];
+  for (let index = start; index <= Math.ceil(motion.shown) + 5; index += 1) {
+    const distance = index - motion.shown;
+    const presence = letterPresence(distance);
+    letters.push(
+      <span
+        key={index}
+        className="musai-tuner-reel__letter font-display"
+        data-note={tunerReelNote(index)}
+        style={{
+          opacity: motion.resting ? 0 : presence.opacity,
+          transform: `translate(-50%, -50%) translateX(${distance * REEL_CELL_PX}px) scale(${presence.scale})`,
+        }}
+      >
+        {tunerReelNote(index)}
+      </span>,
+    );
+  }
 
   return (
     <div
-      className="musai-tuner-meter"
-      data-idle={idle ? "true" : "false"}
-      data-cents={shown.toFixed(1)}
-      data-side={reading ? side : "idle"}
-      data-fit={fitted && reading ? "true" : "false"}
+      className="musai-tuner-reel"
+      data-idle={motion.resting ? "true" : "false"}
+      aria-hidden
     >
-      <div className="musai-tuner-meter__row">
-        <div className="musai-tuner-meter__end">
-          <span
-            className={`musai-tuner-meter__accidental font-display ${
-              flat
-                ? "text-[var(--musai-pitch-low)] musai-tuner-lean-flat"
-                : "text-[color-mix(in_srgb,var(--musai-pitch-low)_38%,transparent)]"
-            }`}
-            aria-hidden
-          >
-            ♭
-          </span>
-          <span
-            className={`musai-tuner-meter__caption ${
-              flat
-                ? "text-[var(--musai-pitch-low)]"
-                : "text-[color-mix(in_srgb,var(--musai-muted)_55%,transparent)]"
-            }`}
-          >
-            low
-          </span>
-        </div>
-
-        <div className="musai-tuner-meter__track">
-          <div
-            className="musai-tuner-meter__well"
-            style={{ width: `${wellPct}%` }}
-            data-in-well={inTune ? "true" : "false"}
-          />
-          <div className="musai-tuner-meter__bar">
-            {fillWidth > 0.4 ? (
-              <div
-                className={`musai-tuner-meter__fill ${
-                  shown < 0
-                    ? "musai-tuner-meter__fill--low"
-                    : "musai-tuner-meter__fill--high"
-                }`}
-                style={{ left: `${fillLeft}%`, width: `${fillWidth}%` }}
-              />
-            ) : null}
-          </div>
-          <div
-            className="musai-tuner-meter__slot"
-            data-fit={fitted && reading ? "true" : "false"}
-            aria-hidden
-          />
-          {showNeedle ? (
-            <div
-              className={`musai-tuner-meter__needle musai-tuner-meter__gem ${
-                needleTone === "ok"
-                  ? "musai-tuner-meter__needle--ok"
-                  : needleTone === "low"
-                    ? "musai-tuner-meter__needle--low"
-                    : "musai-tuner-meter__needle--high"
-              }`}
-              data-fit={fitted && reading ? "true" : "false"}
-              style={{ left: `${left}%` }}
-              aria-hidden
-            />
-          ) : null}
-        </div>
-
-        <div className="musai-tuner-meter__end">
-          <span
-            className={`musai-tuner-meter__accidental font-display ${
-              sharp
-                ? "text-[var(--musai-pitch-high)] musai-tuner-lean-sharp"
-                : "text-[color-mix(in_srgb,var(--musai-pitch-high)_38%,transparent)]"
-            }`}
-            aria-hidden
-          >
-            ♯
-          </span>
-          <span
-            className={`musai-tuner-meter__caption ${
-              sharp
-                ? "text-[var(--musai-pitch-high)]"
-                : "text-[color-mix(in_srgb,var(--musai-muted)_55%,transparent)]"
-            }`}
-          >
-            high
-          </span>
-        </div>
-      </div>
-
-      {holding ? (
-        <div className="musai-tuner-meter__hold">
-          <div
-            className="musai-tuner-meter__hold-fill"
-            style={{ width: `${Math.round(holdProgress * 100)}%` }}
-          />
-        </div>
-      ) : (
-        <div className="musai-tuner-meter__hold musai-tuner-meter__hold--spacer" />
-      )}
+      <div className="musai-tuner-reel__window">{letters}</div>
+      <div className="musai-tuner-reel__sheen" />
+      {motion.resting ? (
+        <p className="musai-tuner-reel__idle font-display">Play a note</p>
+      ) : null}
     </div>
   );
 }
 
-function spokenStatus(
-  reading: TunerReading | null,
-  holding: boolean,
-  holdProgress: number,
-  tuned: ReadonlySet<TunerStringId>,
-  layout: readonly TunerOpenString[],
-  instrument: ReturnType<typeof useInstrument>["instrument"],
-): string {
-  if (layout.length > 0 && layout.every((s) => tuned.has(s.id))) {
-    return `All ${layout.length} strings are in tune.`;
-  }
-  if (!reading) return `${tunerCueCopy(reading, instrument).headline}.`;
-  const name = reading.stringId ?? reading.pitchClassName;
-  if (reading.direction === "in_tune") {
-    if (reading.stringId && tuned.has(reading.stringId)) {
-      return `${name} is in tune.`;
-    }
-    if (holding) {
-      return `Hold ${name}. ${Math.round(holdProgress * 100)} percent.`;
-    }
-    return `${name} is in tune. Keep holding.`;
-  }
-  if (reading.direction === "low") return `${name} is too low. Go higher.`;
-  if (reading.direction === "high") return `${name} is too high. Go lower.`;
-  return `Hearing ${name}.`;
+function TunerNeedle({
+  cents,
+  heard,
+}: {
+  cents: number | null;
+  heard: boolean;
+}) {
+  const shown = useGlidingTunerCents(cents);
+  const side = heard ? tunerMeterSide(shown) : "idle";
+  const deg = needleDegrees(shown);
+
+  return (
+    <div
+      className="musai-tuner-dial"
+      data-idle={heard ? "false" : "true"}
+      data-side={side}
+      data-cents={shown.toFixed(1)}
+    >
+      <svg
+        className="musai-tuner-dial__svg"
+        viewBox="0 0 280 188"
+        aria-hidden
+      >
+        {DIAL_TICKS.map((cents) => {
+          const outer = dialPoint(cents, 108);
+          const inner = dialPoint(cents, cents === 0 ? 88 : 96);
+          return (
+            <line
+              key={cents}
+              className={
+                cents === 0
+                  ? "musai-tuner-dial__tick musai-tuner-dial__tick--zero"
+                  : "musai-tuner-dial__tick"
+              }
+              x1={inner.x}
+              y1={inner.y}
+              x2={outer.x}
+              y2={outer.y}
+            />
+          );
+        })}
+        <g transform={`rotate(${deg} 140 168)`}>
+          <line
+            className="musai-tuner-dial__needle"
+            x1="140"
+            y1="168"
+            x2="140"
+            y2="62"
+          />
+          <circle className="musai-tuner-dial__pivot" cx="140" cy="168" r="5.5" />
+        </g>
+      </svg>
+    </div>
+  );
+}
+
+function spokenStatus(copy: TunerSettledCopy): string {
+  if (!copy.name) return "Play a note.";
+  if (copy.phrase === "In tune") return `${copy.name} is in tune.`;
+  return `${copy.name}, ${copy.phrase}.`;
 }
 
 export function Tuner() {
-  const { instrument } = useInstrument();
   const [listening, setListening] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [reading, setReading] = useState<TunerReading | null>(null);
-  const [tuned, setTuned] = useState<ReadonlySet<TunerStringId>>(() => new Set());
-  const [holdProgress, setHoldProgress] = useState(0);
-  const [holdingId, setHoldingId] = useState<TunerStringId | null>(null);
 
   const streamRef = useRef<MediaStream | null>(null);
   const ctxRef = useRef<AudioContext | null>(null);
   const rafRef = useRef<number | null>(null);
   const smoothedHz = useRef<number | null>(null);
-  const holdRef = useRef<TunerHoldState | null>(null);
-  const tunedRef = useRef(tuned);
-  const lastStringRef = useRef<TunerStringId | null>(null);
   const lastHeardRef = useRef(0);
   const startedRef = useRef(false);
-  const instrumentRef = useRef(instrument);
-  const stringMotionRef = useRef<TunerMotionFrame>({
-    activeId: null,
-    hz: 196,
-    rms: 0,
-    cents: 0,
-    inTune: false,
-    alive: false,
-  });
-
-  tunedRef.current = tuned;
-  instrumentRef.current = instrument;
 
   const stop = useCallback(() => {
     if (rafRef.current != null) {
@@ -262,22 +272,10 @@ export function Tuner() {
     void ctxRef.current?.close();
     ctxRef.current = null;
     smoothedHz.current = null;
-    holdRef.current = null;
     startedRef.current = false;
     lastHeardRef.current = 0;
-    lastStringRef.current = null;
-    stringMotionRef.current = {
-      activeId: null,
-      hz: stringMotionRef.current.hz,
-      rms: 0,
-      cents: 0,
-      inTune: false,
-      alive: false,
-    };
     setListening(false);
     setReading(null);
-    setHoldProgress(0);
-    setHoldingId(null);
   }, []);
 
   const start = useCallback(async () => {
@@ -312,87 +310,28 @@ export function Tuner() {
       streamRef.current = stream;
       ctxRef.current = ctx;
       setListening(true);
-      stringMotionRef.current.alive = true;
-
-      const applyHold = (nextReading: TunerReading | null, now: number) => {
-        const next = advanceTunerHold(
-          holdRef.current,
-          nextReading,
-          now,
-          tunedRef.current,
-        );
-        holdRef.current = next.hold;
-        setHoldProgress(next.progress);
-        setHoldingId(
-          next.hold && next.progress < 1 ? next.hold.stringId : null,
-        );
-        if (next.lock) {
-          const id = next.lock;
-          if (tunedRef.current.has(id)) return;
-          const copy = new Set(tunedRef.current);
-          copy.add(id);
-          tunedRef.current = copy;
-          setTuned(copy);
-        }
-      };
 
       const tick = () => {
         analyser.getFloatTimeDomainData(buf);
         const [pitch, clarity] = detector.findPitch(buf, ctx.sampleRate);
         const now = performance.now();
-        const rms = rmsFromTimeDomain(buf);
-        const heard = instrumentRef.current;
-        const minHz =
-          heard.openStrings.length > 0 ? MIN_HZ : heard.pitch.minHz;
-        const maxHz =
-          heard.openStrings.length > 0 ? MAX_HZ : heard.pitch.maxHz;
         if (
-          pitch > minHz &&
-          pitch < maxHz &&
+          pitch > MIN_HZ &&
+          pitch < MAX_HZ &&
           clarity >= 0.78 &&
           Number.isFinite(pitch)
         ) {
           const prev = smoothedHz.current;
-          const hz = prev == null ? pitch : prev * 0.8 + pitch * 0.2;
+          const hz = prev == null ? pitch : prev * 0.62 + pitch * 0.38;
           smoothedHz.current = hz;
           lastHeardRef.current = now;
-          const nextReading = identifyTunerPitch(
-            hz,
-            lastStringRef.current,
-            instrumentRef.current,
-          );
-          lastStringRef.current = nextReading?.stringId ?? lastStringRef.current;
-          stringMotionRef.current = {
-            activeId: nextReading?.stringId ?? null,
-            hz,
-            rms,
-            cents: nextReading?.cents ?? 0,
-            inTune: nextReading?.direction === "in_tune",
-            alive: true,
-          };
-          setReading(nextReading);
-          applyHold(nextReading, now);
+          setReading(identifyTunerPitch(hz));
         } else if (
           lastHeardRef.current > 0 &&
           now - lastHeardRef.current >= PITCH_SILENCE_MS
         ) {
           smoothedHz.current = null;
-          lastStringRef.current = null;
-          stringMotionRef.current = {
-            ...stringMotionRef.current,
-            activeId: null,
-            rms: 0,
-            inTune: false,
-            alive: true,
-          };
           setReading(null);
-          applyHold(null, now);
-        } else {
-          stringMotionRef.current = {
-            ...stringMotionRef.current,
-            rms,
-            alive: true,
-          };
         }
         rafRef.current = requestAnimationFrame(tick);
       };
@@ -409,76 +348,45 @@ export function Tuner() {
     return () => stop();
   }, [start, stop]);
 
-  useEffect(() => {
-    const nextTuned = pruneTunedToInstrument(tunedRef.current, instrument);
-    tunedRef.current = nextTuned;
-    setTuned(nextTuned);
-    setReading(null);
-    lastStringRef.current = null;
-    holdRef.current = null;
-    setHoldProgress(0);
-    setHoldingId(null);
-    stringMotionRef.current = {
-      ...stringMotionRef.current,
-      activeId: null,
-      rms: 0,
-      inTune: false,
-    };
-  }, [instrument]);
-
-  useEffect(() => {
-    const layout = tunerStringsFor(instrument);
-    if (layout.length === 0 || !layout.every((s) => tuned.has(s.id))) return;
-    const timer = window.setTimeout(() => {
-      setTuned(new Set());
-      holdRef.current = null;
-      setHoldProgress(0);
-      setHoldingId(null);
-    }, ALL_TUNED_RESET_MS);
-    return () => window.clearTimeout(timer);
-  }, [instrument, tuned]);
-
-  const layout = tunerStringsFor(instrument);
-  const activeId = reading?.stringId ?? null;
-  const holding = holdingId != null && holdProgress > 0 && holdProgress < 1;
-  const allTuned = layout.length > 0 && layout.every((s) => tuned.has(s.id));
-  const idle = listening && !reading && !holding && !allTuned;
+  const heardRef = useRef(false);
+  if (reading) heardRef.current = true;
+  const heldCents =
+    reading && Number.isFinite(reading.cents) ? reading.cents : null;
+  const centsRef = useRef<number | null>(null);
+  if (heldCents != null) centsRef.current = heldCents;
+  const needleCents = heardRef.current ? centsRef.current : null;
+  const settled = useSettledTunerCopy(
+    reading
+      ? {
+          name: tunerReelNote(reading.pitchClass),
+          phrase: tunerCentsLabel(reading),
+          side:
+            reading.direction === "low" || reading.direction === "high"
+              ? reading.direction
+              : "in_tune",
+        }
+      : null,
+  );
 
   return (
     <section className="musai-tuner">
       <div
         className={`musai-glass-surface musai-tuner-shell ${
           listening ? "musai-tuner-shell--live" : ""
-        } ${allTuned ? "musai-tuner-shell--all-tuned" : ""}`}
+        }`}
       >
         <div className="musai-tuner-board">
-          {layout.length > 0 ? (
-            <ViolinTunerFigure
-              strings={layout}
-              activeId={activeId}
-              tuned={tuned}
-              liveDirection={reading?.direction ?? null}
-              holdingId={holdingId}
-              holdProgress={holdProgress}
-              motionRef={stringMotionRef}
-              idle={idle}
-            />
-          ) : (
-            <p className="musai-tuner-pitch font-display">
-              {reading?.targetLabel ?? "—"}
-            </p>
-          )}
+          <TunerReel reading={reading} />
 
-          <PitchBalanceMeter
-            reading={reading}
-            holding={holding}
-            holdProgress={holdProgress}
-            idle={idle}
-          />
+          <TunerNeedle cents={needleCents} heard={heardRef.current} />
+
+          <p className="musai-tuner-cents" data-side={settled.side}>
+            {settled.phrase}
+          </p>
         </div>
 
         <p className="sr-only" aria-live="polite">
-          {spokenStatus(reading, holding, holdProgress, tuned, layout, instrument)}
+          {spokenStatus(settled)}
         </p>
 
         {message ? (

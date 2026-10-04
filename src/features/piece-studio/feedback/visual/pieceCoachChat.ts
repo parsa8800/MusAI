@@ -55,6 +55,18 @@ export type PieceAskContext = {
   measureCount: number;
 };
 
+/** Two short ideas before the student has asked anything. */
+export function pieceCoachIdlePrompts(): string[] {
+  return ["What key is this?", "Where should I start?"];
+}
+
+/** One follow-up after they have started talking. */
+export function pieceCoachFollowPrompt(
+  issue: PieceCoachIssueView | null,
+): string {
+  return issue ? "How do I practise this?" : "How should I practise the opening?";
+}
+
 /** Prompts about the written piece. The chat shows a few that have not been asked yet. */
 export function pieceAskSuggestions(ctx: PieceAskContext): string[] {
   const prompts = ["What key is this?"];
@@ -129,7 +141,7 @@ export function localPieceAskReply(
 
   if (/\b(who wrote|composer|what piece|what is this)\b/.test(q)) {
     return ctx.composer
-      ? `• ${ctx.composer} — ${ctx.title}.`
+      ? `• ${ctx.composer} wrote ${ctx.title}.`
       : `• This is ${ctx.title}.`;
   }
 
@@ -195,12 +207,23 @@ export function localPieceCoachReply(
   ) {
     const ordered = prioritizePieceCoachIssues(allIssues);
     if (ordered.length === 0) return "• Keep looping the piece slowly.";
-    const lines = ordered.slice(0, 3).map((item, index) => {
+    const lines = ordered.slice(0, 3).map((item) => {
       const place = pieceCoachPlaceLine(item);
-      const label = place ? `${item.what} — ${place}` : item.what;
-      return index === 0 ? `• First: ${label}` : `• Then: ${label}`;
+      const fact = item.what.replace(/[.]+$/g, "");
+      return place ? `• ${place}. ${fact}` : `• ${fact}`;
     });
     return lines.join("\n");
+  }
+  if (
+    q.includes("practise") ||
+    q.includes("practice") ||
+    q.includes("fix") ||
+    q.includes("how")
+  ) {
+    return `• ${issue.practise}`;
+  }
+  if (q.includes("why") || q.includes("happen")) {
+    return `• ${issue.what}\n• ${issue.practise}`;
   }
   if (
     q.includes("where") ||
@@ -212,16 +235,5 @@ export function localPieceCoachReply(
   ) {
     return `• ${issue.where}`;
   }
-  if (
-    q.includes("practise") ||
-    q.includes("practice") ||
-    q.includes("fix") ||
-    q.includes("how")
-  ) {
-    return `• ${issue.practise}`;
-  }
-  if (q.includes("why") || q.includes("what") || q.includes("happen")) {
-    return `• ${issue.what}\n• ${issue.coach}`;
-  }
-  return `• ${issue.coach}`;
+  return `• ${issue.what}\n• ${issue.practise}`;
 }

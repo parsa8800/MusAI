@@ -13,6 +13,7 @@ import {
   type PieceScoreHighlight,
 } from "@/features/piece-studio/score/OsmdScoreAdapter";
 import type { PitchNoteMark } from "@/features/piece-studio/feedback/visual/piecePitchScoreMap";
+import type { DynamicLetterMark } from "@/features/piece-studio/feedback/visual/pieceDynamicsScoreMap";
 import { musicXmlFromBytes } from "@/features/piece-studio/score/musicXmlSource";
 import { sanitizeMusicXmlDynamics } from "@/features/piece-studio/score/sanitizeMusicXmlDynamics";
 import { prepareMusicXmlForEngraving } from "@/features/piece-studio/score/prepareMusicXmlForEngraving";
@@ -55,6 +56,7 @@ export function PieceScorePaper({
   highlight = null,
   highlights = null,
   pitchMarks = null,
+  dynamicMarks = null,
   onHighlightSelect,
   onScoreOpen,
 }: {
@@ -79,6 +81,8 @@ export function PieceScorePaper({
   highlights?: readonly PieceScoreHighlight[] | null;
   /** Pitch notehead colour map (Practise). */
   pitchMarks?: readonly PitchNoteMark[] | null;
+  /** Written dynamic letters that were too loud or too soft. */
+  dynamicMarks?: readonly DynamicLetterMark[] | null;
   onHighlightSelect?: (id: string) => void;
   /** Fires once the score module is mounted (Listen waits on this plus the piano). */
   onScoreOpen?: () => void;
@@ -224,6 +228,7 @@ export function PieceScorePaper({
             highlight={followPlayback ? null : highlight}
             highlights={followPlayback ? null : highlights}
             pitchMarks={followPlayback ? null : pitchMarks}
+            dynamicMarks={followPlayback ? null : dynamicMarks}
             onHighlightSelect={onHighlightSelect}
           />
         ) : (

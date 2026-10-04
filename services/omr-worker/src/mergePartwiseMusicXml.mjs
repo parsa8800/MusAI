@@ -118,12 +118,15 @@ export function pageFileIndex(fileName) {
  *
  * Audiveris variations each carry their own divisions / page prints / empty
  * measures. Concatenating them raw crashes OSMD (`getStave` / `staffEntries`).
+ * Printed line breaks are kept. Staccato dots and fermatas from a scan are
+ * often not on the page, so those are removed. Dynamics and hairpins stay.
  */
 export function prepareMergedScoreForEngraving(xml) {
   if (!xml || !looksPartwise(xml)) return xml;
   let out = stripDoctype(xml);
   out = normalizeDivisions(out, ENGRAVING_DIVISIONS);
   out = stripPrintBlocks(out);
+  out = stripScannerMarks(out);
   out = stripLeftBarlines(out);
   out = stripStaffDetails(out);
   out = closeUnmatchedOctaveShifts(out);
@@ -148,7 +151,27 @@ function stripDoctype(xml) {
 }
 
 function stripPrintBlocks(xml) {
-  return xml.replace(/<print\b[\s\S]*?<\/print>/gi, "");
+  const keepBreak = (_full, attrs) => {
+    const flags = [];
+    if (/\bnew-system\s*=\s*["']yes["']/i.test(attrs)) {
+      flags.push('new-system="yes"');
+    }
+    if (/\bnew-page\s*=\s*["']yes["']/i.test(attrs)) {
+      flags.push('new-page="yes"');
+    }
+    return flags.length > 0 ? `<print ${flags.join(" ")}/>` : "";
+  };
+  return xml
+    .replace(/<print\b([^>]*?)\/>/gi, keepBreak)
+    .replace(/<print\b([^>]*)>([\s\S]*?)<\/print>/gi, keepBreak);
+}
+
+function stripScannerMarks(xml) {
+  return xml
+    .replace(/<articulations\b[^>]*\/>/gi, "")
+    .replace(/<articulations\b[\s\S]*?<\/articulations>/gi, "")
+    .replace(/<fermata\b[^>]*\/>/gi, "")
+    .replace(/<fermata\b[\s\S]*?<\/fermata>/gi, "");
 }
 
 function stripLeftBarlines(xml) {

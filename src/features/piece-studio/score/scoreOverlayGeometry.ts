@@ -164,14 +164,29 @@ export function overlayNoteUnderlinesForRange(
  * Bar wash: just below the top staff line and just above the bottom staff
  * line — never spilling past either edge. Keeps the caller’s horizontal
  * note-aligned span (no forced min-width that drifts off the notes).
+ *
+ * Rhythm passes `staffOutset` so the box sits a fixed margin outside the
+ * five staff lines. That margin is a fraction of the staff height, so high
+ * or low notes do not change the frame.
  */
 export function shapePassageUnderlay(
   rect: ScoreOverlayRect,
   style: "heat" | "measure" | "note",
+  options?: { staffOutset?: boolean },
 ): ScoreOverlayRect {
   const staffTop = rect.y;
   const staffH = Math.max(rect.height, 24);
   const staffBottom = staffTop + staffH;
+  if (options?.staffOutset) {
+    const padY = staffH * 0.12;
+    const padX = staffH * 0.25;
+    return {
+      x: rect.x - padX,
+      y: staffTop - padY,
+      width: Math.max(8, rect.width + padX * 2),
+      height: staffH + padY * 2,
+    };
+  }
   const insetY = Math.max(
     2.5,
     style === "measure" ? staffH * 0.1 : style === "heat" ? staffH * 0.09 : staffH * 0.11,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode, type RefObject } from "react";
+import { useEffect, useState, type ReactNode, type RefObject } from "react";
 import { MusaiFileImport } from "@/components/MusaiFileImport";
 import { MusaiMicCapturePanel } from "@/components/MusaiMicCapturePanel";
 import { MusaiSegmentedControl } from "@/components/MusaiSegmentedControl";
@@ -125,12 +125,27 @@ export function MusaiCaptureDock({
   module,
 }: Props) {
   const [rejectMessage, setRejectMessage] = useState<string | null>(null);
+  const [importTick, setImportTick] = useState(false);
   const analysing = status === "loading" || uploadProcessing;
   const ready =
     !analysing &&
     ((captureMode === "record" && !!recordedBlob) ||
       (captureMode === "upload" && !!file));
   const showRecord = captureMode === "record";
+
+  useEffect(() => {
+    const imported = Boolean(file) && !uploadProcessing;
+    if (!imported) {
+      setImportTick(false);
+      return;
+    }
+    setImportTick(true);
+    const reduced =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const id = window.setTimeout(() => setImportTick(false), reduced ? 700 : 1900);
+    return () => window.clearTimeout(id);
+  }, [file, uploadProcessing]);
 
   const importLabel = file
     ? "Ready"
@@ -221,8 +236,9 @@ export function MusaiCaptureDock({
                 : file
                   ? "musai-capture-import--ready"
                   : ""
-            }`}
+            }${importTick ? " musai-capture-import--tick" : ""}`}
           >
+            {importTick ? <ImportSuccessTick /> : null}
             <MusaiFileImport
               className="musai-capture-file-import"
               testId="scale-file-import"
@@ -237,10 +253,12 @@ export function MusaiCaptureDock({
               inputAriaLabel="Import audio file"
               error={rejectMessage}
               onReject={setRejectMessage}
+              onPickerOpen={() => setImportTick(false)}
               onFilesSelected={(files) => {
                 const next = files[0];
                 if (!next) return;
                 setRejectMessage(null);
+                setImportTick(false);
                 onFileSelected(next);
               }}
             />
@@ -274,6 +292,37 @@ export function MusaiCaptureDock({
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+function ImportSuccessTick() {
+  const [playing, setPlaying] = useState(false);
+  useEffect(() => {
+    let second = 0;
+    const first = window.requestAnimationFrame(() => {
+      second = window.requestAnimationFrame(() => setPlaying(true));
+    });
+    return () => {
+      window.cancelAnimationFrame(first);
+      window.cancelAnimationFrame(second);
+    };
+  }, []);
+
+  return (
+    <div
+      className={`musai-import-tick-pop${playing ? " is-playing" : ""}`}
+      aria-hidden
+    >
+      <span className="musai-import-tick__glow" />
+      <svg className="musai-import-tick" viewBox="0 0 48 48">
+        <circle className="musai-import-tick__ring" cx="24" cy="24" r="16" pathLength="1" />
+        <path
+          className="musai-import-tick__mark"
+          d="M16.2 24.6l5 5.1L32.2 18.4"
+          pathLength="1"
+        />
+      </svg>
     </div>
   );
 }

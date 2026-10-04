@@ -12,7 +12,12 @@ import {
   applyPitchNoteheadTints,
   clearPitchNoteheadTints,
 } from "@/features/piece-studio/score/pitchNoteheadTint";
+import {
+  applyDynamicLetterTints,
+  clearDynamicLetterTints,
+} from "@/features/piece-studio/score/dynamicLetterTint";
 import type { PitchNoteMark } from "@/features/piece-studio/feedback/visual/piecePitchScoreMap";
+import type { DynamicLetterMark } from "@/features/piece-studio/feedback/visual/pieceDynamicsScoreMap";
 import { collectStaffBandsFromDom } from "@/features/piece-studio/score/staffBands";
 import { ScorePlaybackPlayhead } from "@/features/piece-studio/score/ScorePlaybackPlayhead";
 import {
@@ -191,6 +196,7 @@ export function OsmdScoreAdapter({
   highlight = null,
   highlights = null,
   pitchMarks = null,
+  dynamicMarks = null,
   onHighlightSelect,
   onPaintState,
   showInlineError = true,
@@ -229,6 +235,8 @@ export function OsmdScoreAdapter({
    * Cleared when empty / Listen follow mode.
    */
   pitchMarks?: readonly PitchNoteMark[] | null;
+  /** Written dynamic letters that were too loud or too soft. */
+  dynamicMarks?: readonly DynamicLetterMark[] | null;
   onHighlightSelect?: (id: string) => void;
   /** Fires preparing → ready | failed. Import review gates confirm on `ready`. */
   onPaintState?: (state: ScorePaintState) => void;
@@ -270,7 +278,7 @@ export function OsmdScoreAdapter({
   const suppressScoreClickRef = useRef(false);
   viewModeRef.current = followPlayback ? "continuous" : viewMode;
   const scrubEnabled = Boolean(
-    followPlayback && onScrubPreview && onScrubCommit,
+    playheadOn && onScrubPreview && onScrubCommit,
   );
 
   const activeHighlights = useMemo(() => {
@@ -302,7 +310,9 @@ export function OsmdScoreAdapter({
         style === "note"
           ? overlayNoteUnderlinesForRange(snaps, start, end)
           : overlayRectsForRange(snaps, start, end, staffBands).map((rect) =>
-              shapePassageUnderlay(rect, style),
+              shapePassageUnderlay(rect, style, {
+                staffOutset: item.visualTone === "rhythm" && style === "heat",
+              }),
             );
       rects.forEach((rect, i) => {
         out.push({
@@ -384,18 +394,21 @@ export function OsmdScoreAdapter({
     const wrap = wrapRef.current;
     if (followPlayback || !wrap) {
       clearPitchNoteheadTints(wrap);
+      clearDynamicLetterTints(wrap);
       return;
     }
     const marks = pitchMarks ?? [];
     const convert =
       convertRef.current ?? ((wn: number) => wn * 4 * (60 / 100));
     applyPitchNoteheadTints(wrap, snapsRef.current, marks, convert);
+    applyDynamicLetterTints(wrap, dynamicMarks ?? []);
     return () => {
       clearPitchNoteheadTints(wrap);
+      clearDynamicLetterTints(wrap);
     };
     // snapVersion refreshes after layout so heads exist to tint.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [followPlayback, pitchMarks, snapVersion]);
+  }, [followPlayback, pitchMarks, dynamicMarks, snapVersion]);
 
   const takeSnapshots = () => {
     const renderer = rendererRef.current;
@@ -825,7 +838,7 @@ export function OsmdScoreAdapter({
 
   const onClick = (event: React.MouseEvent<HTMLDivElement>) => {
     const markScore = onLoopMark ?? onSeek;
-    if (!followPlayback || !markScore || activeHighlights.length > 0) return;
+    if (!playheadOn || !markScore) return;
     if (suppressScoreClickRef.current) {
       suppressScoreClickRef.current = false;
       return;
@@ -930,6 +943,7 @@ export function OsmdScoreAdapter({
           subscribePlaybackTime={subscribePlaybackTime}
           syncRef={syncPlaybackPoseRef}
           scrubEnabled={scrubEnabled}
+          scrubFromScore={scrubEnabled && !loopPicking}
           onScrubPreview={onScrubPreview}
           onScrubCommit={onScrubCommit}
           getPlaying={getPlaying}

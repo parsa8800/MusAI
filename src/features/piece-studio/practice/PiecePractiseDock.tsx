@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { MusaiMicCapturePanel } from "@/components/MusaiMicCapturePanel";
+import { MusaiCaptureDock } from "@/components/MusaiCaptureDock";
+import { MusaiSegmentedControl } from "@/components/MusaiSegmentedControl";
 import {
   pieceProgressSnapshot,
   pieceTakeCopy,
@@ -10,8 +11,10 @@ import { usePiecePracticeCapture } from "@/features/piece-studio/practice/usePie
 import { latestAttempt } from "@/features/piece-studio/practice/piecePracticeAttempts";
 import { readPieceAttemptRecording } from "@/features/piece-studio/pieceStudioFiles";
 import { PieceTakeReplay } from "@/features/piece-studio/practice/PieceTakeReplay";
+import { isGeneratedPieceSampleRecording } from "@/features/piece-studio/practice/synthesizePieceSampleTake";
 import {
   createHtmlMediaClock,
+  seekHtmlMedia,
   type PiecePlayheadClock,
   type TakeClockMap,
 } from "@/features/piece-studio/playback/htmlMediaClock";
@@ -37,7 +40,13 @@ export function PiecePractiseDock({
   onCapturePhaseChange,
   onPlayheadClock,
   mapTakeTime,
+  scoreTimeToAudio,
   pauseTakeRef,
+  seekTakeRef,
+  takePlayingRef,
+  showPitchColourToggle = false,
+  pitchColoursOn = true,
+  onTogglePitchColours,
 }: {
   piece: PieceWorkspaceV1;
   structured: MusaiScoreV1 | null | undefined;
@@ -51,11 +60,25 @@ export function PiecePractiseDock({
   onPlayheadClock?: (clock: PiecePlayheadClock | null) => void;
   /** Recording seconds → written score seconds, read on every tick. */
   mapTakeTime?: TakeClockMap;
+  /** Written score seconds → recording seconds, for playhead seeks. */
+  scoreTimeToAudio?: (scoreSec: number, audioDurationSec: number) => number;
   /** Pause last-take replay when the written section starts. */
   pauseTakeRef?: { current: (() => void) | null };
+  /** Move the last take to the note under the playhead. */
+  seekTakeRef?: {
+    current: ((scoreSec: number, resume: boolean) => void) | null;
+  };
+  /** Whether the last take is sounding, read when a playhead drag starts. */
+  takePlayingRef?: { current: (() => boolean) | null };
+  /** Latest take has tuning colours that can be hidden. */
+  showPitchColourToggle?: boolean;
+  pitchColoursOn?: boolean;
+  onTogglePitchColours?: () => void;
 }) {
   const {
     selectId,
+    captureMode,
+    setCaptureMode,
     isRecording,
     analysing,
     elapsedLabel,
@@ -67,14 +90,19 @@ export function PiecePractiseDock({
     status,
     startRecording,
     stopRecording,
-    loadSampleTake,
     discardRecording,
+    discardClip,
     streamRef,
     selectedMicId,
     setSelectedMicId,
     micDevices,
     refreshMicDevices,
     recordedBlob,
+    file,
+    uploadProcessing,
+    fileInputRef,
+    handleFileChange,
+    mainRecorderRef,
   } = usePiecePracticeCapture({
     pieceId: piece.pieceId,
     structured,
@@ -86,10 +114,13 @@ export function PiecePractiseDock({
   const [clip, setClip] = useState<{ attemptId: string; url: string } | null>(
     null,
   );
+  const [scoreOptionsOpen, setScoreOptionsOpen] = useState(false);
+  const scoreOptionsRef = useRef<HTMLDivElement | null>(null);
   const onBusyChangeRef = useRef(onBusyChange);
   const onCapturePhaseChangeRef = useRef(onCapturePhaseChange);
   const onPlayheadClockRef = useRef(onPlayheadClock);
   const mapTakeTimeRef = useRef(mapTakeTime);
+  const scoreTimeToAudioRef = useRef(scoreTimeToAudio);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const takeUrl =
     last?.hasRecording && clip?.attemptId === last.attemptId ? clip.url : null;
@@ -106,6 +137,7 @@ export function PiecePractiseDock({
     onCapturePhaseChangeRef.current = onCapturePhaseChange;
     onPlayheadClockRef.current = onPlayheadClock;
     mapTakeTimeRef.current = mapTakeTime;
+    scoreTimeToAudioRef.current = scoreTimeToAudio;
   });
 
   useEffect(() => {
@@ -115,6 +147,7 @@ export function PiecePractiseDock({
     const attemptId = last.attemptId;
     void readPieceAttemptRecording(piece.pieceId, attemptId).then((blob) => {
       if (cancelled || !blob || blob.size < 1) return;
+      if (isGeneratedPieceSampleRecording(blob)) return;
       const url = URL.createObjectURL(playableTakeBlob(blob));
       if (cancelled) {
         URL.revokeObjectURL(url);
@@ -133,6 +166,29 @@ export function PiecePractiseDock({
     onBusyChangeRef.current?.(busy);
     return () => onBusyChangeRef.current?.(false);
   }, [busy]);
+
+  useEffect(() => {
+    if (!showPitchColourToggle) setScoreOptionsOpen(false);
+  }, [showPitchColourToggle]);
+
+  useEffect(() => {
+    if (!scoreOptionsOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (scoreOptionsRef.current?.contains(target)) return;
+      setScoreOptionsOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setScoreOptionsOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [scoreOptionsOpen]);
 
   useEffect(() => {
     onCapturePhaseChangeRef.current?.(capturePhase);
@@ -158,14 +214,39 @@ export function PiecePractiseDock({
   }, [takeUrl, showResult]);
 
   useEffect(() => {
-    if (!pauseTakeRef) return;
-    pauseTakeRef.current = () => {
-      audioRef.current?.pause();
+    const audioSecFor = (scoreSec: number) => {
+      const el = audioRef.current;
+      const dur = el?.duration;
+      const audioDur = typeof dur === "number" && Number.isFinite(dur) && dur > 0 ? dur : 0;
+      return scoreTimeToAudioRef.current
+        ? scoreTimeToAudioRef.current(scoreSec, audioDur)
+        : scoreSec;
     };
+    if (pauseTakeRef) {
+      pauseTakeRef.current = () => {
+        audioRef.current?.pause();
+      };
+    }
+    if (takePlayingRef) {
+      takePlayingRef.current = () => {
+        const el = audioRef.current;
+        return Boolean(el && !el.paused && !el.ended);
+      };
+    }
+    if (seekTakeRef) {
+      seekTakeRef.current = (scoreSec, resume) => {
+        const el = audioRef.current;
+        if (!el) return;
+        seekHtmlMedia(el, audioSecFor(scoreSec));
+        if (resume) void el.play().catch(() => undefined);
+      };
+    }
     return () => {
-      pauseTakeRef.current = null;
+      if (pauseTakeRef) pauseTakeRef.current = null;
+      if (takePlayingRef) takePlayingRef.current = null;
+      if (seekTakeRef) seekTakeRef.current = null;
     };
-  }, [pauseTakeRef, takeUrl, showResult]);
+  }, [pauseTakeRef, seekTakeRef, takePlayingRef, takeUrl, showResult]);
 
   const onStart = () => {
     if (busy) return;
@@ -180,83 +261,113 @@ export function PiecePractiseDock({
     stopRecording();
   };
 
-  const canSample =
-    Boolean(structured) && expectedNotesReady(structured) && !busy;
-
   return (
-    <div className="musai-piece-practise-dock" data-testid="piece-practise-dock">
     <div
-      className="musai-piece-practise"
+      className="musai-piece-practise-dock musai-studio-stage__capture"
+      data-testid="piece-practise-dock"
       data-recording={isRecording ? "true" : "false"}
       data-analysing={analysing ? "true" : "false"}
     >
-      <div className="musai-piece-practise__capture">
-        <MusaiMicCapturePanel
-          selectId={selectId}
-          micDevices={micDevices}
-          selectedMicId={selectedMicId}
-          onMicChange={setSelectedMicId}
-          onMicRefresh={() => void refreshMicDevices()}
-          isRecording={isRecording}
-          hasSavedClip={Boolean(recordedBlob) || Boolean(takeUrl)}
-          density="compact"
-          experience="studio"
-          clipChrome="minimal"
-          onStartRecording={onStart}
-          onStopRecording={onStop}
-          onDiscardRecording={discardRecording}
-          streamRef={streamRef}
-          elapsedLabelOverride={elapsedLabel}
-          levelBarsOverride={levelBars}
-          waveformSamplesOverride={waveformSamples}
-          waveformLiveRef={waveformLiveRef}
-          lastTakeLabelOverride={lastTakeLabel}
-          idleTitle={undefined}
-          idleHint={undefined}
-          startAriaLabel={next.ariaLabel}
-          busy={analysing}
-        />
-      </div>
-
-      {message ? (
-        <p
-          className="musai-piece-practise__message"
-          role={status === "error" ? "alert" : "status"}
-        >
-          {message}
-        </p>
-      ) : null}
-
-      {showResult && last?.hasRecording && takeUrl ? (
-        <PieceTakeReplay
-          src={takeUrl}
-          durationSec={last.durationSec}
-          takeNumber={last.attemptNumber}
-          audioRef={audioRef}
-        />
-      ) : null}
-    </div>
-    {structured ? (
-      <button
-        type="button"
-        className="musai-pressable musai-piece-practise__sample"
-        disabled={!canSample}
-        onClick={() => {
-          if (!canSample) return;
-          tapFeedback("light");
-          audioRef.current?.pause();
-          loadSampleTake();
+      <MusaiCaptureDock
+        selectId={selectId}
+        captureMode={captureMode}
+        onCaptureMode={setCaptureMode}
+        isRecording={isRecording}
+        recordedBlob={recordedBlob}
+        file={file}
+        uploadProcessing={uploadProcessing}
+        fileInputRef={fileInputRef}
+        onFileSelected={handleFileChange}
+        mainRecorderRef={mainRecorderRef}
+        micDevices={micDevices}
+        selectedMicId={selectedMicId}
+        onMicChange={setSelectedMicId}
+        onMicRefresh={() => void refreshMicDevices()}
+        onDiscardClip={discardClip}
+        onStartRecording={onStart}
+        onStopRecording={onStop}
+        onDiscardRecording={discardRecording}
+        streamRef={streamRef}
+        elapsedLabel={elapsedLabel}
+        levelBars={levelBars}
+        waveformSamples={waveformSamples}
+        waveformLiveRef={waveformLiveRef}
+        lastTakeLabel={lastTakeLabel}
+        nextTake={{
+          label: next.label,
+          hint: next.hint,
+          ariaLabel: next.ariaLabel,
         }}
-      >
-        Sample take
-      </button>
-    ) : null}
+        message={message}
+        status={status}
+        canAnalyze={false}
+        onAnalyze={() => undefined}
+        hideAnalyze
+        module="studio"
+      />
+
+      {showPitchColourToggle || (showResult && last?.hasRecording && takeUrl) ? (
+        <div className="musai-piece-practise-dock__after">
+          {showResult && last?.hasRecording && takeUrl ? (
+            <PieceTakeReplay
+              src={takeUrl}
+              durationSec={last.durationSec}
+              takeNumber={last.attemptNumber}
+              audioRef={audioRef}
+            />
+          ) : null}
+          {showPitchColourToggle ? (
+            <div className="musai-piece-score-options" ref={scoreOptionsRef}>
+              <button
+                type="button"
+                className="musai-pressable musai-piece-score-options__btn"
+                aria-label="Score options"
+                aria-expanded={scoreOptionsOpen}
+                aria-controls="piece-score-options"
+                data-testid="piece-score-options"
+                data-active={scoreOptionsOpen ? "true" : "false"}
+                onClick={() => {
+                  tapFeedback("light");
+                  setScoreOptionsOpen((open) => !open);
+                }}
+              >
+                <svg viewBox="0 0 24 24" className="musai-piece-score-options__glyph" aria-hidden>
+                  <path
+                    d="M4 7.5h16M4 12h16M4 16.5h16"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                  />
+                  <circle cx="9" cy="7.5" r="1.7" fill="currentColor" />
+                  <circle cx="15" cy="12" r="1.7" fill="currentColor" />
+                  <circle cx="8" cy="16.5" r="1.7" fill="currentColor" />
+                </svg>
+              </button>
+              {scoreOptionsOpen ? (
+                <div
+                  id="piece-score-options"
+                  className="musai-piece-score-options__menu"
+                  role="dialog"
+                  aria-label="Score view"
+                >
+                  <MusaiSegmentedControl<"tuning" | "plain">
+                    ariaLabel="Score view"
+                    className="musai-piece-score-view__switch"
+                    size="compact"
+                    value={pitchColoursOn ? "tuning" : "plain"}
+                    onChange={() => onTogglePitchColours?.()}
+                    options={[
+                      { value: "plain", label: "Plain" },
+                      { value: "tuning", label: "Tuning" },
+                    ]}
+                  />
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
-}
-
-function expectedNotesReady(
-  score: MusaiScoreV1 | null | undefined,
-): boolean {
-  return Boolean(score && score.parts.some((part) => part.measures.length > 0));
 }

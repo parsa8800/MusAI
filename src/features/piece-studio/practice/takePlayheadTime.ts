@@ -100,6 +100,61 @@ export function recordingTimeToScoreTime(
 }
 
 /**
+ * Turn a playhead position on the written score back into the take's audio
+ * time, so dragging the bar seeks the recording to the note under it.
+ */
+export function scoreTimeToRecordingTime(
+  scoreSec: number,
+  audioDurationSec: number,
+  scoreDurationSec: number,
+  anchors: readonly ScoreTimeAnchor[],
+): number {
+  const score = Number.isFinite(scoreSec) ? Math.max(0, scoreSec) : 0;
+  const audioDur =
+    Number.isFinite(audioDurationSec) && audioDurationSec > 0
+      ? audioDurationSec
+      : 0;
+  const scoreDur =
+    Number.isFinite(scoreDurationSec) && scoreDurationSec > 0
+      ? scoreDurationSec
+      : 0;
+  const points = monotoneAnchors(anchors);
+
+  if (points.length === 0) {
+    if (audioDur <= 0 || scoreDur <= 0) return score;
+    return Math.min(audioDur, (score / scoreDur) * audioDur);
+  }
+
+  const first = points[0]!;
+  if (score <= first.scoreSec + 1e-4) {
+    if (first.scoreSec <= 1e-4) return first.audioSec;
+    return Math.min(1, score / first.scoreSec) * first.audioSec;
+  }
+
+  let index = 0;
+  while (
+    index + 1 < points.length &&
+    points[index + 1]!.scoreSec < score - 1e-4
+  ) {
+    index += 1;
+  }
+  const here = points[index]!;
+  const next = points[index + 1];
+  if (next && next.scoreSec > here.scoreSec + 1e-4) {
+    const span = next.scoreSec - here.scoreSec;
+    const u = Math.min(1, Math.max(0, (score - here.scoreSec) / span));
+    return here.audioSec + u * (next.audioSec - here.audioSec);
+  }
+
+  if (scoreDur > here.scoreSec + 1e-3 && audioDur > here.audioSec + 1e-3) {
+    const span = scoreDur - here.scoreSec;
+    const u = Math.min(1, Math.max(0, (score - here.scoreSec) / span));
+    return here.audioSec + u * (audioDur - here.audioSec);
+  }
+  return here.audioSec;
+}
+
+/**
  * Heard time of each expected note, for a take saved before those times
  * were stored on the feedback report.
  */
@@ -119,6 +174,7 @@ export async function heardSecondsForRecording(input: {
       mono,
       sampleRateHz: audioBuffer.sampleRate,
       expectedMidis: expected.map((note) => note.midi),
+      durationQuarters: expected.map((note) => note.durationQuarters),
       ...activePiecePitchWindow(),
     });
     return match.timesSec;

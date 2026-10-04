@@ -144,7 +144,7 @@ describe("alignCursorSamplesToNotes", () => {
     expect(snaps.map((s) => s.x)).toEqual([100, 140, 180]);
   });
 
-  it("keeps moving when the walk stops mid-piece (no freeze on last sample)", () => {
+  it("keeps early notes on their heads when the walk stops mid-piece", () => {
     const short: CursorWalkSample[] = [
       { realValue: 0, x: 100, y: 50, height: 40 },
       { realValue: 0.25, x: 140, y: 50, height: 40 },
@@ -152,11 +152,7 @@ describe("alignCursorSamplesToNotes", () => {
     ];
     const snaps = alignCursorSamplesToNotes(short, notes, wholeToSec);
     expect(snaps).toHaveLength(5);
-    expect(snaps[0]?.x).toBe(100);
-    expect(snaps[4]?.x).toBe(180);
-    // Mid notes land on a real head — not stuck on the first or last only.
-    expect(snaps[2]?.x).toBeGreaterThan(100);
-    expect(snaps[2]?.x).toBeLessThan(180);
+    expect(snaps.map((s) => s.x)).toEqual([100, 140, 180, 180, 180]);
     expect(snaps.map((s) => s.tSec)).toEqual(notes.map((n) => n.startSec));
   });
 

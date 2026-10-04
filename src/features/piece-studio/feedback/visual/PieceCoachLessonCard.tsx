@@ -44,15 +44,20 @@ export function PieceCoachLessonCard({
         </p>
       ) : null}
 
-      <p className="musai-piece-lesson__what" data-testid="piece-focus-what">
-        {oneLine(what)}
-      </p>
-
       {selected && next.trim() ? (
-        <p className="musai-piece-lesson__try" data-testid="piece-focus-try">
-          {oneLine(next)}
+        <>
+          <p className="musai-piece-lesson__what" data-testid="piece-focus-what">
+            {`• ${oneLine(what)}`}
+          </p>
+          <p className="musai-piece-lesson__try" data-testid="piece-focus-try">
+            {`• ${oneLine(next)}`}
+          </p>
+        </>
+      ) : (
+        <p className="musai-piece-lesson__what" data-testid="piece-focus-what">
+          {oneLine(what)}
         </p>
-      ) : null}
+      )}
     </button>
   );
 }

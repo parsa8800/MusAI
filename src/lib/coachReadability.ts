@@ -224,10 +224,41 @@ function absorbIntroLists(blocks: Block[]): Block[] {
   return out;
 }
 
+/** Drop dash characters. A dash used as a join becomes a short pause. */
+function stripCoachDashes(text: string): string {
+  return text
+    .replace(/\s*[\u2012\u2013\u2014\u2015\u2212]\s*/g, ". ")
+    .replace(/\s+-\s+/g, ". ")
+    .replace(/[\u002D\u00AD\u2010\u2011]/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/\s+([.,!?])/g, "$1")
+    .replace(/(?:\.\s*){2,}/g, ". ")
+    .trim();
+}
+
+/**
+ * A reply that is already a few short points should stay a few short points.
+ * Choice lists and numbered steps still go through the fuller pass.
+ */
+function keepShortPoints(lines: readonly string[]): string | null {
+  if (lines.length < 2 || !lines.every((line) => line.startsWith("•"))) return null;
+  const bodies = lines.map((line) => stripCoachDashes(line.replace(/^•\s*/, "")));
+  if (bodies.some((line) => extractChoiceList(line) || splitOrderedSteps(line))) {
+    return null;
+  }
+  return bodies.map((line) => `• ${line.replace(/[.]+$/g, "")}`).join("\n");
+}
+
 /** Shape a coach reply so choices read as dots and ordered actions as numbers. */
 export function formatCoachReadability(text: string): string {
-  const source = text
+  const rawLines = text
     .split(/\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const kept = keepShortPoints(rawLines);
+  if (kept) return kept;
+
+  const source = rawLines
     .map((line) => line.replace(/^•\s*/, "").trim())
     .filter(Boolean);
   const blocks: Block[] = [];
@@ -236,5 +267,15 @@ export function formatCoachReadability(text: string): string {
       blocks.push(...sentenceToBlocks(sentence));
     }
   }
-  return renderBlocks(absorbIntroLists(blocks));
+  return renderBlocks(absorbIntroLists(blocks))
+    .split("\n")
+    .map((line) => {
+      const bullet = /^•\s*/.exec(line);
+      const step = /^(\d+\.\s+)/.exec(line);
+      const body = stripCoachDashes(line.replace(/^•\s*/, "").replace(/^\d+\.\s+/, ""));
+      if (bullet) return `• ${body}`;
+      if (step) return `${step[1]}${body}`;
+      return body;
+    })
+    .join("\n");
 }

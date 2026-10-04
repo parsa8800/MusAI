@@ -28,10 +28,24 @@ import {
   pieceImportFail,
   pieceImportLog,
 } from "@/features/piece-studio/omr/pieceImportPipelineLog";
-import { recognizeSheetMusic } from "@/features/piece-studio/omr/recognizeSheetMusic";
+import {
+  recognizeSheetMusic,
+  resumeSheetMusicJob,
+} from "@/features/piece-studio/omr/recognizeSheetMusic";
+import {
+  beginActivePieceImport,
+  clearActivePieceImport,
+  readActivePieceImport,
+  rememberActivePieceImportJob,
+  rememberActivePieceImportResult,
+  touchActivePieceImportProgress,
+} from "@/features/piece-studio/pieceImportResume";
 import { isSheetMusicScan } from "@/features/piece-studio/omr/sheetMusicScan";
 import { omrUserMessage, OMR_COPY } from "@/features/piece-studio/omr/omrProvider";
-import { validateRecognizedMusicXml } from "@/features/piece-studio/omr/validateRecognizedMusicXml";
+import {
+  validateMusicXmlInterchange,
+  validateRecognizedMusicXml,
+} from "@/features/piece-studio/omr/validateRecognizedMusicXml";
 import { importDigitalScoreFromFile } from "@/features/piece-studio/pieceStudioDigitalImport";
 import { isMusicXmlInterchangeFile } from "@/features/piece-studio/score/musicXmlSource";
 import {
@@ -255,6 +269,7 @@ export async function importPieceFromFile(
   });
 
   const fallbackTitle = titleFromFileName(file.name);
+  await beginActivePieceImport(file, kind);
   const baseDraft = (): Omit<
     PieceImportDraft,
     | "recognitionStatus"
@@ -275,7 +290,16 @@ export async function importPieceFromFile(
 
   // Direct digital score — dedicated path; never touches OMR / Audiveris.
   if (kind === "musicxml") {
-    return importDigitalScoreFromFile(file, deps);
+    const digital = await importDigitalScoreFromFile(file, deps);
+    await rememberActivePieceImportResult({
+      sessionId: digital.draft.sessionId,
+      file,
+      sourceKind: kind,
+      status: digital.draft.recognitionStatus,
+      musicXml: digital.draft.musicXml,
+      recognitionMessage: digital.draft.recognitionMessage,
+    });
+    return digital;
   }
 
   if (!isSheetMusicScan(file.name, file.type)) {
@@ -283,6 +307,7 @@ export async function importPieceFromFile(
       reason: "not a sheet-music scan (pdf/png/jpg)",
       sourceKind: kind,
     });
+    await clearActivePieceImport();
     throw new Error(
       kind === "unknown" ? OMR_COPY.chooseDigital : OMR_COPY.chooseFile,
     );
@@ -294,12 +319,42 @@ export async function importPieceFromFile(
     ((f: File) =>
       recognizeSheetMusic(f, {
         onPhase: (phase) => deps.onPhase?.(phase),
-        onProgress: (percent) => deps.onProgress?.(percent),
+        onProgress: (percent) => {
+          touchActivePieceImportProgress(percent);
+          deps.onProgress?.(percent);
+        },
+        onJobAccepted: (jobId) => {
+          rememberActivePieceImportJob(jobId);
+        },
       }));
   try {
     const recognized = await recognize(file);
+    return await finishRecognizedImport(file, kind, recognized, deps);
+  } catch (err) {
+    return failRecognizedImport(file, kind, err, baseDraft);
+  }
+}
+
+async function finishRecognizedImport(
+  file: File,
+  kind: PieceSourceKind,
+  recognized: string,
+  deps: ImportPieceDeps,
+): Promise<PieceImportResult> {
+  const fallbackTitle = titleFromFileName(file.name);
+  const base = {
+    sessionId: newSessionId(),
+    file,
+    sourceKind: kind,
+    sourceFileName: file.name,
+    sourceMimeType: file.type || "application/octet-stream",
+    title: fallbackTitle,
+    composer: null as string | null,
+  };
+  try {
     deps.onPhase?.("validating");
     deps.onProgress?.(96);
+    touchActivePieceImportProgress(96);
     pieceImportLog("PARSE", "start", {
       where: "validateRecognizedMusicXml after OMR",
     });
@@ -315,7 +370,7 @@ export async function importPieceFromFile(
     const score = digitalScoreFromMusai(structured);
     const hints = assessRecognition(structured);
     const draft: PieceImportDraft = {
-      ...baseDraft(),
+      ...base,
       title: score.title,
       composer: score.composer,
       recognitionStatus: "ready",
@@ -330,26 +385,168 @@ export async function importPieceFromFile(
       sessionId: draft.sessionId,
     });
     deps.onProgress?.(100);
+    touchActivePieceImportProgress(100);
+    await rememberActivePieceImportResult({
+      sessionId: draft.sessionId,
+      file,
+      sourceKind: kind,
+      status: "ready",
+      musicXml,
+      recognitionMessage: null,
+    });
     return { status: "ready", draft };
   } catch (err) {
-    pieceImportFail("OMR", err, {
-      where: "importPieceFromFile recognize/validate",
-      sourceKind: kind,
+    return failRecognizedImport(file, kind, err, () => base);
+  }
+}
+
+async function failRecognizedImport(
+  file: File,
+  kind: PieceSourceKind,
+  err: unknown,
+  baseDraft: () => Omit<
+    PieceImportDraft,
+    | "recognitionStatus"
+    | "recognitionMessage"
+    | "musicXml"
+    | "structured"
+    | "recognitionHints"
+    | "recognitionFocusMeasure"
+  >,
+): Promise<PieceImportResult> {
+  pieceImportFail("OMR", err, {
+    where: "importPieceFromFile recognize/validate",
+    sourceKind: kind,
+  });
+  const draft: PieceImportDraft = {
+    ...baseDraft(),
+    recognitionStatus: "failed",
+    recognitionMessage: omrUserMessage(err) || OMR_COPY.failed,
+    musicXml: null,
+    structured: null,
+    recognitionHints: [],
+    recognitionFocusMeasure: null,
+  };
+  pieceImportLog("RENDER", "ok", {
+    where: "temporary import failed (not catalogued)",
+    sessionId: draft.sessionId,
+  });
+  await rememberActivePieceImportResult({
+    sessionId: draft.sessionId,
+    file,
+    sourceKind: kind,
+    status: "failed",
+    musicXml: null,
+    recognitionMessage: draft.recognitionMessage,
+  });
+  return { status: "failed", draft };
+}
+
+/**
+ * Page refreshed mid-upload. Continue the same job, or send the file again
+ * if that job is gone.
+ */
+export async function resumeActivePieceImport(
+  file: File,
+  jobId: string | null,
+  deps: ImportPieceDeps = {},
+): Promise<PieceImportResult> {
+  if (!jobId) return importPieceFromFile(file, new Date(), deps);
+  deps.onPhase?.("processing");
+  try {
+    const recognized = await resumeSheetMusicJob(jobId, {
+      onPhase: (phase) => deps.onPhase?.(phase),
+      onProgress: (percent) => {
+        touchActivePieceImportProgress(percent);
+        deps.onProgress?.(percent);
+      },
     });
-    const draft: PieceImportDraft = {
-      ...baseDraft(),
-      recognitionStatus: "failed",
-      recognitionMessage: omrUserMessage(err) || OMR_COPY.failed,
-      musicXml: null,
-      structured: null,
-      recognitionHints: [],
-      recognitionFocusMeasure: null,
+    const kind = isMusicXmlInterchangeFile(file.name, file.type)
+      ? "musicxml"
+      : sourceKindFromFile(file.name, file.type);
+    return await finishRecognizedImport(file, kind, recognized, deps);
+  } catch (err) {
+    pieceImportFail("OMR", err, { where: "resumeActivePieceImport", jobId });
+    return importPieceFromFile(file, new Date(), deps);
+  }
+}
+
+/** Rebuild the on-screen upload after a refresh. Null when nothing is in progress. */
+export async function restorePieceImportSession(): Promise<
+  | { status: "reading"; file: File; jobId: string | null; progress: number }
+  | PieceImportResult
+  | null
+> {
+  const snap = await readActivePieceImport();
+  if (!snap) return null;
+  if (snap.status === "reading") {
+    return {
+      status: "reading",
+      file: snap.file,
+      jobId: snap.jobId,
+      progress: snap.progress,
     };
-    pieceImportLog("RENDER", "ok", {
-      where: "temporary import failed (not catalogued)",
-      sessionId: draft.sessionId,
-    });
-    return { status: "failed", draft };
+  }
+  const shell = {
+    sessionId: snap.sessionId,
+    file: snap.file,
+    sourceKind: snap.sourceKind,
+    sourceFileName: snap.fileName,
+    sourceMimeType: snap.mimeType,
+    title: titleFromFileName(snap.fileName),
+    composer: null as string | null,
+  };
+  if (snap.status === "failed" || !snap.musicXml) {
+    return {
+      status: "failed",
+      draft: {
+        ...shell,
+        recognitionStatus: "failed",
+        recognitionMessage: snap.recognitionMessage || OMR_COPY.failed,
+        musicXml: null,
+        structured: null,
+        recognitionHints: [],
+        recognitionFocusMeasure: null,
+      },
+    };
+  }
+  try {
+    const validated =
+      snap.sourceKind === "musicxml"
+        ? validateMusicXmlInterchange(snap.musicXml, shell.title, snap.fileName)
+        : validateRecognizedMusicXml(snap.musicXml, shell.title);
+    const score = digitalScoreFromMusai(validated.score);
+    const hints =
+      snap.sourceKind === "musicxml"
+        ? { hints: [] as string[], focusMeasureIndex: null as number | null }
+        : assessRecognition(validated.score);
+    return {
+      status: "ready",
+      draft: {
+        ...shell,
+        title: score.title,
+        composer: score.composer,
+        recognitionStatus: "ready",
+        recognitionMessage: null,
+        musicXml: validated.musicXml,
+        structured: validated.score,
+        recognitionHints: hints.hints,
+        recognitionFocusMeasure: hints.focusMeasureIndex,
+      },
+    };
+  } catch {
+    return {
+      status: "failed",
+      draft: {
+        ...shell,
+        recognitionStatus: "failed",
+        recognitionMessage: OMR_COPY.invalidScore,
+        musicXml: null,
+        structured: null,
+        recognitionHints: [],
+        recognitionFocusMeasure: null,
+      },
+    };
   }
 }
 
@@ -388,6 +585,7 @@ export async function commitPieceImport(
       score: { ...existing.score, title },
     });
     draft.committedPieceId = confirmed.pieceId;
+    await clearActivePieceImport();
     return confirmed;
   }
 
@@ -401,6 +599,7 @@ export async function commitPieceImport(
     now,
   });
   draft.committedPieceId = piece.pieceId;
+  await clearActivePieceImport();
   return piece;
 }
 

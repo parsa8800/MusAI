@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { useEffect } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { PieceImportReview } from "@/features/piece-studio/PieceImportReview";
@@ -117,7 +117,7 @@ describe("PieceImportReview", () => {
     expect(onConfirm).toHaveBeenCalledOnce();
   });
 
-  it("shows Original | Digital score with Use this score after successful paint", async () => {
+  it("shows only the engraved score with Use this score after successful paint", async () => {
     paintStateRef.next = "ready";
     const onConfirm = vi.fn();
     const onTryAgain = vi.fn();
@@ -133,10 +133,11 @@ describe("PieceImportReview", () => {
     expect(await screen.findByTestId("piece-osmd")).toHaveTextContent("Etude");
     expect(screen.getByRole("heading", { name: "Etude" })).toBeInTheDocument();
     expect(screen.queryByText(OMR_COPY.statusReady)).not.toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: OMR_COPY.originalLabel })).toBeInTheDocument();
+    expect(screen.getByTestId("piece-import-digital-preview")).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: OMR_COPY.originalLabel })).not.toBeInTheDocument();
     expect(
-      screen.getByRole("tab", { name: OMR_COPY.musaiScoreLabel }),
-    ).toBeInTheDocument();
+      screen.queryByRole("tab", { name: OMR_COPY.musaiScoreLabel }),
+    ).not.toBeInTheDocument();
     expect(screen.getByTestId("piece-import-confirm")).toHaveTextContent(
       OMR_COPY.looksGood,
     );
@@ -219,20 +220,18 @@ describe("PieceImportReview", () => {
     expect(screen.queryByTestId("piece-import-confirm")).not.toBeInTheDocument();
     expect(screen.queryByTestId("piece-import-digital-preview")).not.toBeInTheDocument();
     expect(screen.queryByText(OMR_COPY.emptyPreview)).not.toBeInTheDocument();
-    expect(screen.getByTestId("piece-import-try-again")).toHaveTextContent(
-      OMR_COPY.tryAgain,
-    );
+    expect(screen.queryByTestId("piece-import-try-again")).not.toBeInTheDocument();
     expect(screen.getByTestId("piece-import-choose-another")).toHaveTextContent(
       OMR_COPY.chooseAnotherFile,
     );
+    expect(screen.getAllByRole("button")).toHaveLength(1);
 
-    fireEvent.click(screen.getByTestId("piece-import-try-again"));
-    expect(onTry).toHaveBeenCalledOnce();
     fireEvent.click(screen.getByTestId("piece-import-choose-another"));
     expect(onChoose).toHaveBeenCalledOnce();
+    expect(onTry).not.toHaveBeenCalled();
   });
 
-  it("on recognition failure shows Couldn’t read this score with try / choose another", async () => {
+  it("on recognition failure shows one quiet notice and one way to choose another file", async () => {
     paintStateRef.next = "ready";
     const onChoose = vi.fn();
     const onTry = vi.fn();
@@ -245,30 +244,24 @@ describe("PieceImportReview", () => {
       />,
     );
 
-    await waitFor(() => {
-      expect(
-        screen.getByRole("link", { name: /open original/i }),
-      ).toBeInTheDocument();
-    });
+    expect(
+      await screen.findByRole("heading", { name: OMR_COPY.failedTitle }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText(OMR_COPY.failedTitle)).toHaveLength(1);
+    expect(screen.queryByRole("link", { name: /open original/i })).not.toBeInTheDocument();
     expect(screen.queryByAltText(/original/i)).not.toBeInTheDocument();
     expect(screen.queryByTestId("piece-osmd")).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: OMR_COPY.failedTitle }),
-    ).toBeInTheDocument();
     expect(screen.queryByTestId("piece-import-keep-original")).not.toBeInTheDocument();
     expect(screen.queryByTestId("piece-import-confirm")).not.toBeInTheDocument();
-    expect(screen.getByTestId("piece-import-try-again")).toHaveTextContent(
-      OMR_COPY.tryAnotherImage,
-    );
+    expect(screen.queryByTestId("piece-import-try-again")).not.toBeInTheDocument();
     expect(screen.getByTestId("piece-import-choose-another")).toHaveTextContent(
       OMR_COPY.chooseAnotherFile,
     );
-
-    fireEvent.click(screen.getByTestId("piece-import-try-again"));
-    expect(onTry).toHaveBeenCalledOnce();
+    expect(screen.getAllByRole("button")).toHaveLength(1);
 
     fireEvent.click(screen.getByTestId("piece-import-choose-another"));
     expect(onChoose).toHaveBeenCalledOnce();
+    expect(onTry).not.toHaveBeenCalled();
   });
 
   it("when scanning is offline shows MusicXML hint without PDF chrome", async () => {
