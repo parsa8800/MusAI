@@ -66,8 +66,8 @@ export const OMR_COPY = {
     "We couldn’t read the notes from this page yet. Try again with a clearer photo, or try another file.",
   /** Subtle status when PDF/image scanning isn’t available (digital scores still work). */
   scanningUnavailable: "Photos and PDFs can’t be scanned right now.",
-  /** Shown under scanningUnavailable when the local OMR worker is offline. */
-  scanningUnavailableLead: "The score reader isn’t running on this computer yet.",
+  /** Shown under scanningUnavailable. True locally and on the hosted site. */
+  scanningUnavailableLead: "Use a MusicXML file instead.",
   /** @deprecated Alias of {@link OMR_COPY.scanningUnavailable} — keep for API/protocol matches. */
   readingNotReady: "Photos and PDFs can’t be scanned right now.",
   /** @deprecated Alias of {@link OMR_COPY.scanningUnavailable}. */

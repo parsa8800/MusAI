@@ -101,6 +101,34 @@ test("merge ignores measure-numbering elements", () => {
   assert.match(merged, /number="2"/);
 });
 
+test("prepare keeps line breaks and drops invented scan marks", () => {
+  const xml = `<?xml version="1.0"?>
+<score-partwise version="4.0">
+  <part-list><score-part id="P1"><part-name>V</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <print new-system="yes"><measure-numbering>system</measure-numbering></print>
+      <attributes><divisions>1</divisions></attributes>
+      <direction><direction-type><dynamics><sf/></dynamics></direction-type></direction>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type>
+        <notations><articulations><staccato/></articulations><fermata type="upright"/></notations>
+      </note>
+    </measure>
+    <measure number="2">
+      <print new-system="yes"/>
+      <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+    </measure>
+  </part>
+</score-partwise>`;
+  const out = prepareMergedScoreForEngraving(xml);
+  assert.ok(out);
+  assert.equal((out.match(/<staccato\b/gi) || []).length, 0);
+  assert.equal((out.match(/<fermata\b/gi) || []).length, 0);
+  assert.equal((out.match(/measure-numbering/gi) || []).length, 0);
+  assert.equal((out.match(/new-system="yes"/g) || []).length, 2);
+  assert.match(out, /<sf\s*\/>/);
+});
+
 test("normalizeDivisions scales durations onto a shared grid", () => {
   const xml = scoreWithDivisions("P1", 4, [2, 2]);
   const out = normalizeDivisions(xml, 24);

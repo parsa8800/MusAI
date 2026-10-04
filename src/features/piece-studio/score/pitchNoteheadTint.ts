@@ -1,6 +1,10 @@
 import type { CursorPose } from "@/features/piece-studio/score/cursorTrack";
 import type { PitchNoteMark } from "@/features/piece-studio/feedback/visual/piecePitchScoreMap";
 import { collectNoteheadTargets } from "@/features/piece-studio/score/noteheadPoses";
+import {
+  pieceOsmdInk,
+  readPieceOsmdTheme,
+} from "@/features/piece-studio/score/osmdTheme";
 
 const NOTEHEAD_SELECTORS = [
   "g.vf-notehead",
@@ -11,6 +15,62 @@ const NOTEHEAD_SELECTORS = [
 ].join(", ");
 
 const ATTR = "data-musai-pitch-kind";
+const FILL_MEMORY = "data-musai-pitch-fill";
+const STROKE_MEMORY = "data-musai-pitch-stroke";
+
+function isPitchPaint(value: string | null | undefined): boolean {
+  return Boolean(value && value.includes("--musai-pitch-"));
+}
+
+function paintTargets(el: Element): SVGElement[] {
+  const targets =
+    el.tagName.toLowerCase() === "g"
+      ? [...el.querySelectorAll("path, ellipse, use")]
+      : [el];
+  return targets.filter((node): node is SVGElement => node instanceof SVGElement);
+}
+
+function engravingInk(wrap: HTMLElement): string {
+  const stem = wrap.querySelector(".vf-stem path, .vf-stem");
+  const fromStem = stem?.getAttribute("stroke") || stem?.getAttribute("fill");
+  if (fromStem && !isPitchPaint(fromStem) && fromStem !== "none") return fromStem;
+  return pieceOsmdInk(readPieceOsmdTheme());
+}
+
+function rememberInk(node: SVGElement, attr: "fill" | "stroke", ink: string) {
+  const key = attr === "fill" ? FILL_MEMORY : STROKE_MEMORY;
+  if (node.hasAttribute(key)) return;
+  const current = node.getAttribute(attr);
+  if (current == null) {
+    node.setAttribute(key, "");
+    return;
+  }
+  node.setAttribute(key, isPitchPaint(current) ? ink : current);
+}
+
+function restoreAttr(
+  node: SVGElement,
+  attr: "fill" | "stroke",
+  key: string,
+  ink: string,
+) {
+  if (node.hasAttribute(key)) {
+    const saved = node.getAttribute(key) ?? "";
+    node.removeAttribute(key);
+    if (!saved) node.removeAttribute(attr);
+    else node.setAttribute(attr, isPitchPaint(saved) ? ink : saved);
+    return;
+  }
+  if (isPitchPaint(node.getAttribute(attr))) node.setAttribute(attr, ink);
+}
+
+function restoreNode(node: SVGElement, ink: string) {
+  node.style.removeProperty("fill");
+  node.style.removeProperty("stroke");
+  node.style.removeProperty("color");
+  restoreAttr(node, "fill", FILL_MEMORY, ink);
+  restoreAttr(node, "stroke", STROKE_MEMORY, ink);
+}
 
 type HeadNode = {
   el: Element;
@@ -90,19 +150,16 @@ function nearestHead(heads: readonly HeadNode[], snap: CursorPose): HeadNode | n
   return best;
 }
 
-function paintElement(el: Element, kind: string) {
+function paintElement(el: Element, kind: string, ink: string) {
   el.setAttribute(ATTR, kind);
   const color = `var(--musai-pitch-${kind})`;
-  const targets =
-    el.tagName.toLowerCase() === "g"
-      ? [...el.querySelectorAll("path, ellipse, use")]
-      : [el];
-  for (const node of targets) {
-    if (!(node instanceof SVGElement)) continue;
+  for (const node of paintTargets(el)) {
+    rememberInk(node, "fill", ink);
+    rememberInk(node, "stroke", ink);
     node.style.setProperty("fill", color, "important");
     node.style.setProperty("stroke", color, "important");
     node.style.setProperty("color", color, "important");
-    // OSMD often bakes fill attributes — override so Scale-style ink sticks.
+    // OSMD often bakes fill attributes — override so the colour sticks.
     if (node.hasAttribute("fill") && node.getAttribute("fill") !== "none") {
       node.setAttribute("fill", color);
     }
@@ -112,30 +169,30 @@ function paintElement(el: Element, kind: string) {
   }
 }
 
-/** Notehead plus its stem, the same ink Scale Studio uses for that note. */
-function paintNote(el: Element, kind: string) {
-  paintElement(el, kind);
-  const note = el.closest(".vf-stavenote, .vf-note");
-  if (!note || note === el) return;
-  for (const stem of note.querySelectorAll(".vf-stem, .vf-flag")) {
-    paintElement(stem, kind);
-  }
+/** Colour the notehead only. Stems, flags, and beams stay the engraving ink. */
+function paintNote(el: Element, kind: string, ink: string) {
+  paintElement(el, kind, ink);
 }
 
-/** Clear previous pitch tints from engraved noteheads. */
+/** Clear previous pitch tints and put the engraved ink back. */
 export function clearPitchNoteheadTints(wrap: HTMLElement | null) {
   if (!wrap) return;
+  const ink = engravingInk(wrap);
   for (const el of wrap.querySelectorAll(`[${ATTR}]`)) {
     el.removeAttribute(ATTR);
-    const targets =
-      el.tagName.toLowerCase() === "g"
-        ? [...el.querySelectorAll("path, ellipse, use")]
-        : [el];
-    for (const node of targets) {
-      if (!(node instanceof SVGElement)) continue;
-      node.style.removeProperty("fill");
-      node.style.removeProperty("stroke");
-      node.style.removeProperty("color");
+    for (const node of paintTargets(el)) restoreNode(node, ink);
+  }
+  for (const node of wrap.querySelectorAll("path, ellipse, use")) {
+    if (!(node instanceof SVGElement)) continue;
+    if (
+      isPitchPaint(node.getAttribute("fill")) ||
+      isPitchPaint(node.getAttribute("stroke")) ||
+      isPitchPaint(node.style.fill) ||
+      isPitchPaint(node.style.stroke) ||
+      node.hasAttribute(FILL_MEMORY) ||
+      node.hasAttribute(STROKE_MEMORY)
+    ) {
+      restoreNode(node, ink);
     }
   }
 }
@@ -153,6 +210,7 @@ export function applyPitchNoteheadTints(
   if (!wrap) return;
   clearPitchNoteheadTints(wrap);
   if (marks.length === 0) return;
+  const ink = engravingInk(wrap);
   const indexed = marks.filter(
     (mark): mark is PitchNoteMark & { noteIndex: number } =>
       typeof mark.noteIndex === "number",
@@ -163,7 +221,7 @@ export function applyPitchNoteheadTints(
       for (const mark of indexed) {
         const head = heads[mark.noteIndex];
         if (!head) continue;
-        paintNote(head.el, mark.kind);
+        paintNote(head.el, mark.kind, ink);
       }
       return;
     }
@@ -182,6 +240,6 @@ export function applyPitchNoteheadTints(
     const head = nearestHead(heads, snap);
     if (!head || used.has(head.el)) continue;
     used.add(head.el);
-    paintNote(head.el, mark.kind);
+    paintNote(head.el, mark.kind, ink);
   }
 }

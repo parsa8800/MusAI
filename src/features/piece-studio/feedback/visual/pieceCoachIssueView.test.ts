@@ -47,7 +47,9 @@ describe("coachIssuesFromEvents", () => {
   it("maps live pitch events onto individual note spans", () => {
     const score = parseMusicXmlToScore(TWINKLE_XML, "Twinkle");
     const notes = expectedNotesFromScore(score);
-    const note = notes[2]!;
+    const note = notes.find(
+      (item) => item.absoluteOnsetQuarters !== item.onsetQuarters,
+    )!;
     const event = createFeedbackEvent({
       eventId: "pitch-2-sharp",
       category: "pitch",
@@ -63,9 +65,11 @@ describe("coachIssuesFromEvents", () => {
     });
     const [issue] = coachIssuesFromEvents([event], notes);
     expect(issue?.visualStyle).toBe("note");
-    expect(issue?.startWholeNotes).toBeCloseTo(note.onsetQuarters / 4);
+    expect(issue?.startWholeNotes).toBeCloseTo(note.absoluteOnsetQuarters / 4);
     expect(issue?.endWholeNotes).toBeCloseTo(
-      (note.onsetQuarters + note.durationQuarters) / 4,
+      (note.absoluteOnsetQuarters +
+        Math.max(0.5, note.durationQuarters)) /
+        4,
     );
     expect(pieceFeedbackVisualStyle("tempo")).toBe("measure");
     expect(coachFocusItemFromEvent(event).category).toBe("pitch");

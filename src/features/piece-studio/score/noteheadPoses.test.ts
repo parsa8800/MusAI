@@ -188,4 +188,54 @@ describe("collectNoteheadPosesFromDom", () => {
     expect(poses.map((p) => Math.round(p.x))).toEqual([47, 127]);
     wrap.remove();
   });
+
+  it("skips half rests so later notes keep their place", () => {
+    const wrap = document.createElement("div");
+    wrap.getBoundingClientRect = () =>
+      ({
+        left: 0,
+        top: 0,
+        right: 400,
+        bottom: 200,
+        width: 400,
+        height: 200,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      }) as DOMRect;
+    Object.defineProperty(wrap, "scrollLeft", { value: 0 });
+    Object.defineProperty(wrap, "scrollTop", { value: 0 });
+    const host = document.createElement("div");
+    host.className = "musai-piece-osmd";
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+
+    function add(x: number, width: number, height: number) {
+      const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      g.setAttribute("class", "vf-notehead");
+      g.getBoundingClientRect = () =>
+        ({
+          left: x,
+          top: 40,
+          right: x + width,
+          bottom: 40 + height,
+          width,
+          height,
+          x,
+          y: 40,
+          toJSON: () => ({}),
+        }) as DOMRect;
+      svg.appendChild(g);
+    }
+
+    add(40, 13, 11);
+    add(80, 20, 7);
+    add(120, 13, 11);
+    host.appendChild(svg);
+    wrap.appendChild(host);
+    document.body.appendChild(wrap);
+
+    const poses = collectNoteheadPosesFromDom(wrap);
+    expect(poses.map((p) => Math.round(p.x))).toEqual([47, 127]);
+    wrap.remove();
+  });
 });

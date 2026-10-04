@@ -41,6 +41,11 @@ import {
 } from "@/features/piece-studio/playback/pieceSpeed";
 
 const LOOKAHEAD_SEC = 1.2;
+/**
+ * The playhead is drawn a frame after the clock is read. Step it forward
+ * so the bar is on the note at the moment that note is heard.
+ */
+const PLAYHEAD_SYNC_LEAD_SEC = 1 / 60;
 
 export type { PiecePlaybackTimeListener } from "@/features/piece-studio/playback/playbackTime";
 
@@ -154,7 +159,6 @@ export function usePiecePlayback(
     };
   }, []);
 
-  const getCurrentSec = useCallback(() => currentSecRef.current, []);
   const getPlaying = useCallback(() => playingRef.current, []);
 
   const ensureMetronome = useCallback((ctx: AudioContext) => {
@@ -196,7 +200,7 @@ export function usePiecePlayback(
     bpmRef.current = bpm;
   }, [bpm]);
 
-  /** Load the piano when the score page can play. */
+  /** Load the listen instrument when the score page can play. */
   useEffect(() => {
     if (!voiceReady || !loadInstrument || !timeline || timeline.durationSec <= 0) {
       return;
@@ -266,6 +270,19 @@ export function usePiecePlayback(
       originScoreRef.current + (audioNow - originAudioRef.current) * rate()
     );
   }, []);
+
+  const getCurrentSec = useCallback(() => {
+    const ctx = ctxRef.current;
+    if (
+      playingRef.current &&
+      ctx &&
+      !scrubbingRef.current &&
+      !transportLockRef.current
+    ) {
+      return scoreTimeNow(ctx.currentTime + PLAYHEAD_SYNC_LEAD_SEC);
+    }
+    return currentSecRef.current;
+  }, [scoreTimeNow]);
 
   const silence = useCallback(() => {
     transportGenRef.current += 1;

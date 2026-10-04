@@ -39,9 +39,6 @@ export function PieceTakeReplay({
       : typeof durationSec === "number" && durationSec > 0
         ? durationSec
         : 0;
-  const takeName =
-    takeNumber && takeNumber > 0 ? `Take ${takeNumber}` : "Last take";
-
   useEffect(() => {
     setPlaying(false);
     setCurrentSec(0);
@@ -116,7 +113,8 @@ export function PieceTakeReplay({
         type="button"
         className="musai-pressable musai-piece-take__play"
         aria-pressed={playing}
-        aria-label={playing ? `Pause ${takeName}` : `Play ${takeName}`}
+        aria-label={playing ? "Pause last take" : "Play last take"}
+        data-take-number={takeNumber ?? 0}
         onClick={onToggle}
       >
         <span className="musai-piece-take__icon" aria-hidden>
@@ -131,14 +129,16 @@ export function PieceTakeReplay({
             </svg>
           )}
         </span>
-        Last take
-      </button>
-      {playing && (totalSec > 0 || currentSec > 0) ? (
-        <span className="musai-piece-take__time" aria-hidden>
-          {formatClock(currentSec)}
-          {totalSec > 0 ? ` / ${formatClock(totalSec)}` : ""}
+        <span className="musai-piece-take__title">
+          {playing ? "Pause" : "Last take"}
         </span>
-      ) : null}
+        {playing && (totalSec > 0 || currentSec > 0) ? (
+          <span className="musai-piece-take__clock">
+            {formatClock(currentSec)}
+            {totalSec > 0 ? ` / ${formatClock(totalSec)}` : ""}
+          </span>
+        ) : null}
+      </button>
     </div>
   );
 }

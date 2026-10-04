@@ -2,8 +2,9 @@ import type { ListenSoundfont } from "@/lib/instrument";
 import type { PieceInstrumentId } from "@/features/piece-studio/playback/pieceInstrument";
 
 /**
- * Listen is piano only. GM violin and viola samples are not realistic enough
- * to offer beside the grand piano, and a saved "strings" choice is ignored.
+ * The old listen-voice toggle stays piano. The Settings instrument chooses
+ * the sound: violin uses the recorded samples, piano and viola stay on the
+ * grand piano.
  */
 export type PieceListenVoice = "piano" | "strings";
 
@@ -28,7 +29,8 @@ export function writePieceListenVoice(voice: PieceListenVoice): void {
 
 export function pieceInstrumentIdFor(
   _voice: PieceListenVoice,
-  _soundfont: ListenSoundfont,
+  soundfont: ListenSoundfont,
 ): PieceInstrumentId {
+  if (soundfont === "violin") return "violin";
   return "piano";
 }

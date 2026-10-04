@@ -1,5 +1,5 @@
 import { createRef } from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { MusaiCaptureDock } from "@/components/MusaiCaptureDock";
 
@@ -216,5 +216,61 @@ describe("MusaiCaptureDock mode stage", () => {
     expect(strip).toHaveClass("musai-capture-strip--analysing");
     expect(strip).not.toHaveClass("musai-capture-strip--ready");
     expect(screen.getByRole("tab", { name: "Import" })).toBeDisabled();
+  });
+
+  it("shows a success tick for an imported file, then clears it", () => {
+    vi.useFakeTimers();
+    const file = new File(["a"], "clean.m4a", { type: "audio/mp4" });
+    const view = renderDock("upload");
+    expect(view.container.querySelector(".musai-import-tick")).toBeNull();
+
+    view.rerender(
+      <MusaiCaptureDock
+        selectId="test-mic"
+        captureMode="upload"
+        onCaptureMode={vi.fn()}
+        isRecording={false}
+        recordedBlob={null}
+        file={file}
+        uploadProcessing={false}
+        fileInputRef={createRef<HTMLInputElement | null>()}
+        onFileSelected={vi.fn()}
+        mainRecorderRef={createRef<HTMLDivElement | null>()}
+        micDevices={[]}
+        selectedMicId=""
+        onMicChange={vi.fn()}
+        onMicRefresh={vi.fn()}
+        onDiscardClip={vi.fn()}
+        onStartRecording={vi.fn()}
+        onStopRecording={vi.fn()}
+        streamRef={createRef<MediaStream | null>()}
+        elapsedLabel="00:00.00"
+        levelBars={[]}
+        lastTakeLabel={null}
+        message={null}
+        status="idle"
+        canAnalyze={false}
+        onAnalyze={vi.fn()}
+        hideAnalyze
+      />,
+    );
+
+    const ticking = view.container.querySelector(".musai-capture-import--tick");
+    expect(view.container.querySelector(".musai-import-tick")).toBeTruthy();
+    expect(ticking?.textContent).toContain("clean.m4a");
+    expect(ticking?.textContent).toContain("Ready");
+
+    act(() => {
+      vi.advanceTimersByTime(1900);
+    });
+    expect(view.container.querySelector(".musai-import-tick")).toBeNull();
+    expect(view.container.querySelector(".musai-capture-import--tick")).toBeNull();
+    expect(screen.getByText("clean.m4a")).toBeInTheDocument();
+    expect(screen.getByText("Ready")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Ready" }));
+    expect(view.container.querySelector(".musai-import-tick")).toBeNull();
+
+    vi.useRealTimers();
   });
 });

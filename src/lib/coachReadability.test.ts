@@ -71,6 +71,14 @@ describe("formatCoachReadability", () => {
       ),
     );
   });
+  it("keeps a few coaching points as dots and drops dashes", () => {
+    expect(
+      formatCoachReadability(
+        "• Louder than written — Bar 1\n• Quieter than written — Bar 12",
+      ),
+    ).toBe("• Louder than written. Bar 1\n• Quieter than written. Bar 12");
+  });
+
   it("leaves a single coaching sentence as a sentence", () => {
     expect(formatCoachReadability("• A bit high overall")).toBe(
       "A bit high overall",

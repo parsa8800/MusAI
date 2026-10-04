@@ -83,6 +83,15 @@ describe("score playhead geometry", () => {
     const lastOnLine = snaps[3]!;
     const waypoints = buildPlayheadWaypoints(snaps, staff);
     const tWrap = wrapTime(waypoints);
+    const midway = interpolatePlayhead(
+      snaps,
+      (lastOnLine.tSec + snaps[4]!.tSec) / 2,
+      staff,
+    )!;
+    expect(tWrap).toBeCloseTo(snaps[4]!.tSec);
+    expect(midway.centerX).toBeGreaterThan(lastOnLine.x + 24);
+    expect(midway.y).toBeLessThan(snaps[4]!.y);
+
     const bar = interpolatePlayhead(snaps, tWrap - 0.01, staff)!;
     expect(bar.centerX).toBeGreaterThan(lastOnLine.x + 8);
     expect(bar.y).toBeLessThan(snaps[4]!.y);
@@ -182,7 +191,18 @@ describe("score playhead geometry", () => {
     expect(interpolatePlayhead(held, 0, staff)!.centerX).toBeCloseTo(40);
     expect(interpolatePlayhead(held, 0.5, staff)!.centerX).toBeCloseTo(80);
     expect(interpolatePlayhead(held, 1.0, staff)!.centerX).toBeCloseTo(120);
-    expect(interpolatePlayhead(held, 1.3, staff)!.centerX).toBeCloseTo(120);
+    const duringLast = interpolatePlayhead(held, 1.3, staff)!;
+    expect(duringLast.centerX).toBeGreaterThan(120);
+    expect(duringLast.y).toBeCloseTo(interpolatePlayhead(held, 1.0, staff)!.y, 1);
+  });
+
+  it("glides across touching notes and meets the next head on time", () => {
+    const legato: CursorPose[] = [
+      { tSec: 0, endSec: 0.5, x: 40, y: 20, height: 40 },
+      { tSec: 0.5, endSec: 1, x: 100, y: 20, height: 40 },
+    ];
+    expect(interpolatePlayhead(legato, 0.25, staff)!.centerX).toBeCloseTo(70);
+    expect(interpolatePlayhead(legato, 0.5, staff)!.centerX).toBeCloseTo(100);
   });
 
   it("spans the engraved staff band, not a notehead-sized box", () => {
@@ -201,7 +221,7 @@ describe("score playhead geometry", () => {
     expect(el.style.transition).toBe("");
   });
 
-  it("smooth-scrolls only on large system jumps", () => {
+  it("scrolls immediately so the view stays with the audio", () => {
     const wrap = document.createElement("div");
     Object.defineProperty(wrap, "clientHeight", { value: 120 });
     Object.defineProperty(wrap, "scrollTop", { value: 0, writable: true });
@@ -214,7 +234,7 @@ describe("score playhead geometry", () => {
       last,
     );
     expect(scrollTo).toHaveBeenCalledWith(
-      expect.objectContaining({ behavior: "smooth" }),
+      expect.objectContaining({ behavior: "auto" }),
     );
   });
 });

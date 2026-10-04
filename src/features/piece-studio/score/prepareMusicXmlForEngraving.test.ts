@@ -68,6 +68,37 @@ describe("prepareMusicXmlForEngraving", () => {
     expect(out.match(/<attributes>/g)?.length).toBe(1);
   });
 
+  it("keeps printed line breaks and drops invented scan marks", () => {
+    const xml = `<?xml version="1.0"?>
+<score-partwise version="4.0">
+  <part-list><score-part id="P1"><part-name>V</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <print><measure-numbering>system</measure-numbering></print>
+      <attributes><divisions>24</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+      <direction placement="below"><direction-type><dynamics><p/></dynamics></direction-type><sound dynamics="56"/></direction>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>24</duration><type>quarter</type>
+        <notations><articulations><staccato/></articulations><fermata/></notations>
+      </note>
+    </measure>
+    <measure number="4">
+      <print new-page="yes" new-system="yes"><system-layout><system-distance>12</system-distance></system-layout></print>
+      <direction placement="above"><direction-type><dynamics><mp/></dynamics></direction-type></direction>
+      <direction placement="above"><direction-type><words>Allegro</words></direction-type></direction>
+      <note><pitch><step>D</step><octave>4</octave></pitch><duration>24</duration><type>quarter</type></note>
+    </measure>
+  </part>
+</score-partwise>`;
+    const out = prepareMusicXmlForEngraving(xml);
+    expect(out).toMatch(/<dynamics>\s*<p\s*\/>/);
+    expect(out).toMatch(/<dynamics>\s*<mp\s*\/>/);
+    expect(out).not.toMatch(/<staccato\b/i);
+    expect(out).not.toMatch(/<fermata\b/i);
+    expect(out).not.toMatch(/measure-numbering/i);
+    expect(out).toMatch(/<print new-system="yes" new-page="yes"\/>/);
+    expect(out).toMatch(/<words>Allegro<\/words>/);
+  });
+
   it("keeps later key changes and drops duplicate divisions", () => {
     const xml = `<?xml version="1.0"?>
 <score-partwise version="4.0">

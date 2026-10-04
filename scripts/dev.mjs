@@ -67,7 +67,7 @@ waitForServer().then((ready) => {
   if (!ready) return;
   spawn(
     "open",
-    ["-a", "/Applications/Google Chrome.app", "http://127.0.0.1:3000/practice/scale"],
+    ["-a", "/Applications/Google Chrome.app", "http://127.0.0.1:3000/"],
     {
       stdio: "ignore",
       detached: true,

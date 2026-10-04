@@ -2,7 +2,8 @@
  * Structured piece feedback. Coach Parsa reads this — not audio buffers.
  *
  * Skills are independent. A category with status `not_ready` must not invent
- * events. Only pitch analysis is implemented today.
+ * events. Pitch, rhythm, and dynamics are implemented. Tempo and consistency
+ * are not.
  */
 
 export const PIECE_FEEDBACK_SCHEMA_VERSION = 1 as const;

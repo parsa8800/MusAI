@@ -143,7 +143,7 @@ function PromptChips({
     <div
       className={
         pad === "embed"
-          ? "musai-coach-prompts musai-coach-prompts--embed"
+          ? "musai-coach-prompts musai-coach-prompts--embed musai-coach-prompts--stack"
           : "musai-coach-prompts musai-coach-prompts--page"
       }
       role="group"
@@ -380,6 +380,10 @@ export type CoachParsaChatProps = {
   source?: CoachReplySource;
   /** Suggested follow-ups under the opener. */
   suggestions?: string[];
+  /** Two starters shown before the first message. Piece coach only. */
+  idleSuggestions?: readonly string[];
+  /** One follow-up shown after the student has asked something. */
+  followSuggestion?: string | null;
   /**
    * Domain reply adapter. Scale points at /api/scale-coach-chat;
    * Piece uses a local template grounded in the focused issue.
@@ -392,6 +396,12 @@ export type CoachParsaChatProps = {
   sanitizeUserText?: (raw: string) => string;
   embed?: boolean;
   title?: string;
+  /** Shown in the empty message field. Piece uses the teacher wording. */
+  placeholder?: string;
+  /** Piece hides this so a rhythm note is not followed by a second title. */
+  showHeader?: boolean;
+  /** Shown at the top until the first message. Then the thread takes over. */
+  emptyNote?: string;
   /** Content above the chat thread (e.g. Piece focus card). */
   topSlot?: ReactNode;
   /** When true, show the tiny preview status dot beside the title. */
@@ -532,10 +542,15 @@ export function CoachParsaChat({
   openerText,
   source: initialSource = "template",
   suggestions = [],
+  idleSuggestions,
+  followSuggestion = null,
   getReply,
   sanitizeUserText = (raw) => raw.trim(),
   embed = false,
   title = "Coach · Parsa",
+  placeholder = "Ask your coach...",
+  showHeader = true,
+  emptyNote,
   topSlot = null,
   showPreviewDot,
   threadKey,
@@ -748,10 +763,24 @@ export function CoachParsaChat({
       .filter((message) => message.role === "user")
       .map((message) => message.text.trim().toLowerCase()),
   );
-  const visibleSuggestions = suggestions
+  const quietPrompts = idleSuggestions != null;
+  const hasUserMessage = messages.some((message) => message.role === "user");
+  const visibleSuggestions = (
+    quietPrompts
+      ? hasUserMessage
+        ? followSuggestion
+          ? [followSuggestion]
+          : []
+        : [...idleSuggestions]
+      : suggestions
+  )
     .filter((question) => !asked.has(question.trim().toLowerCase()))
-    .slice(0, 3);
-  const showSuggestions = bootDone && !busy && visibleSuggestions.length > 0;
+    .slice(0, quietPrompts ? (hasUserMessage ? 1 : 2) : 3);
+  const showSuggestions =
+    bootDone &&
+    !busy &&
+    !awaitingReply &&
+    visibleSuggestions.length > 0;
 
   return (
     <div
@@ -768,7 +797,7 @@ export function CoachParsaChat({
       aria-live="polite"
       aria-relevant="additions"
     >
-      {embed ? (
+      {embed && showHeader ? (
         <header className="musai-coach-header">
           <span className="musai-coach-header__avatar" aria-hidden>
             <svg viewBox="0 0 24 24">
@@ -811,6 +840,24 @@ export function CoachParsaChat({
             : "space-y-6 border-t border-[var(--musai-border)] pt-8"
         }
       >
+        {messages.length === 0 && emptyNote ? (
+          <div className="musai-coach-welcome flex w-full flex-col items-center text-center">
+            <span className="musai-coach-welcome__mark" aria-hidden>
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M5.5 6.75h13a1.75 1.75 0 0 1 1.75 1.75v7a1.75 1.75 0 0 1-1.75 1.75H11l-3.75 2.75V17.25H5.5A1.75 1.75 0 0 1 3.75 15.5v-7A1.75 1.75 0 0 1 5.5 6.75Z"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </span>
+            <p className="musai-coach-welcome__title w-full text-center">{title}</p>
+            <p className="musai-coach-welcome__line w-full text-center">{emptyNote}</p>
+          </div>
+        ) : null}
+
         {messages.map((msg, idx) => {
           if (msg.role === "user") {
             return <UserBubble key={msg.id} text={msg.text} compact={embed} />;
@@ -913,7 +960,7 @@ export function CoachParsaChat({
             rows={1}
             value={draft}
             disabled={!bootDone || busy}
-            placeholder="Ask your coach..."
+            placeholder={placeholder}
             aria-label={speech.listening ? "Listening" : "Message"}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {

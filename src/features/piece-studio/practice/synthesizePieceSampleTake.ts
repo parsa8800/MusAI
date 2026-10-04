@@ -64,7 +64,7 @@ function wavBlob(mono: Float32Array): Blob {
     view.setInt16(o, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
     o += 2;
   }
-  return new Blob([bytes], { type: "audio/wav" });
+  return new Blob([bytes], { type: "audio/wav; musai-sample=1" });
 }
 
 export type PieceSampleTake = {
@@ -72,6 +72,14 @@ export type PieceSampleTake = {
   sampleRateHz: number;
   wav: Blob;
 };
+
+/**
+ * Only the in-app sample writer sets this. An imported .wav is a real take
+ * and must still show rhythm, dynamics, and tuning.
+ */
+export function isGeneratedPieceSampleRecording(blob: Blob): boolean {
+  return blob.type.toLowerCase().includes("musai-sample");
+}
 
 /**
  * A played-through take of the written notes, with a known mix of
@@ -82,7 +90,7 @@ export function synthesizePieceSampleTake(
 ): PieceSampleTake {
   const parts: Float32Array[] = [];
   notes.forEach((note, i) => {
-    const cents = CENTS_PATTERN[i % CENTS_PATTERN.length] ?? 0;
+    const cents = CENTS_PATTERN[i % CENTS_PATTERN.length];
     if (cents == null) {
       parts.push(silence(TONE_SEC));
     } else {

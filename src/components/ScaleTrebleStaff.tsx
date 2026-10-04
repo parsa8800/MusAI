@@ -5,6 +5,7 @@ import { useInstrument } from "@/components/InstrumentProvider";
 import {
   clefForNotes,
   fingerLabelRegex,
+  hasStringFingering,
   stringFingerLabel,
 } from "@/lib/instrument";
 import type { InstrumentProfile, NotationClef } from "@/lib/instrument";
@@ -132,7 +133,6 @@ function drawSystem(
     clef?: NotationClef;
     midis?: number[];
     instrument?: InstrumentProfile;
-    showFingerings?: boolean;
   },
 ) {
   const { Renderer, Stave, StaveNote, Formatter } = VF;
@@ -158,7 +158,12 @@ function drawSystem(
     lineSpacing,
     options.clef ?? "treble",
   );
-  const fingerPad = options.showFingerings ? FINGER_LABEL_PAD_PX : 0;
+  // Keep the same canvas height with or without visible labels so the staff
+  // does not jump when Fingering is toggled.
+  const fingerPad =
+    options.instrument && hasStringFingering(options.instrument)
+      ? FINGER_LABEL_PAD_PX
+      : 0;
   const height = metrics.height + fingerPad;
   const staveY = metrics.staveY + fingerPad;
   const renderer = new Renderer(host, Renderer.Backends.SVG);
@@ -276,9 +281,9 @@ function drawSystem(
     }
     const midi = options.midis?.[noteIdx];
     if (
-      options.showFingerings &&
-      Annotation &&
       options.instrument &&
+      hasStringFingering(options.instrument) &&
+      Annotation &&
       typeof midi === "number"
     ) {
       const label = stringFingerLabel(midi, options.instrument);
@@ -352,7 +357,7 @@ function drawSystem(
       const sw = Number(el.getAttribute("stroke-width") || "1");
       if (sw < 1.45) el.setAttribute("stroke-width", "1.55");
     });
-    if (options.showFingerings && options.instrument) {
+    if (options.instrument && hasStringFingering(options.instrument)) {
       const fingerRe = fingerLabelRegex(options.instrument);
       svg.querySelectorAll("text").forEach((el) => {
         const text = (el.textContent || "").trim();
@@ -730,6 +735,13 @@ export function ScaleTrebleStaff({
     return () => ro.disconnect();
   }, []);
 
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+    host.dataset.fingerings =
+      showFingerings && hasStringFingering(instrument) ? "on" : "off";
+  }, [showFingerings, instrument]);
+
   const staveWidth = Math.max(
     200,
     Math.floor(usableW - (pad ? 8 : 16)),
@@ -886,7 +898,6 @@ export function ScaleTrebleStaff({
               clef: clefForNotes(instrument, line.midis),
               midis: line.midis,
               instrument,
-              showFingerings,
               ...drawOpts,
             }),
         });
@@ -894,6 +905,8 @@ export function ScaleTrebleStaff({
 
       appendPieceStaffCard(pieceWrap, parts, { pad, systemGapClass, preview });
       host.appendChild(pieceWrap);
+      host.dataset.fingerings =
+        showFingerings && hasStringFingering(instrument) ? "on" : "off";
       requestAnimationFrame(() => {
         if (cancelled) return;
         cropStaffSvgs(host, plan.inkPad, colors.stroke);
@@ -928,7 +941,6 @@ export function ScaleTrebleStaff({
     appearance,
     preview,
     instrument,
-    showFingerings,
   ]);
 
   return (

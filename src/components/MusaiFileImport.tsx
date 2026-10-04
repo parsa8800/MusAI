@@ -52,6 +52,8 @@ export type MusaiFileImportProps = {
   className?: string;
   /** Optional motif / icon above the title. */
   motif?: ReactNode;
+  /** Fires when the picker is opened, before a file is chosen. */
+  onPickerOpen?: () => void;
   testId?: string;
 };
 
@@ -110,6 +112,7 @@ export function MusaiFileImport({
   inputRef,
   className = "",
   motif,
+  onPickerOpen,
   testId = "musai-file-import",
 }: MusaiFileImportProps) {
   const autoId = useId();
@@ -193,6 +196,7 @@ export function MusaiFileImport({
     if (locked) return;
     if (e.key !== "Enter" && e.key !== " ") return;
     e.preventDefault();
+    onPickerOpen?.();
     fileRef.current?.click();
   };
 
@@ -231,6 +235,7 @@ export function MusaiFileImport({
         onKeyDown={onKeyActivate}
         onClick={() => {
           if (locked) return;
+          onPickerOpen?.();
           fileRef.current?.click();
         }}
       >

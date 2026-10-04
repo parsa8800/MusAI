@@ -10,8 +10,6 @@ export const SCORE_PLAYHEAD_WIDTH_PX = 3;
 export const PLAYHEAD_LEAD_IN_PX = 48;
 /** Keep travelling past the last note toward the end of the staff. */
 export const PLAYHEAD_LEAD_OUT_PX = 36;
-/** Finish the current line this far through the gap, then start the next. */
-const PLAYHEAD_LINE_WRAP = 0.78;
 
 type PlayheadWaypoint = CursorPose & {
   /**
@@ -184,9 +182,10 @@ function poseIndexAtOrBefore(points: readonly CursorPose[], tSec: number): numbe
 }
 
 /**
- * Waypoints for a left-to-right path. Between attacks on one system the bar
- * slides and crosses each notehead at the moment it sounds. Line wraps stay
- * instant so the bar never smears diagonally onto the next system.
+ * Waypoints for a left-to-right path. Between notes the bar glides and meets
+ * each notehead as it sounds. On the last note of a line it keeps travelling
+ * to the end of that staff for the note's length, then steps to the next line.
+ * The step is instant so the bar never smears diagonally onto the next system.
  */
 export function buildPlayheadWaypoints(
   snaps: readonly CursorPose[],
@@ -216,34 +215,20 @@ export function buildPlayheadWaypoints(
 
     const prev = notes.length > 1 ? notes[notes.length - 2] : undefined;
     const prevGap = prev ? last.tSec - prev.tSec : 0.6;
-    const lineEndT = Math.max(last.tSec, last.endSec ?? last.tSec);
-    const tNext = next
-      ? next.tSec
-      : lineEndT + Math.max(0.45, prevGap);
-    const gap = tNext - lineEndT;
-    const tWrap = next
-      ? lineEndT +
-        Math.min(
-          Math.max(0, gap * PLAYHEAD_LINE_WRAP),
-          Math.max(0, gap - 0.02),
-        )
-      : tNext;
-    const exitX = leadOutX(last, prev, band, Math.max(0, tWrap - lineEndT));
+    const soundedUntil =
+      last.endSec != null && last.endSec > last.tSec + 1e-3
+        ? last.endSec
+        : next
+          ? next.tSec
+          : last.tSec + Math.max(0.45, prevGap);
+    // Leave this line when the last note has finished, not part-way through it.
+    const tWrap = next ? Math.min(soundedUntil, next.tSec) : soundedUntil;
+    const staffRight = band ? band.x + band.width - 6 : null;
+    const exitX =
+      staffRight != null
+        ? Math.max(last.x + 8, staffRight)
+        : leadOutX(last, prev, band, Math.max(0, tWrap - last.tSec));
     if (tWrap > last.tSec + 1e-3) {
-      const soundingEnd =
-        last.endSec != null
-          ? Math.min(Math.max(last.endSec, last.tSec), tWrap - 1e-3)
-          : last.tSec +
-            Math.min(
-              (tWrap - last.tSec) * 0.55,
-              Math.max(0, tWrap - last.tSec - 0.04),
-            );
-      if (soundingEnd > last.tSec + 0.02) {
-        out.push({ ...last, tSec: soundingEnd, x: last.x, glideToNext: true });
-      } else {
-        const parked = out[out.length - 1];
-        if (parked) parked.glideToNext = true;
-      }
       out.push({ ...last, tSec: tWrap, x: exitX, glideToNext: false });
     }
     if (next) {
@@ -339,8 +324,8 @@ function waypointsFor(
 }
 
 /**
- * Live playhead: slides across the staff and meets each notehead when it
- * sounds. Vertical position stays locked to the staff.
+ * Live playhead: sits on the sounding note and meets the next notehead
+ * when it speaks. Vertical position stays locked to the staff.
  */
 export function interpolatePlayhead(
   snaps: readonly CursorPose[],
@@ -396,8 +381,8 @@ export function applyPlayheadElement(
 }
 
 /**
- * Keep the active system in view. Large system jumps use smooth scroll;
- * intra-staff chase stays instant so the bar never lags the audio.
+ * Keep the active system in view. Always jump immediately — a smooth
+ * scroll leaves the bar off-screen while the audio has already moved on.
  */
 export function followPlayheadInScrollParent(
   wrap: HTMLElement,
@@ -411,11 +396,7 @@ export function followPlayheadInScrollParent(
     lastScrollY.current = pose.y;
     return;
   }
-  const largeSystemJump =
-    lastScrollY.current != null &&
-    Math.abs(lastScrollY.current - pose.y) > Math.max(pose.height * 2.5, 48);
   if (
-    !largeSystemJump &&
     lastScrollY.current != null &&
     Math.abs(lastScrollY.current - pose.y) < 6
   ) {
@@ -424,10 +405,7 @@ export function followPlayheadInScrollParent(
   const top = Math.max(0, pose.y - wrap.clientHeight * 0.3);
   lastScrollY.current = pose.y;
   if (typeof wrap.scrollTo === "function") {
-    wrap.scrollTo({
-      top,
-      behavior: largeSystemJump ? "smooth" : "auto",
-    });
+    wrap.scrollTo({ top, behavior: "auto" });
   } else {
     wrap.scrollTop = top;
   }

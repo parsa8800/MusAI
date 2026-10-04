@@ -182,6 +182,17 @@ describe("stable pitch run segmentation", () => {
     );
   });
 
+  it("starts a new note when the same pitch comes back after a rest", () => {
+    const hz = midiToHz(66);
+    const first = framesFromHzTimeline([{ hz, count: 8 }], 0.05);
+    const second = framesFromHzTimeline([{ hz, count: 8 }], 0.05).map(
+      (frame) => ({ ...frame, timeSec: frame.timeSec + 1.2 }),
+    );
+    const runs = collectStablePitchRuns([...first, ...second]);
+    expect(runs).toHaveLength(2);
+    expect(runs[1]!.timeStartSec).toBeGreaterThan(1);
+  });
+
   it("absorbs a brief neighbour-pitch flicker into one run", () => {
     const c = midiToHz(60);
     const cs = midiToHz(61);

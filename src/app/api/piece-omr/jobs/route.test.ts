@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TWINKLE_XML } from "@/features/piece-studio/score/musicXmlFixtures";
-import type { OmrInput } from "@/features/piece-studio/omr/omrProvider";
+import { OMR_COPY, type OmrInput } from "@/features/piece-studio/omr/omrProvider";
 import type { OmrJobSnapshot } from "@/features/piece-studio/omr/omrJob";
 
 const mocks = vi.hoisted(() => ({
@@ -22,7 +22,7 @@ vi.mock("@/features/piece-studio/omr/resolveOmrProvider", () => ({
 
 describe("POST /api/piece-omr/jobs", () => {
   beforeEach(() => {
-    mocks.submitJob.mockReset();
+    mocks.submitJob = vi.fn();
     mocks.getJob.mockReset();
     mocks.recognize.mockReset();
     mocks.providerId = "audiveris";
@@ -44,6 +44,40 @@ describe("POST /api/piece-omr/jobs", () => {
     expect(data.jobId).toBe("job-abc");
     expect(data.status).toBe("queued");
     expect(mocks.recognize).not.toHaveBeenCalled();
+  });
+
+  it("tells the client the score reader is unavailable instead of asking for a retry", async () => {
+    mocks.providerId = "unavailable";
+    const { POST } = await import("@/app/api/piece-omr/jobs/route");
+    const form = new FormData();
+    form.append("file", new File(["%PDF"], "score.pdf", { type: "application/pdf" }));
+    const res = await POST(
+      new Request("http://localhost/api/piece-omr/jobs", {
+        method: "POST",
+        body: form,
+      }),
+    );
+    expect(res.status).toBe(503);
+    const data = (await res.json()) as { error: string; code: string };
+    expect(data.error).toBe(OMR_COPY.scanningUnavailable);
+    expect(data.code).toBe("unavailable");
+    expect(mocks.submitJob).not.toHaveBeenCalled();
+  });
+
+  it("asks for the one-shot reader only when the provider has no job API", async () => {
+    mocks.submitJob = undefined as unknown as typeof mocks.submitJob;
+    const { POST } = await import("@/app/api/piece-omr/jobs/route");
+    const form = new FormData();
+    form.append("file", new File(["png"], "page.png", { type: "image/png" }));
+    const res = await POST(
+      new Request("http://localhost/api/piece-omr/jobs", {
+        method: "POST",
+        body: form,
+      }),
+    );
+    expect(res.status).toBe(503);
+    const data = (await res.json()) as { code: string };
+    expect(data.code).toBe("sync");
   });
 
   it("rejects non sheet-music uploads", async () => {

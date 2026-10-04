@@ -190,6 +190,12 @@ describe("score highlight geometry", () => {
     expect(measure.height).toBeGreaterThan(wash.height * 0.65);
     expect(heat.y).toBeGreaterThan(wash.y);
     expect(note.y).toBeGreaterThan(wash.y);
+    const rhythm = shapePassageUnderlay(wash, "heat", { staffOutset: true });
+    expect(rhythm.y).toBeLessThan(wash.y);
+    expect(rhythm.y + rhythm.height).toBeGreaterThan(wash.y + wash.height);
+    expect(rhythm.height).toBeCloseTo(wash.height * 1.24);
+    expect(rhythm.x).toBeLessThan(wash.x);
+    expect(rhythm.width).toBeGreaterThan(wash.width);
     expect(measure.width).toBeLessThanOrEqual(wash.width);
     expect(measure.x).toBeGreaterThanOrEqual(wash.x);
   });

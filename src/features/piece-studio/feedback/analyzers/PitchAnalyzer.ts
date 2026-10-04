@@ -45,6 +45,7 @@ export const PitchAnalyzer: PieceFeedbackAnalyzer = {
             mono: input.audio.mono,
             sampleRateHz: input.audio.sampleRateHz,
             expectedMidis: expected.map((n) => n.midi),
+            durationQuarters: expected.map((n) => n.durationQuarters),
             ...activePiecePitchWindow(),
           })
         : null);

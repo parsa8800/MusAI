@@ -263,12 +263,12 @@ export function ScalePracticeResultsView({
         )
       ) : null}
 
-      <header
-        data-anime-enter
-        className="musai-glass-panel shrink-0 px-3 py-1.5 sm:px-4 sm:py-2"
-      >
-        {session ? (
-          <>
+      {homeQuiet ? null : (
+        <header
+          data-anime-enter
+          className="musai-glass-panel shrink-0 px-3 py-1.5 sm:px-4 sm:py-2"
+        >
+          {session ? (
             <ScaleAttemptProgressStrip
               session={displaySession ?? session}
               loopAttempts={attempts}
@@ -284,11 +284,11 @@ export function ScalePracticeResultsView({
                 />
               }
             />
-          </>
-        ) : (
-          <ScaleProgressReadyBar size="lg" />
-        )}
-      </header>
+          ) : (
+            <ScaleProgressReadyBar size="lg" />
+          )}
+        </header>
+      )}
 
       <div
         data-anime-enter

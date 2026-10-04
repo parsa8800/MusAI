@@ -216,6 +216,12 @@ const STABLE_RUN_MIN_FRAMES = 4;
 const SPLIT_HYSTERESIS_FRAMES = 4;
 /** Merge same-pitch fragments only across tiny gaps (not a later re-articulation). */
 const MERGE_MAX_GAP_SEC = 0.08;
+/**
+ * A rest this long starts a new note, even when the pitch comes back the same.
+ * Silence does not produce frames, so two bows of one pitch would otherwise
+ * stay one run and the later written note would look missed.
+ */
+const SAME_PITCH_RESTART_GAP_SEC = 0.22;
 const MERGE_SEMI_TOL = 0.7;
 
 /** Max abs cents to assign a pitch run to an expected scale degree. */
@@ -329,6 +335,16 @@ export function collectStablePitchRuns(frames: PitchFrame[]): StablePitchRun[] {
       continue;
     }
     const center = meanMidi(current);
+    const prev = current[current.length - 1]!;
+    if (
+      Math.abs(hzToMidi(frame.hz) - center) <= STABLE_RUN_SEMI_TOL &&
+      frame.timeSec - prev.timeSec > SAME_PITCH_RESTART_GAP_SEC
+    ) {
+      flushCurrent();
+      current = [frame];
+      pendingOut = [];
+      continue;
+    }
     if (Math.abs(hzToMidi(frame.hz) - center) <= STABLE_RUN_SEMI_TOL) {
       pendingOut = [];
       current.push(frame);

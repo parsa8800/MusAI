@@ -123,4 +123,92 @@ describe("ScorePlaybackPlayhead", () => {
 
     expect(onScrubCommit).toHaveBeenCalledWith(1, false);
   });
+
+  it("follows the pointer onto the next line", () => {
+    const scroll = mockScrollHost();
+    const onScrubCommit = vi.fn();
+    const lines: CursorPose[] = [
+      { tSec: 0, x: 80, y: 24, height: 40 },
+      { tSec: 1, x: 160, y: 24, height: 40 },
+      { tSec: 2, x: 90, y: 160, height: 40 },
+    ];
+
+    render(
+      <ScorePlaybackPlayhead
+        active
+        snapsRef={{ current: lines }}
+        staffBandsRef={{ current: [] }}
+        scrollParentRef={{ current: scroll }}
+        getPlaybackTime={() => 0}
+        scrubEnabled
+        getPlaying={() => false}
+        onScrubPreview={vi.fn()}
+        onScrubCommit={onScrubCommit}
+      />,
+    );
+
+    const playhead = screen.getByTestId("piece-score-playhead");
+    fireEvent.pointerDown(playhead, { clientX: 80, clientY: 40, button: 0 });
+    fireEvent.pointerMove(playhead, { clientX: 90, clientY: 170 });
+    fireEvent.pointerUp(playhead, { clientX: 90, clientY: 170 });
+
+    expect(onScrubCommit).toHaveBeenCalledWith(2, false);
+  });
+
+  it("moves the pointer when the score itself is pressed", () => {
+    const scroll = mockScrollHost();
+    const onScrubCommit = vi.fn();
+    const onScrubGesture = vi.fn();
+
+    render(
+      <ScorePlaybackPlayhead
+        active
+        snapsRef={{ current: snaps }}
+        staffBandsRef={{ current: [] }}
+        scrollParentRef={{ current: scroll }}
+        getPlaybackTime={() => 0}
+        scrubEnabled
+        scrubFromScore
+        getPlaying={() => true}
+        onScrubPreview={vi.fn()}
+        onScrubCommit={onScrubCommit}
+        onScrubGesture={onScrubGesture}
+      />,
+    );
+
+    fireEvent.pointerDown(scroll, { clientX: 160, clientY: 40, button: 0 });
+    fireEvent.pointerUp(scroll, { clientX: 160, clientY: 40, button: 0 });
+
+    expect(onScrubCommit).toHaveBeenCalledWith(1, true);
+    expect(onScrubGesture).toHaveBeenCalled();
+  });
+
+  it("leaves a rhythm highlight press for the coach", () => {
+    const scroll = mockScrollHost();
+    const heat = document.createElement("button");
+    heat.dataset.testid = "piece-score-heat";
+    scroll.appendChild(heat);
+    const onScrubCommit = vi.fn();
+    const onScrubPreview = vi.fn();
+
+    render(
+      <ScorePlaybackPlayhead
+        active
+        snapsRef={{ current: snaps }}
+        staffBandsRef={{ current: [] }}
+        scrollParentRef={{ current: scroll }}
+        getPlaybackTime={() => 0}
+        scrubEnabled
+        scrubFromScore
+        onScrubPreview={onScrubPreview}
+        onScrubCommit={onScrubCommit}
+      />,
+    );
+
+    fireEvent.pointerDown(heat, { clientX: 160, clientY: 40, button: 0 });
+    fireEvent.pointerUp(heat, { clientX: 160, clientY: 40, button: 0 });
+
+    expect(onScrubPreview).not.toHaveBeenCalled();
+    expect(onScrubCommit).not.toHaveBeenCalled();
+  });
 });

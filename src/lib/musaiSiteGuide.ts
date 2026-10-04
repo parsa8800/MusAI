@@ -18,7 +18,7 @@ export function musaiSiteGuideText(): string {
     "Tuner checks whether one pitch is in tune.",
     "Tuning trainer is for practising a single note.",
     "Scale studio: press Record under the staff and play a scale. MusAI finds the scale from what you play, then you can work from there. You can also choose the scale yourself. The key, major or minor, octaves, and direction are already on the page, so do not walk through those controls. Fingering shows string and finger on violin and viola. After a take, notes colour on the staff. The bar fills as that scale is played in tune. My scales is the button at the top and keeps past scales. The Coach button opens this chat even before a recording.",
-    "Piece studio: import a photo, a PDF, or a MusicXML file. MusAI reads the notes into a score you can play along with. You can open the original file too.",
+    "Piece studio: import a photo, a PDF, or a MusicXML file. MusAI reads the notes into a score you can play along with.",
     "Settings chooses the instrument (violin, viola, or piano) and light, dark, or system appearance.",
     "Do not invent other pages, accounts, or payments.",
   ].join(" ");

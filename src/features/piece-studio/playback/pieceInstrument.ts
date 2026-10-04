@@ -1,5 +1,6 @@
 import { createAudioContext } from "@/lib/audioContext";
 import { attachPieceSourceCut } from "@/features/piece-studio/playback/pieceListenCut";
+import { createViolinPieceInstrument } from "@/features/piece-studio/playback/violinPlayback";
 
 export type PieceInstrumentId = "piano" | "violin" | "viola";
 
@@ -46,6 +47,10 @@ type SmplrScheduler = {
 
 function velocityMidi(velocity01: number): number {
   return Math.round(Math.max(1, Math.min(127, velocity01 * 127)));
+}
+
+function listenHoldSec(durationSec: number): number {
+  return Math.max(0.05, durationSec);
 }
 
 /**
@@ -97,7 +102,7 @@ function wrapSmplrInstrument(
   ): boolean => {
     unmute();
     const stopId = `${id}-${midi}-${++seq}`;
-    const duration = Math.max(0.05, durationSec);
+    const duration = listenHoldSec(durationSec);
     try {
       const stop = inst.start({
         note: midi,
@@ -180,17 +185,27 @@ function wrapSmplrInstrument(
 }
 
 /**
- * Sampled Listen instrument. Always the Splendid Grand (Steinway samples).
- * GM violin and viola kits are not realistic enough for this player.
+ * Sampled Listen instrument.
+ * Piano is the Splendid Grand (Steinway samples).
+ * Violin is the recorded solo-violin set in `public/audio/violin`.
+ * Viola has no sample set, so it keeps the piano.
  *
  * The Scheduler lookahead matches MusAI’s schedule window so seek→play arms
  * the full remaining sequence instead of only the first note.
  */
 export async function createPieceInstrument(
   ctx: AudioContext,
-  _id: PieceInstrumentId = "piano",
+  id: PieceInstrumentId = "piano",
 ): Promise<PieceInstrument> {
   const { silenceAll } = attachPieceSourceCut(ctx);
+  const bus = ctx.createGain();
+  bus.gain.value = 1;
+  bus.connect(ctx.destination);
+
+  if (id === "violin") {
+    return createViolinPieceInstrument(ctx, bus, silenceAll);
+  }
+
   const { Scheduler, SplendidGrandPiano } = await import("smplr");
   // Slightly beyond MusAI LOOKAHEAD_SEC (1.2s) so the whole window dispatches
   // into Web Audio immediately and is not held as cancellable queue entries.
@@ -198,12 +213,7 @@ export async function createPieceInstrument(
     lookaheadMs: 1600,
     intervalMs: 40,
   });
-
-  const bus = ctx.createGain();
-  bus.gain.value = 1;
-  bus.connect(ctx.destination);
-
-  const piano = SplendidGrandPiano(ctx, {
+  const sampled = SplendidGrandPiano(ctx, {
     volume: 100,
     velocity: 92,
     // Short natural release; transport mute bus handles instant pause cuts.
@@ -214,7 +224,7 @@ export async function createPieceInstrument(
   const wrapped = wrapSmplrInstrument(
     "piano",
     ctx,
-    piano,
+    sampled,
     scheduler,
     bus,
     silenceAll,

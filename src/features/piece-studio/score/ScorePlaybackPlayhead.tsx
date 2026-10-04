@@ -32,6 +32,8 @@ export function ScorePlaybackPlayhead({
   subscribePlaybackTime,
   syncRef,
   scrubEnabled = false,
+  /** Press anywhere on the score to move the pointer and the recording. */
+  scrubFromScore = false,
   onScrubPreview,
   onScrubCommit,
   getPlaying,
@@ -45,6 +47,7 @@ export function ScorePlaybackPlayhead({
   subscribePlaybackTime?: (listener: PiecePlaybackTimeListener) => () => void;
   syncRef?: { current: (() => void) | null };
   scrubEnabled?: boolean;
+  scrubFromScore?: boolean;
   onScrubPreview?: (tSec: number) => void;
   /** Called on pointer up with whether playback should resume. */
   onScrubCommit?: (tSec: number, resume: boolean) => void;
@@ -57,7 +60,6 @@ export function ScorePlaybackPlayhead({
   const lastKey = useRef("");
   const scrubbingRef = useRef(false);
   const wasPlayingRef = useRef(false);
-  const scrubYRef = useRef<number | null>(null);
   const movedRef = useRef(false);
   const getTimeRef = useRef(getPlaybackTime);
   getTimeRef.current = getPlaybackTime;
@@ -91,8 +93,7 @@ export function ScorePlaybackPlayhead({
       if (!wrap) return null;
       const rect = wrap.getBoundingClientRect();
       const x = clientX - rect.left + wrap.scrollLeft;
-      const y =
-        scrubYRef.current ?? clientY - rect.top + wrap.scrollTop;
+      const y = clientY - rect.top + wrap.scrollTop;
       return pickCursorTime(snapsRef.current, x, y);
     },
     [scrollParentRef, snapsRef],
@@ -119,8 +120,6 @@ export function ScorePlaybackPlayhead({
       const wrap = scrollParentRef.current;
       if (!wrap) return;
 
-      const rect = wrap.getBoundingClientRect();
-      scrubYRef.current = event.clientY - rect.top + wrap.scrollTop;
       wasPlayingRef.current = getPlaying?.() ?? false;
       scrubbingRef.current = true;
       movedRef.current = false;
@@ -145,6 +144,7 @@ export function ScorePlaybackPlayhead({
     (event: React.PointerEvent<HTMLSpanElement>) => {
       if (!scrubbingRef.current) return;
       movedRef.current = true;
+      event.stopPropagation();
       previewAt(event.clientX, event.clientY);
     },
     [previewAt],
@@ -154,7 +154,6 @@ export function ScorePlaybackPlayhead({
     (event: React.PointerEvent<HTMLSpanElement>) => {
       if (!scrubbingRef.current) return;
       scrubbingRef.current = false;
-      scrubYRef.current = null;
       const wrap = scrollParentRef.current;
       if (wrap) delete wrap.dataset.scrubbing;
 
@@ -169,6 +168,7 @@ export function ScorePlaybackPlayhead({
       if (t != null && onScrubCommit) {
         onScrubCommit(t, wasPlayingRef.current);
       }
+      event.stopPropagation();
       if (movedRef.current) {
         onScrubGesture?.();
       }
@@ -176,6 +176,91 @@ export function ScorePlaybackPlayhead({
     },
     [onScrubCommit, onScrubGesture, pointerToTime, scrollParentRef],
   );
+
+  useEffect(() => {
+    if (!scrubFromScore || !onScrubPreview || !onScrubCommit) return;
+    const wrap = scrollParentRef.current;
+    if (!wrap) return;
+
+    const onPlayhead = (target: EventTarget | null) => {
+      const el = elRef.current;
+      return Boolean(el && target instanceof Node && (target === el || el.contains(target)));
+    };
+
+    const onDown = (event: PointerEvent) => {
+      if (event.button !== 0 || scrubbingRef.current || onPlayhead(event.target)) return;
+      const target = event.target instanceof Element ? event.target : null;
+      // Rhythm highlights are buttons on the staff. Leave those presses alone
+      // so they can open the coach instead of moving the playhead.
+      if (
+        target?.closest(
+          "a, button, input, select, textarea, [data-testid='piece-score-heat']",
+        )
+      ) {
+        return;
+      }
+
+      wasPlayingRef.current = getPlaying?.() ?? false;
+      scrubbingRef.current = true;
+      movedRef.current = false;
+      wrap.dataset.scrubbing = "true";
+      try {
+        wrap.setPointerCapture(event.pointerId);
+      } catch {
+        /* jsdom and some hosts refuse capture */
+      }
+      const t = pointerToTime(event.clientX, event.clientY);
+      if (t != null) {
+        onScrubPreview(t);
+        applyRef.current(t);
+      }
+    };
+
+    const onMove = (event: PointerEvent) => {
+      if (!scrubbingRef.current || onPlayhead(event.target)) return;
+      movedRef.current = true;
+      const t = pointerToTime(event.clientX, event.clientY);
+      if (t == null) return;
+      onScrubPreview(t);
+      applyRef.current(t);
+    };
+
+    const onUp = (event: PointerEvent) => {
+      if (!scrubbingRef.current || onPlayhead(event.target)) return;
+      scrubbingRef.current = false;
+      delete wrap.dataset.scrubbing;
+      try {
+        if (wrap.hasPointerCapture(event.pointerId)) {
+          wrap.releasePointerCapture(event.pointerId);
+        }
+      } catch {
+        /* ignore */
+      }
+      const t = pointerToTime(event.clientX, event.clientY);
+      if (t != null) onScrubCommit(t, wasPlayingRef.current);
+      onScrubGesture?.();
+      movedRef.current = false;
+    };
+
+    wrap.addEventListener("pointerdown", onDown);
+    wrap.addEventListener("pointermove", onMove);
+    wrap.addEventListener("pointerup", onUp);
+    wrap.addEventListener("pointercancel", onUp);
+    return () => {
+      wrap.removeEventListener("pointerdown", onDown);
+      wrap.removeEventListener("pointermove", onMove);
+      wrap.removeEventListener("pointerup", onUp);
+      wrap.removeEventListener("pointercancel", onUp);
+    };
+  }, [
+    getPlaying,
+    onScrubCommit,
+    onScrubGesture,
+    onScrubPreview,
+    pointerToTime,
+    scrollParentRef,
+    scrubFromScore,
+  ]);
 
   useLayoutEffect(() => {
     const el = elRef.current;

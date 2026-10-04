@@ -1,21 +1,12 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type ChangeEvent,
-} from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { MusaiCaptureMode } from "@/components/MusaiCaptureDock";
 import { analyzePieceTake } from "@/features/piece-studio/practice/analyzePieceTake";
 import { skillMapFromReport } from "@/features/piece-studio/feedback/pieceFeedbackTypes";
 import { appendPieceAttempt } from "@/features/piece-studio/practice/piecePracticeAttempts";
 import { pieceAttemptFeedback } from "@/features/piece-studio/practice/piecePracticeCopy";
 import { expectedMidisFromScore } from "@/features/piece-studio/practice/pieceExpectedNotes";
-import { expectedNotesFromScore } from "@/features/piece-studio/score/expectedNotes";
-import { synthesizePieceSampleTake } from "@/features/piece-studio/practice/synthesizePieceSampleTake";
 import { readPieceFeedbackHistory } from "@/features/piece-studio/pieceStudioFiles";
 import type { MusaiScoreV1 } from "@/features/piece-studio/score/musaiScore";
 import { useSyncedRecorderUi } from "@/hooks/useSyncedRecorderUi";
@@ -203,17 +194,6 @@ export function usePiecePracticeCapture(input: {
     [captureMode, file, pieceId, recordedBlob],
   );
 
-  const loadSampleTake = useCallback(() => {
-    const notes = expectedNotesFromScore(structuredRef.current ?? null);
-    if (notes.length === 0) {
-      setStatus("error");
-      setMessage("This score has no notes to play a sample take.");
-      return;
-    }
-    const sample = synthesizePieceSampleTake(notes);
-    void runAnalyze(sample.wav);
-  }, [runAnalyze]);
-
   const startRecording = useCallback(async () => {
     setMessage(null);
     setRecordedBlob(null);
@@ -316,14 +296,13 @@ export function usePiecePracticeCapture(input: {
     [captureMode, isRecording, resetCaptureSession],
   );
 
+  const discardClip = useCallback(() => {
+    setRecordedBlob(null);
+    resetCaptureSession();
+  }, [resetCaptureSession]);
+
   const handleFileChange = useCallback(
-    (e: ChangeEvent<HTMLInputElement>) => {
-      const f = e.target.files?.[0] ?? null;
-      if (!f) {
-        setFile(null);
-        setUploadProcessing(false);
-        return;
-      }
+    (f: File) => {
       const token = ++uploadTokenRef.current;
       setFile(f);
       setUploadProcessing(true);
@@ -380,8 +359,8 @@ export function usePiecePracticeCapture(input: {
     refreshMicDevices,
     startRecording,
     stopRecording,
-    loadSampleTake,
     discardRecording,
+    discardClip,
     streamRef,
     elapsedLabel,
     lastTakeLabel,
