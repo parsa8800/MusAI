@@ -9,6 +9,6 @@ export {
   parseScaleWorkspaceSlug,
   scaleWorkspaceHref,
   progressKeyFor,
-} from "@/features/scale-studio/scaleWorkspace";
-export type { ScaleWorkspaceIdentity } from "@/features/scale-studio/scaleWorkspace";
+} from "@/features/scale-studio/scaleWorkspaceRoutes";
+export type { ScaleWorkspaceIdentity } from "@/features/scale-studio/scaleWorkspaceRoutes";
 export type { ScalePracticeSessionV1 } from "@/features/scale-studio/scalePracticeTypes";

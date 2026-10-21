@@ -1,1 +1,1 @@
-export * from "@/features/scale-studio/scaleWorkspace";
+export * from "@/features/scale-studio/scaleWorkspaceRoutes";
