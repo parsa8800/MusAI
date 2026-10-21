@@ -1,1 +1,1 @@
-export * from "@/features/tuner/violinTuner";
+export * from "@/features/tuner/tunerPitch";

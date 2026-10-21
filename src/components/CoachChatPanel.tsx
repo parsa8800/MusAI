@@ -84,8 +84,6 @@ export function CoachChatPanel({
       openerText={openerText}
       source={initialSource as CoachReplySource}
       suggestions={suggestions}
-      placeholder={askOnly ? "Ask your teacher..." : undefined}
-      showHeader={askOnly ? false : undefined}
       sanitizeUserText={sanitizeCoachFeedback}
       getReply={async (userText, history) => {
         const ctx = session
