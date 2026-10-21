@@ -2,8 +2,8 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { MusaiLoadingScreen, StudioReveal } from "@/components/MusaiLoadingMark";
 import { PracticeHubBackLink } from "@/components/PracticeHubBackLink";
-import { ScaleWorkspace } from "@/components/ScaleWorkspace";
-import { parseScaleWorkspaceSlug } from "@/lib/scaleWorkspace";
+import { ScaleWorkspace } from "@/features/scale-studio";
+import { parseScaleWorkspaceSlug } from "@/features/scale-studio";
 
 export default async function ScaleWorkspacePage({
   params,

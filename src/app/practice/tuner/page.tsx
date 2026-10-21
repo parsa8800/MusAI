@@ -1,5 +1,5 @@
 import { PracticeHubBackLink } from "@/components/PracticeHubBackLink";
-import { Tuner } from "@/components/ViolinTuner";
+import { Tuner } from "@/features/tuner";
 
 export default function TunerPracticePage() {
   return (
@@ -9,7 +9,7 @@ export default function TunerPracticePage() {
       </div>
       <div className="musai-tuner-page__stage">
         <header className="musai-tuner-page__header">
-          <h1 className="musai-tuner-page__title font-display">
+          <h1 className="musai-page-title musai-tuner-page__title font-display">
             Tuner
           </h1>
         </header>

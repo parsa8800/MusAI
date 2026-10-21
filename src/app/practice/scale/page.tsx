@@ -1,5 +1,5 @@
 import { MusaiLoadingScreen, StudioReveal } from "@/components/MusaiLoadingMark";
-import { ScaleStudioSelector } from "@/components/ScaleStudioSelector";
+import { ScaleStudioSelector } from "@/features/scale-studio";
 import { Suspense } from "react";
 
 export default function ScalePracticePage() {

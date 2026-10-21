@@ -16,6 +16,7 @@ import {
   localSiteGuideReply,
   type ScaleCoachPreview,
 } from "@/lib/musaiSiteGuide";
+import { postCoachChatJson } from "@/lib/coachChatTransport";
 import {
   ensureBulletFeedback,
   sanitizeCoachFeedback,
@@ -43,6 +44,8 @@ type Props = {
   title?: string;
   /** Loop takes so the coach knows the progress bar streak. */
   loopAttempts?: ScalePracticeSessionV1[];
+  /** Rail: field only until they ask. Feedback stays outside this chat. */
+  askOnly?: boolean;
 };
 
 /**
@@ -59,17 +62,19 @@ export function CoachChatPanel({
   embed = false,
   title = "Coach · Parsa",
   loopAttempts,
+  askOnly = false,
 }: Props) {
   void initialError;
-  const openerText = takeCoachBullets(
-    [trendLine, tip].filter(Boolean).join("\n"),
-    2,
-  );
-  const suggestions = session
-    ? coachSuggestedQuestions(
-        buildScaleCoachChatContext(session, tip, trendLine, loopAttempts),
-      )
-    : guideSuggestedQuestions();
+  const openerText = askOnly
+    ? ""
+    : takeCoachBullets([trendLine, tip].filter(Boolean).join("\n"), 2);
+  const suggestions = askOnly
+    ? []
+    : session
+      ? coachSuggestedQuestions(
+          buildScaleCoachChatContext(session, tip, trendLine, loopAttempts),
+        )
+      : guideSuggestedQuestions();
 
   return (
     <CoachParsaShell
@@ -79,6 +84,8 @@ export function CoachChatPanel({
       openerText={openerText}
       source={initialSource as CoachReplySource}
       suggestions={suggestions}
+      placeholder={askOnly ? "Ask your teacher..." : undefined}
+      showHeader={askOnly ? false : undefined}
       sanitizeUserText={sanitizeCoachFeedback}
       getReply={async (userText, history) => {
         const ctx = session
@@ -92,33 +99,24 @@ export function CoachChatPanel({
             ));
         let replySource: CoachReplySource = "template";
 
-        try {
-          const res = await fetch("/api/scale-coach-chat", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              session: session ?? undefined,
-              preview,
-              tip,
-              trendLine,
-              loopAttempts,
-              messages: history,
-            }),
-          });
-          if (res.ok) {
-            const data = (await res.json()) as {
-              reply?: string;
-              source?: CoachReplySource;
-            };
-            if (typeof data.reply === "string" && data.reply.trim()) {
-              answer = ensureBulletFeedback(data.reply);
-            }
-            if (data.source === "llm" || data.source === "template") {
-              replySource = data.source;
-            }
+        const remote = await postCoachChatJson<{
+          reply?: string;
+          source?: CoachReplySource;
+        }>("/api/scale-coach-chat", {
+          session: session ?? undefined,
+          preview,
+          tip,
+          trendLine,
+          loopAttempts,
+          messages: history,
+        });
+        if (remote.ok) {
+          if (typeof remote.data.reply === "string" && remote.data.reply.trim()) {
+            answer = ensureBulletFeedback(remote.data.reply);
           }
-        } catch {
-          /* keep local reply */
+          if (remote.data.source === "llm" || remote.data.source === "template") {
+            replySource = remote.data.source;
+          }
         }
 
         return { reply: answer, source: replySource };

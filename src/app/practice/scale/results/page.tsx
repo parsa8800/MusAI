@@ -8,7 +8,7 @@ import {
   readScalePracticeHistoryEntry,
   readScalePracticeSession,
 } from "@/lib/scalePracticeSession";
-import { scaleWorkspaceHref } from "@/lib/scaleWorkspace";
+import { scaleWorkspaceHref } from "@/features/scale-studio";
 
 function ResultsLoading() {
   return <MusaiLoadingScreen label="Loading" />;

@@ -162,7 +162,7 @@ describe("ScalePracticeResultsView", () => {
     });
 
     expect(screen.queryByTestId("coach-chat")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /open coach/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^coach$/i }));
     expect(screen.getByTestId("coach-chat")).toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalled();
   });
@@ -389,12 +389,12 @@ describe("ScalePracticeResultsView", () => {
     expect(screen.getByRole("heading", { name: "Play a scale" })).toBeVisible();
     expect(screen.getByTestId("studio-capture")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /open coach/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^coach$/i }));
     expect(screen.getByTestId("coach-chat")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Tips" })).not.toBeInTheDocument();
     expect(screen.getByTestId("studio-capture")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /close coach/i }));
+    fireEvent.click(screen.getAllByRole("button", { name: /hide coach/i })[0]);
     expect(screen.queryByTestId("coach-chat")).not.toBeInTheDocument();
   });
 
@@ -425,7 +425,9 @@ describe("ScalePracticeResultsView", () => {
       />,
     );
 
-    expect(screen.getAllByText("Listening…").length).toBeGreaterThan(0);
+    expect(screen.getByRole("status", { name: "Listening" })).toBeInTheDocument();
+    expect(screen.queryByText("Listening…")).not.toBeInTheDocument();
+    expect(document.querySelector(".musai-piece-load__dot")).toBeTruthy();
   });
 
   it("does not place a take failure on the staff", () => {
