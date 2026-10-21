@@ -84,6 +84,9 @@ export function PieceStudioView() {
         setImportDraft(restored.draft);
         return;
       }
+      if (restored.status !== "reading") {
+        return;
+      }
       const generation = ++importGenerationRef.current;
       setPhase("processing");
       setConvertProgress(restored.progress);
@@ -103,6 +106,10 @@ export function PieceStudioView() {
           },
         );
         if (generation !== importGenerationRef.current || cancelled) {
+          return;
+        }
+        if (result.status === "committed") {
+          setPieces(listPieceWorkspaces());
           return;
         }
         setImportDraft(result.draft);
