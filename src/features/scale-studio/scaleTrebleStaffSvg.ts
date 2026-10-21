@@ -1,0 +1,624 @@
+"use client";
+
+import {
+  fingerLabelRegex,
+  hasStringFingering,
+  stringFingerLabel,
+} from "@/lib/instrument";
+import type { InstrumentProfile, NotationClef } from "@/lib/instrument";
+import { placeFingerLabel } from "@/lib/fingerLabelPlacement";
+import {
+  notationFitFromBoxes,
+  notationFitLayoutShift,
+  notationFitScale,
+  notationViewBoxFromInk,
+  unionClientBoxes,
+} from "@/lib/notationFit";
+import { SCALE_IN_TUNE_CENTS } from "@/lib/analyzeScalePerformance";
+import {
+  clefPointForLineSpacing,
+  keySignaturePointForStaff,
+  STAVE_HEADROOM_SPACES,
+  STAVE_LINE_SPACING_PX,
+  staveCanvasMetrics,
+} from "@/lib/vexflowScaleSpelling";
+
+/** Host inset so stems and clefs never kiss the clip edge. */
+export const NOTATION_HOST_INK_INSET_PX = 5;
+/** Room above the staff so string+finger labels sit clear of the stem tips. */
+export const FINGER_LABEL_PAD_PX = 36;
+
+/** Theme-aware engraving colours for VexFlow. */
+export function notationThemeColors(appearance: "live" | "preview" = "live") {
+  if (typeof window === "undefined") {
+    return {
+      fill: appearance === "preview" ? "#a8a29e" : "#1c1917",
+      stroke: "#b7aea3",
+      bg: "#fffcf8",
+    };
+  }
+  const s = getComputedStyle(document.documentElement);
+  const read = (name: string, fallback: string) =>
+    s.getPropertyValue(name).trim() || fallback;
+  const liveFill = read("--musai-notation", read("--musai-ink", "#1c1917"));
+  const muted = read("--musai-muted", "#78716c");
+  return {
+    // Preview: soft but readable — kids should recognise real notes, not ink blotches.
+    fill: appearance === "preview" ? muted : liveFill,
+    stroke:
+      appearance === "preview"
+        ? read("--musai-staff-line", "#c4bbb0")
+        : read("--musai-staff-line", "#b7aea3"),
+    bg: read("--musai-surface", "#fffcf8"),
+  };
+}
+
+export function cssVar(name: string, fallback: string): string {
+  if (typeof window === "undefined") return fallback;
+  return (
+    getComputedStyle(document.documentElement).getPropertyValue(name).trim() ||
+    fallback
+  );
+}
+
+export function noteInkForCents(cents: number | null): { fill: string; stroke: string } {
+  if (cents === null) {
+    const miss = cssVar("--musai-pitch-miss", cssVar("--musai-muted", "#78716c"));
+    return { fill: miss, stroke: miss };
+  }
+  const abs = Math.abs(cents);
+  if (abs <= SCALE_IN_TUNE_CENTS) {
+    const ok = cssVar("--musai-pitch-ok", cssVar("--musai-ok", "#2f8a62"));
+    return { fill: ok, stroke: ok };
+  }
+  if (cents > 0) {
+    const high = cssVar("--musai-pitch-high", cssVar("--musai-warn", "#d4891a"));
+    return { fill: high, stroke: high };
+  }
+  const low = cssVar("--musai-pitch-low", "#3d6ec9");
+  return { fill: low, stroke: low };
+}
+
+export function drawSystem(
+  VF: typeof import("vexflow"),
+  host: HTMLDivElement,
+  vexKeys: string[],
+  keySig: string,
+  staveWidth: number,
+  options: {
+    endBarSingle: boolean;
+    cents?: Array<number | null>;
+    lineSpacingPx?: number;
+    noteHeadFontSize?: number;
+    colors?: { fill: string; stroke: string; bg: string };
+    clef?: NotationClef;
+    midis?: number[];
+    instrument?: InstrumentProfile;
+  },
+) {
+  const { Renderer, Stave, StaveNote, Formatter } = VF;
+  const lineSpacing = options.lineSpacingPx ?? STAVE_LINE_SPACING_PX;
+  const noteHeadFontSize = options.noteHeadFontSize ?? 39;
+  const { fill: notationFill, stroke: notationStroke, bg: staveBg } =
+    options.colors ?? notationThemeColors();
+  const metricsDefaults = (VF as { MetricsDefaults?: { NoteHead?: { fontSize?: number } } }).MetricsDefaults;
+  const vfMetrics = (VF as { Metrics?: { clear?: (key: string) => void } }).Metrics;
+  if (metricsDefaults) {
+    metricsDefaults.NoteHead = { ...metricsDefaults.NoteHead, fontSize: noteHeadFontSize };
+    vfMetrics?.clear?.("NoteHead");
+  }
+  const BarlineType = VF.BarlineType;
+  const endBar = BarlineType?.SINGLE ?? 1;
+  const Annotation = (VF as any).Annotation as
+    | (new (text: string) => any)
+    | undefined;
+
+  host.innerHTML = "";
+  const metrics = staveCanvasMetrics(
+    vexKeys,
+    lineSpacing,
+    options.clef ?? "treble",
+  );
+  // Keep the same canvas height with or without visible labels so the staff
+  // does not jump when Fingering is toggled.
+  const fingerPad =
+    options.instrument && hasStringFingering(options.instrument)
+      ? FINGER_LABEL_PAD_PX
+      : 0;
+  const height = metrics.height + fingerPad;
+  const staveY = metrics.staveY + fingerPad;
+  const renderer = new Renderer(host, Renderer.Backends.SVG);
+  renderer.resize(staveWidth, height);
+  const ctx = renderer.getContext();
+  ctx.setFillStyle(notationFill);
+  ctx.setStrokeStyle(notationStroke);
+  ctx.setBackgroundFillStyle(staveBg);
+  ctx.setLineWidth(1.35);
+
+  const stave = new Stave(16, staveY, staveWidth - 32, {
+    spacingBetweenLinesPx: lineSpacing,
+    spaceAboveStaffLn: STAVE_HEADROOM_SPACES,
+    spaceBelowStaffLn: STAVE_HEADROOM_SPACES,
+  });
+  // Staff lines use stroke; clef / key use ink fill for contrast in both themes.
+  stave.setStyle({ fillStyle: notationFill, strokeStyle: notationStroke });
+  stave.setDefaultLedgerLineStyle({
+    strokeStyle: notationStroke,
+    lineWidth: 2.15,
+  });
+  const clefName = options.clef ?? "treble";
+  stave.addClef(clefName, "default");
+  const clefPoint = clefPointForLineSpacing(
+    lineSpacing,
+    noteHeadFontSize,
+    clefName,
+  );
+  const beginPos =
+    (VF as { StaveModifierPosition?: { BEGIN?: number } }).StaveModifierPosition
+      ?.BEGIN ?? 5;
+  const clefCategory =
+    (VF as { Clef?: { CATEGORY?: string } }).Clef?.CATEGORY ?? "Clef";
+  for (const mod of stave.getModifiers(beginPos, clefCategory)) {
+    const sized = mod as { setFontSize?: (size: number | string) => unknown };
+    sized.setFontSize?.(clefPoint);
+  }
+  const keySigPoint = keySignaturePointForStaff(noteHeadFontSize);
+  const metricsDefaultsKs = (
+    VF as {
+      MetricsDefaults?: { KeySignature?: { fontSize?: number } };
+    }
+  ).MetricsDefaults;
+  const hadKeySig = metricsDefaultsKs
+    ? Object.prototype.hasOwnProperty.call(metricsDefaultsKs, "KeySignature")
+    : false;
+  const prevKeySig = metricsDefaultsKs?.KeySignature
+    ? { ...metricsDefaultsKs.KeySignature }
+    : undefined;
+  if (metricsDefaultsKs) {
+    metricsDefaultsKs.KeySignature = { fontSize: keySigPoint };
+    vfMetrics?.clear?.("KeySignature");
+  }
+  stave.addKeySignature(keySig);
+  if (options.endBarSingle) {
+    stave.setEndBarType(endBar);
+  }
+  stave.setContext(ctx).draw();
+
+  for (const el of host.querySelectorAll(".vf-clef text, .vf-clef")) {
+    if (el instanceof SVGElement) {
+      el.setAttribute("font-size", `${clefPoint}pt`);
+    }
+  }
+  for (const el of host.querySelectorAll(
+    ".vf-keysignature text, g.vf-keysignature text",
+  )) {
+    if (el instanceof SVGElement) {
+      el.setAttribute("font-size", `${keySigPoint}pt`);
+    }
+  }
+  if (metricsDefaultsKs) {
+    if (!hadKeySig) delete metricsDefaultsKs.KeySignature;
+    else if (prevKeySig) metricsDefaultsKs.KeySignature = prevKeySig;
+    vfMetrics?.clear?.("KeySignature");
+  }
+
+  // Stems + noteheads share ink — never use staff-line grey for stems.
+  const noteStyle = { fillStyle: notationFill, strokeStyle: notationFill };
+  const centsForNotes = options.cents ? [...options.cents] : undefined;
+  const notes = vexKeys.map((k, noteIdx) => {
+    const n = new StaveNote({
+      keys: [k],
+      duration: "q",
+      autoStem: true,
+      clef: options.clef ?? "treble",
+    });
+    // Staff spacing is larger than VexFlow’s default; keep stems ~3.2 spaces tall.
+    // setStemLength only stores an override — push it onto the Stem before draw.
+    n.setStemLength(lineSpacing * 3.2);
+    n.getStem()?.setExtension(n.getStemExtension());
+    n.setLedgerLineStyle({
+      strokeStyle: notationStroke,
+      lineWidth: 2.25,
+    });
+    for (const head of n.noteHeads) {
+      head.setFontSize(noteHeadFontSize);
+    }
+    const cents = centsForNotes?.[noteIdx];
+    if (typeof cents === "number" || cents === null) {
+      const ink = noteInkForCents(cents);
+      n.setStyle({ fillStyle: ink.fill, strokeStyle: ink.stroke });
+      try {
+        n.getStem()?.setStyle({ fillStyle: ink.fill, strokeStyle: ink.stroke });
+      } catch {
+        /* ignore */
+      }
+    } else {
+      n.setStyle(noteStyle);
+      try {
+        n.getStem()?.setStyle(noteStyle);
+      } catch {
+        /* ignore */
+      }
+    }
+    const midi = options.midis?.[noteIdx];
+    if (
+      options.instrument &&
+      hasStringFingering(options.instrument) &&
+      Annotation &&
+      typeof midi === "number"
+    ) {
+      const label = stringFingerLabel(midi, options.instrument);
+      const finger = new Annotation(label);
+      try {
+        finger.setFont(
+          "system-ui, sans-serif",
+          Math.max(12, Math.round(lineSpacing * 0.78)),
+          "650",
+        );
+      } catch {
+        /* ignore */
+      }
+      try {
+        const VJ = (Annotation as any).VerticalJustify;
+        if (VJ) finger.setVerticalJustification(VJ.TOP);
+      } catch {
+        /* ignore */
+      }
+      try {
+        // Sit above the stem tip so the label stays clear of the note.
+        finger.setYShift(-10);
+      } catch {
+        /* ignore */
+      }
+      try {
+        finger.setStyle({
+          fillStyle: notationFill,
+          strokeStyle: notationFill,
+        });
+      } catch {
+        /* ignore */
+      }
+      try {
+        n.addModifier(finger, 0);
+      } catch {
+        /* ignore */
+      }
+    }
+    return n;
+  });
+
+  Formatter.FormatAndDraw(ctx, stave, notes, {
+    autoBeam: false,
+    alignRests: false,
+  });
+
+  const svg = host.querySelector("svg");
+  if (svg) {
+    svg.setAttribute("width", "100%");
+    svg.setAttribute("height", String(height));
+    svg.setAttribute("data-stave-width", String(staveWidth));
+    svg.style.width = "100%";
+    svg.style.height = "auto";
+    svg.style.display = "block";
+    svg.style.overflow = "visible";
+    // VexFlow can leave stems/flags on default black — force theme ink.
+    const ink = notationFill;
+    svg.querySelectorAll("[fill], [stroke]").forEach((el) => {
+      const fill = el.getAttribute("fill");
+      const stroke = el.getAttribute("stroke");
+      if (fill === "#000" || fill === "#000000" || fill === "black") {
+        el.setAttribute("fill", ink);
+      }
+      if (stroke === "#000" || stroke === "#000000" || stroke === "black") {
+        el.setAttribute("stroke", ink);
+      }
+    });
+    svg.querySelectorAll(".vf-stem path, .vf-stem line").forEach((el) => {
+      el.setAttribute("stroke", ink);
+      const sw = Number(el.getAttribute("stroke-width") || "1");
+      if (sw < 1.45) el.setAttribute("stroke-width", "1.55");
+    });
+    if (options.instrument && hasStringFingering(options.instrument)) {
+      const fingerRe = fingerLabelRegex(options.instrument);
+      svg.querySelectorAll("text").forEach((el) => {
+        const text = (el.textContent || "").trim();
+        if (text.length <= 3 && fingerRe.test(text)) {
+          el.classList.add("musai-finger-label");
+        }
+      });
+    }
+  }
+}
+
+/** One shared row above the staff, unless a notehead reaches that row. */
+export function levelFingerLabels(svg: SVGSVGElement) {
+  const labels = [...svg.querySelectorAll<SVGTextElement>(".musai-finger-label")];
+  if (labels.length === 0) return;
+
+  const staffLines = [...svg.querySelectorAll<SVGPathElement>(".vf-stave path")]
+    .map((path) => {
+      try {
+        return path.getBBox();
+      } catch {
+        return null;
+      }
+    })
+    .filter((box): box is DOMRect => box != null && box.width > 80)
+    .sort((a, b) => a.y - b.y);
+  if (staffLines.length < 2) return;
+
+  const staffTop = staffLines[0]!.y;
+  const lineSpacing = staffLines[1]!.y - staffLines[0]!.y;
+  if (!(lineSpacing > 0)) return;
+
+  for (const label of labels) {
+    const note = label.closest(".vf-stavenote");
+    const stemPath = note?.querySelector<SVGPathElement>(".vf-stem path");
+    const stem = stemEnds(stemPath?.getAttribute("d") ?? "");
+    const placed = placeFingerLabel({
+      staffTop,
+      lineSpacing,
+      noteCenterY: stem?.noteY ?? null,
+      stemTipY: stem?.tipY ?? null,
+      stemUp: stem?.up ?? false,
+    });
+    label.setAttribute("y", String(placed.baseline));
+    if (stem && stemPath && placed.stemTipFloor != null) {
+      stemPath.setAttribute(
+        "d",
+        `M${stem.x1} ${stem.noteY}L${stem.x2} ${placed.stemTipFloor}`,
+      );
+    }
+  }
+}
+
+export function stemEnds(d: string): {
+  x1: number;
+  noteY: number;
+  x2: number;
+  tipY: number;
+  up: boolean;
+} | null {
+  const nums = d.match(/-?\d+(?:\.\d+)?/g);
+  if (!nums || nums.length < 4) return null;
+  const x1 = Number(nums[0]);
+  const noteY = Number(nums[1]);
+  const x2 = Number(nums[2]);
+  const tipY = Number(nums[3]);
+  if (![x1, noteY, x2, tipY].every(Number.isFinite)) return null;
+  return { x1, noteY, x2, tipY, up: tipY < noteY };
+}
+
+/**
+ * Ledger lines: a touch shorter than the default head-width stretch, still
+ * centered on the note (equal overhang left and right).
+ */
+export function reshapeLedgerLines(svg: SVGSVGElement, stroke: string) {
+  const ns = "http://www.w3.org/2000/svg";
+  /** Horizontal overhang past each side of the notehead bbox. */
+  const overhang = 2.5;
+  for (const path of [...svg.querySelectorAll("path")]) {
+    let box: DOMRect;
+    try {
+      box = path.getBBox();
+    } catch {
+      continue;
+    }
+    // Short horizontal strokes only — staff lines are much wider.
+    if (box.width < 10 || box.width > 40 || box.height > 1.5) continue;
+    const cx = box.x + box.width / 2;
+    // Slightly shorter than a full notehead-wide ledger: ~88% of head + tiny pads.
+    const half = Math.max(6.5, box.width * 0.44 + overhang);
+    const line = document.createElementNS(ns, "line");
+    line.setAttribute("x1", String(cx - half));
+    line.setAttribute("x2", String(cx + half));
+    line.setAttribute("y1", String(box.y));
+    line.setAttribute("y2", String(box.y));
+    line.setAttribute("stroke", stroke);
+    line.setAttribute("stroke-width", "2.1");
+    line.setAttribute("stroke-linecap", "round");
+    path.replaceWith(line);
+  }
+}
+
+/**
+ * Expand the viewBox to every painted mark (clef, heads, stems, arrows).
+ * Uses SVG getBBox (user space) so a clipped parent during measure cannot
+ * shrink the viewBox and permanently cut stems.
+ */
+export function cropSvgViewBoxToInk(svg: SVGSVGElement, inkPad = 22) {
+  const canvasWidth = Number(
+    svg.getAttribute("data-stave-width") || svg.viewBox.baseVal.width,
+  );
+  if (!(canvasWidth > 0)) return;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  const nodes = svg.querySelectorAll("path, line, ellipse, use, text");
+  for (const node of nodes) {
+    const el = node as SVGGraphicsElement;
+    if (typeof el.getBBox !== "function") continue;
+    let box: DOMRect;
+    try {
+      box = el.getBBox();
+    } catch {
+      continue;
+    }
+    if (!Number.isFinite(box.x) || !Number.isFinite(box.y)) continue;
+    const stroke = Number(el.getAttribute("stroke-width") || "0");
+    const strokePad = Number.isFinite(stroke) ? stroke / 2 : 0;
+    // Vertical stems are zero-width paths; still count them.
+    if (box.width + box.height < 0.25 && strokePad < 0.25) continue;
+    const x0 = box.x - strokePad;
+    const x1 = box.x + box.width + strokePad;
+    const y0 = box.y - strokePad;
+    const y1 = box.y + box.height + strokePad;
+    if (node.tagName.toLowerCase() === "text" && y1 - y0 > 90) continue;
+    minX = Math.min(minX, x0);
+    maxX = Math.max(maxX, x1);
+    minY = Math.min(minY, y0);
+    maxY = Math.max(maxY, y1);
+  }
+  const view = notationViewBoxFromInk(
+    canvasWidth,
+    { minX, minY, maxX, maxY },
+    inkPad + 8,
+  );
+  if (!view) return;
+  svg.setAttribute(
+    "viewBox",
+    `${view.x} ${view.y} ${view.width} ${view.height}`,
+  );
+  svg.setAttribute("height", String(view.height));
+  svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+  // ViewBox now contains every mark, so clip to the SVG box instead of painting
+  // stems/arrows into a parent that later hides overflow.
+  svg.style.overflow = "hidden";
+}
+
+export function cropStaffSvgs(root: HTMLElement, inkPad = 22, stroke?: string) {
+  const ledgerStroke = stroke ?? notationThemeColors().stroke;
+  root.querySelectorAll<SVGSVGElement>("svg").forEach((svg) => {
+    reshapeLedgerLines(svg, ledgerStroke);
+    levelFingerLabels(svg);
+    cropSvgViewBoxToInk(svg, inkPad);
+  });
+}
+
+export function paintedClientBoxes(root: HTMLElement) {
+  const boxes = [];
+  // Music fonts use <text> with a huge em-box; that is not the painted glyph.
+  const nodes = root.querySelectorAll(
+    "svg, svg path, svg line, svg ellipse, svg use",
+  );
+  for (const node of nodes) {
+    const rect = node.getBoundingClientRect();
+    if (rect.width + rect.height < 0.25) continue;
+    boxes.push({
+      left: rect.left,
+      top: rect.top,
+      right: rect.right,
+      bottom: rect.bottom,
+    });
+  }
+  return boxes;
+}
+
+export function notationSlotMatches(
+  slot: string | undefined,
+  width: number,
+  height: number,
+): boolean {
+  if (!slot) return false;
+  const [w, h] = slot.split("x").map(Number);
+  return (
+    Number.isFinite(w) &&
+    Number.isFinite(h) &&
+    Math.abs(w - width) < 4 &&
+    Math.abs(h - height) < 4
+  );
+}
+
+export function applyNotationScale(
+  piece: HTMLElement,
+  scale: number,
+  needW: number,
+  needH: number,
+) {
+  const shift = notationFitLayoutShift(scale, needW, needH);
+  piece.dataset.notationScale = scale.toFixed(3);
+  if (scale >= 0.995) {
+    piece.style.transform = "";
+    piece.style.marginRight = "";
+    piece.style.marginBottom = "";
+    return;
+  }
+  piece.style.transformOrigin = "top left";
+  piece.style.transform = `scale(${scale})`;
+  piece.style.marginRight = `${shift.marginRight}px`;
+  piece.style.marginBottom = `${shift.marginBottom}px`;
+}
+
+export function fitPieceIntoHost(host: HTMLElement) {
+  const piece = host.firstElementChild as HTMLElement | null;
+  if (!piece) return;
+  const availW = host.clientWidth;
+  const availH = host.clientHeight;
+  if (availW < 1 || availH < 1) return;
+  // Fitting must not run again just because the scale changed this box.
+  if (
+    piece.dataset.notationScale &&
+    notationSlotMatches(piece.dataset.notationSlot, availW, availH)
+  ) {
+    return;
+  }
+
+  piece.style.transform = "";
+  piece.style.marginRight = "";
+  piece.style.marginBottom = "";
+  const needW = Math.max(piece.scrollWidth, piece.offsetWidth);
+  const needH = Math.max(piece.scrollHeight, piece.offsetHeight);
+  const hostBox = host.getBoundingClientRect();
+  const painted = unionClientBoxes(paintedClientBoxes(host));
+  const layoutScale = notationFitScale(availW, availH, needW, needH);
+  const inkScale = painted
+    ? notationFitFromBoxes(
+        {
+          left: hostBox.left,
+          top: hostBox.top,
+          right: hostBox.right,
+          bottom: hostBox.bottom,
+        },
+        painted,
+        NOTATION_HOST_INK_INSET_PX,
+      )
+    : 1;
+  const scale = Math.min(layoutScale, inkScale);
+  const prev = Number(piece.dataset.notationScale || "0");
+  // A slightly different scale from our own margin must not flip the staff.
+  const stable =
+    prev > 0 && Math.abs(scale - prev) < 0.08 ? prev : scale;
+  applyNotationScale(piece, stable, needW, needH);
+  piece.dataset.notationSlot = `${host.clientWidth}x${host.clientHeight}`;
+}
+
+/** One paper card; multiple systems stack inside like a continuous piece. */
+export function appendPieceStaffCard(
+  wrap: HTMLElement,
+  parts: Array<{ kind: "system"; draw: (svgHost: HTMLDivElement) => void }>,
+  opts: { pad: boolean; systemGapClass: string; preview?: boolean },
+) {
+  const row = document.createElement("div");
+  row.className = "musai-staff-row w-full max-w-full";
+  const card = document.createElement("div");
+  card.className = opts.preview
+    ? "musai-staff-card musai-staff-card--preview"
+    : "musai-staff-card";
+  const shimmer = document.createElement("div");
+  shimmer.className = "musai-staff-card__shimmer";
+  shimmer.setAttribute("aria-hidden", "true");
+  const inner = document.createElement("div");
+  inner.className = opts.pad
+    ? "musai-staff-card__inner musai-staff-card__inner--pad"
+    : "musai-staff-card__inner";
+  const stack = document.createElement("div");
+  const multiSystem = parts.length > 1;
+  stack.className = `flex w-full flex-col ${
+    multiSystem ? opts.systemGapClass : "gap-0"
+  }`;
+
+  card.appendChild(shimmer);
+  card.appendChild(inner);
+  inner.appendChild(stack);
+  row.appendChild(card);
+  wrap.appendChild(row);
+
+  for (const part of parts) {
+    const svgHost = document.createElement("div");
+    svgHost.className = "musai-staff-svg-host";
+    stack.appendChild(svgHost);
+    part.draw(svgHost);
+  }
+}
+

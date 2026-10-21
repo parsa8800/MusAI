@@ -291,6 +291,9 @@ export async function importPieceFromFile(
   // Direct digital score — dedicated path; never touches OMR / Audiveris.
   if (kind === "musicxml") {
     const digital = await importDigitalScoreFromFile(file, deps);
+    if (digital.status === "committed") {
+      return digital;
+    }
     await rememberActivePieceImportResult({
       sessionId: digital.draft.sessionId,
       file,

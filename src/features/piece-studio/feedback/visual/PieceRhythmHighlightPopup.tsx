@@ -1,61 +1,43 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import type { RhythmHighlightNote } from "@/features/piece-studio/feedback/visual/pieceRhythmScoreMap";
+import { useEffect, useMemo, useState } from "react";
 import { prefersReducedMotion } from "@/lib/motion";
-
-function revealNotes(
-  notes: readonly RhythmHighlightNote[],
-  count: number,
-): RhythmHighlightNote[] {
-  let left = count;
-  const shown: RhythmHighlightNote[] = [];
-  for (const item of notes) {
-    if (left <= 0) break;
-    const problem = item.problem.slice(0, left);
-    left -= problem.length;
-    const fixFull = item.fix ?? "";
-    const fix = left > 0 ? fixFull.slice(0, left) : "";
-    left -= Math.min(left, fixFull.length);
-    if (!problem && !fix) break;
-    shown.push({
-      note: item.note,
-      problem,
-      fix: fix ? fix : null,
-    });
-  }
-  return shown;
-}
 
 /**
  * Closeable explanation for one rhythm rectangle.
- * The first time a highlight is opened, the note types in like the coach.
+ * The first time a highlight is opened, the sentence types in like the coach.
  * Opening that same highlight again shows the finished text.
  */
 export function PieceRhythmHighlightPopup({
   place,
-  notes,
+  line,
+  bullets,
   memoryKey,
   claimFresh,
   onClose,
+  topic = "Rhythm",
 }: {
   place: string | null;
-  notes: readonly RhythmHighlightNote[];
+  line?: string;
+  bullets?: readonly string[];
   memoryKey: string;
   /** Returns true only the first time this highlight is opened. */
   claimFresh: (key: string) => boolean;
   onClose: () => void;
+  topic?: string;
 }) {
-  const script = notes
-    .map((item) => item.problem + (item.fix ?? ""))
-    .join("");
+  const body = useMemo(() => {
+    if (bullets && bullets.length > 0) return bullets.join("\n");
+    return line ?? "";
+  }, [bullets, line]);
+
   const [play] = useState(
     () => claimFresh(memoryKey) && !prefersReducedMotion(),
   );
   const [phase, setPhase] = useState<"thinking" | "typing" | "done">(
     () => (play ? "thinking" : "done"),
   );
-  const [shown, setShown] = useState(() => (play ? "" : script));
+  const [shown, setShown] = useState(() => (play ? "" : body));
 
   useEffect(() => {
     if (phase !== "thinking") return;
@@ -65,7 +47,11 @@ export function PieceRhythmHighlightPopup({
 
   useEffect(() => {
     if (phase !== "typing") return;
-    if (!script) {
+    if (bullets && bullets.length > 0) {
+      setPhase("done");
+      return;
+    }
+    if (!body) {
       setPhase("done");
       return;
     }
@@ -73,41 +59,34 @@ export function PieceRhythmHighlightPopup({
     let i = 0;
     const id = window.setInterval(() => {
       i += 1;
-      setShown(script.slice(0, i));
-      if (i >= script.length) {
+      setShown(body.slice(0, i));
+      if (i >= body.length) {
         window.clearInterval(id);
         setPhase("done");
       }
     }, 16);
     return () => window.clearInterval(id);
-  }, [phase, script]);
+  }, [phase, body, bullets]);
 
-  const typing = phase === "typing" && shown.length < script.length;
-  const visibleNotes = phase === "done" ? notes : revealNotes(notes, shown.length);
+  const useBullets = Boolean(bullets && bullets.length > 0);
+  const typing =
+    !useBullets && phase === "typing" && shown.length < body.length;
+  const showBody = phase !== "thinking";
 
   return (
     <div
       className="musai-rhythm-popup"
       role="dialog"
-      aria-label={place ? `Rhythm in ${place}` : "Rhythm"}
+      aria-label={place ? `${topic} in ${place}` : topic}
       data-testid="rhythm-highlight-popup"
       data-typing={typing || phase === "thinking" ? "true" : "false"}
     >
       <button
         type="button"
-        className="musai-pressable musai-rhythm-popup__close"
-        aria-label="Close"
+        className="musai-pressable musai-rhythm-popup__back"
         onClick={onClose}
       >
-        <svg viewBox="0 0 16 16" aria-hidden="true">
-          <path
-            d="M4.2 4.2l7.6 7.6M11.8 4.2l-7.6 7.6"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-          />
-        </svg>
+        All notes
       </button>
       {phase === "thinking" ? (
         <div className="musai-coach-typing" aria-label="Thinking">
@@ -115,61 +94,29 @@ export function PieceRhythmHighlightPopup({
           <i aria-hidden />
           <i aria-hidden />
         </div>
-      ) : (
+      ) : null}
+      {showBody ? (
         <>
           {place ? <p className="musai-rhythm-popup__place">{place}</p> : null}
-          {visibleNotes.length > 0 ? (
-            <ul className="musai-rhythm-popup__notes">
-              {visibleNotes.map((item, index) => {
-                const last = index === visibleNotes.length - 1;
-                const fixTyping = typing && last && item.problem.length === notes[index]?.problem.length;
-                const problemTyping = typing && last && !fixTyping;
-                return (
-                  <li key={`${item.note}-${index}`}>
-                    <p className="musai-rhythm-popup__letter">{item.note}</p>
-                    {item.problem ? (
-                      <p className="musai-rhythm-popup__row">
-                        <span
-                          className="musai-rhythm-popup__mark musai-rhythm-popup__mark--wrong"
-                          aria-hidden
-                        />
-                        <span className="sr-only">What went wrong. </span>
-                        <span>
-                          {item.problem}
-                          {problemTyping ? (
-                            <span
-                              className="musai-chat-caret ml-0.5 inline-block h-[1.05em] w-[2px] translate-y-[0.12em] bg-[var(--musai-accent)] align-baseline"
-                              aria-hidden
-                            />
-                          ) : null}
-                        </span>
-                      </p>
-                    ) : null}
-                    {item.fix ? (
-                      <p className="musai-rhythm-popup__row">
-                        <span
-                          className="musai-rhythm-popup__mark musai-rhythm-popup__mark--fix"
-                          aria-hidden
-                        />
-                        <span className="sr-only">What to try. </span>
-                        <span>
-                          {item.fix}
-                          {fixTyping ? (
-                            <span
-                              className="musai-chat-caret ml-0.5 inline-block h-[1.05em] w-[2px] translate-y-[0.12em] bg-[var(--musai-accent)] align-baseline"
-                              aria-hidden
-                            />
-                          ) : null}
-                        </span>
-                      </p>
-                    ) : null}
-                  </li>
-                );
-              })}
+          {useBullets ? (
+            <ul className="musai-rhythm-popup__points">
+              {bullets!.map((item, index) => (
+                <li key={`${index}-${item}`}>{item}</li>
+              ))}
             </ul>
+          ) : body ? (
+            <p className="musai-rhythm-popup__line">
+              {phase === "done" ? body : shown}
+              {typing ? (
+                <span
+                  className="musai-chat-caret ml-0.5 inline-block h-[1.05em] w-[2px] translate-y-[0.12em] bg-[var(--musai-accent)] align-baseline"
+                  aria-hidden
+                />
+              ) : null}
+            </p>
           ) : null}
         </>
-      )}
+      ) : null}
     </div>
   );
 }

@@ -149,27 +149,24 @@ describe("rhythmHighlightExplanation", () => {
     }),
   ];
 
-  it("explains every issue in the tapped rectangle", () => {
+  it("explains the tapped rectangle in one sentence", () => {
     const run = rhythmRunForIssueId(stretch, "rhythm-b");
     expect(run?.map((item) => item.id)).toEqual(["rhythm-a", "rhythm-b"]);
-    expect(rhythmHighlightExplanation(run!)).toEqual({
-      place: "Bar 1–2",
-      notes: [
-        {
-          note: "Bar 1 Beat 1",
-          problem: "Arrived a little early",
-          fix: "Wait for the beat",
-        },
-        {
-          note: "Bar 2 Beat 1",
-          problem: "Arrived a little late",
-          fix: "Wait for the beat",
-        },
-      ],
+    expect(
+      rhythmHighlightExplanation(
+        run!,
+        new Map([
+          [4, { label: "G4", durationQuarters: 1, absoluteOnsetQuarters: 4 }],
+          [5, { label: "G4", durationQuarters: 1, absoluteOnsetQuarters: 5 }],
+        ]),
+      ),
+    ).toEqual({
+      place: "Bar 1 to 2",
+      line: "Start the crotchets with the beat",
     });
   });
 
-  it("names the note the fix belongs to", () => {
+  it("names the notes and their written length", () => {
     const run = [
       issue({
         id: "rhythm-g",
@@ -184,51 +181,88 @@ describe("rhythmHighlightExplanation", () => {
       }),
     ];
     expect(
-      rhythmHighlightExplanation(run, new Map([[1, "G4"]])),
+      rhythmHighlightExplanation(
+        run,
+        new Map([
+          [1, { label: "E4", durationQuarters: 1, absoluteOnsetQuarters: 1 }],
+          [2, { label: "F#4", durationQuarters: 1, absoluteOnsetQuarters: 2 }],
+        ]),
+      ),
     ).toEqual({
       place: "Bar 1",
-      notes: [
-        {
-          note: "G",
-          problem: "Held a little too short",
-          fix: "Hold it for the full beat",
-        },
+      bullets: [
+        "The E and F# crotchets were cut short",
+        "Hold each crotchet for a full beat",
       ],
     });
   });
 
-  it("keeps each distinct line once", () => {
-    const run = rhythmRunForIssueId(
-      [
-        issue({
-          id: "rhythm-a",
-          category: "rhythm",
-          kind: "early",
-          startWholeNotes: 0,
-          endWholeNotes: 0.25,
-          what: "Arrived a little early.",
-          practise: "Wait for the beat.",
-        }),
-        issue({
-          id: "rhythm-b",
-          category: "rhythm",
-          kind: "early",
-          noteIndex: 1,
-          startWholeNotes: 0.25,
-          endWholeNotes: 0.5,
-          what: "arrived a little early",
-          practise: "Wait for the beat.",
-        }),
+  it("asks for quaver time when the stretch was held long", () => {
+    const run = [
+      issue({
+        id: "rhythm-a",
+        category: "rhythm",
+        kind: "duration",
+        noteIndex: 4,
+        startWholeNotes: 1,
+        endWholeNotes: 1.125,
+        what: "Held a little too long",
+        practise: "Let the next note come in sooner.",
+      }),
+      issue({
+        id: "rhythm-b",
+        category: "rhythm",
+        kind: "duration",
+        noteIndex: 5,
+        startWholeNotes: 1.125,
+        endWholeNotes: 1.25,
+        what: "Held a little too long",
+        practise: "Let the next note come in sooner.",
+      }),
+    ];
+    expect(
+      rhythmHighlightExplanation(
+        run,
+        new Map([
+          [4, { label: "G4", durationQuarters: 0.5, absoluteOnsetQuarters: 4 }],
+          [5, { label: "F#4", durationQuarters: 0.5, absoluteOnsetQuarters: 4.5 }],
+        ]),
+      ),
+    ).toEqual({
+      place: "Bar 1",
+      bullets: [
+        "The G and F# quavers ran long",
+        "Give each quaver half a beat",
       ],
-      "rhythm-a",
-    );
-    expect(rhythmHighlightExplanation(run!).notes).toEqual([
-      {
-        note: "Beat 1",
-        problem: "Arrived a little early",
-        fix: "Wait for the beat",
-      },
-    ]);
+    });
+  });
+
+  it("names every quaver in the rectangle, including two of the same pitch", () => {
+    const run = [
+      issue({
+        id: "rhythm-d",
+        category: "rhythm",
+        kind: "duration",
+        noteIndex: 21,
+        measure: "7",
+        startWholeNotes: 6,
+        endWholeNotes: 6.25,
+        what: "Held a little too long",
+        practise: "Let the next note come in sooner.",
+      }),
+    ];
+    expect(
+      rhythmHighlightExplanation(
+        run,
+        new Map([
+          [20, { label: "D5", durationQuarters: 0.5, absoluteOnsetQuarters: 24 }],
+          [21, { label: "D5", durationQuarters: 0.5, absoluteOnsetQuarters: 24.5 }],
+        ]),
+      ),
+    ).toEqual({
+      place: "Bar 7",
+      bullets: ["Both D quavers ran long", "Give each quaver half a beat"],
+    });
   });
 
   it("does not explain a pitch note as a rhythm stretch", () => {
