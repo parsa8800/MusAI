@@ -3,6 +3,7 @@
 import {
   fingerLabelRegex,
   hasStringFingering,
+  stringFingerLabel,
 } from "@/lib/instrument";
 import type { InstrumentProfile, NotationClef } from "@/lib/instrument";
 import { placeFingerLabel } from "@/lib/fingerLabelPlacement";

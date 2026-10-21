@@ -16,13 +16,7 @@ function PopupHarness() {
       {explainId ? (
         <PieceRhythmHighlightPopup
           place="Bar 1"
-          notes={[
-            {
-              note: "G",
-              problem: "Held a little too short",
-              fix: "Hold it for the full beat",
-            },
-          ]}
+          line="Hold E and F# as crotchets so each gets a full beat"
           memoryKey="rhythm-b"
           claimFresh={(key) => {
             if (seen.has(key)) return false;
@@ -44,17 +38,11 @@ describe("PieceRhythmHighlightPopup", () => {
       seen.add(key);
       return true;
     };
-    const notes = [
-      {
-        note: "G",
-        problem: "Held a little too short",
-        fix: "Hold it for the full beat",
-      },
-    ];
+    const line = "Hold E and F# as crotchets so each gets a full beat";
     const { unmount } = render(
       <PieceRhythmHighlightPopup
         place="Bar 1"
-        notes={notes}
+        line={line}
         memoryKey="bar-1-g"
         claimFresh={claimFresh}
         onClose={() => {}}
@@ -65,21 +53,36 @@ describe("PieceRhythmHighlightPopup", () => {
     render(
       <PieceRhythmHighlightPopup
         place="Bar 1"
-        notes={notes}
+        line={line}
         memoryKey="bar-1-g"
         claimFresh={claimFresh}
         onClose={() => {}}
       />,
     );
     expect(screen.queryByLabelText("Thinking")).not.toBeInTheDocument();
-    expect(screen.getByText("Held a little too short")).toBeInTheDocument();
-    expect(screen.getByText("Hold it for the full beat")).toBeInTheDocument();
+    expect(screen.getByText(line)).toBeInTheDocument();
+    expect(screen.queryByText(/what went wrong/i)).not.toBeInTheDocument();
+  });
+
+  it("shows bullet points for rhythm tips", () => {
+    render(
+      <PieceRhythmHighlightPopup
+        place="Bar 7"
+        bullets={["Both D quavers ran long", "Give each quaver half a beat"]}
+        memoryKey="bar-7-d"
+        claimFresh={() => false}
+        onClose={() => {}}
+      />,
+    );
+    expect(screen.getByRole("list")).toHaveClass("musai-rhythm-popup__points");
+    expect(screen.getAllByRole("listitem")).toHaveLength(2);
+    expect(screen.getByText("Both D quavers ran long")).toBeInTheDocument();
   });
 
   it("closes without clearing the selected chat issue", () => {
     render(<PopupHarness />);
     fireEvent.click(screen.getByRole("button", { name: "Change selection" }));
-    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    fireEvent.click(screen.getByRole("button", { name: "All notes" }));
     expect(screen.queryByTestId("rhythm-highlight-popup")).not.toBeInTheDocument();
     expect(screen.getByTestId("preview-id")).toHaveTextContent("rhythm-a");
   });

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useInstrument } from "@/components/InstrumentProvider";
 import {
   clefForNotes,
+  hasStringFingering,
   stringFingerLabel,
 } from "@/lib/instrument";
 import type { ScaleKind } from "@/lib/scales";

@@ -47,7 +47,6 @@ import {
   writeCoachOpen,
 } from "@/lib/coachThreadMemory";
 import type { PieceAskContext } from "@/features/piece-studio/feedback/visual/pieceCoachChat";
-import { dynamicHighlightExplanation } from "@/features/piece-studio/feedback/visual/pieceDynamicsScoreMap";
 import {
   rhythmHighlightExplanation,
   rhythmRunForIssueId,
@@ -85,7 +84,6 @@ import { sanitizeMusicXmlDynamics } from "@/features/piece-studio/score/sanitize
 import { prepareMusicXmlForEngraving } from "@/features/piece-studio/score/prepareMusicXmlForEngraving";
 import {
   expectedNotesFromScore,
-  scorePlayheadMarksFromScore,
 } from "@/features/piece-studio/score/expectedNotes";
 import { analyzePieceTake } from "@/features/piece-studio/practice/analyzePieceTake";
 import {
@@ -296,7 +294,10 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
         ) ?? null
       : null;
   const dynamicExplanation = dynamicIssue
-    ? dynamicHighlightExplanation(dynamicIssue)
+    ? {
+        place: dynamicIssue.where,
+        bullets: [dynamicIssue.what].filter(Boolean),
+      }
     : null;
   const seenDynamicRef = useRef(new Set<string>());
   const claimDynamic = useCallback((key: string) => {
@@ -313,15 +314,6 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
     setCoachOpen(true);
     if (coachMemoryKey) writeCoachOpen(coachMemoryKey, true);
   }, [coachMemoryKey, coachIssues]);
-
-  const onDynamicSelect = useCallback((issueId: string) => {
-    tapFeedback("medium");
-    setPreviewId(issueId);
-    setRhythmExplainId(null);
-    setDynamicExplainId(issueId);
-    setCoachOpen(true);
-    if (coachMemoryKey) writeCoachOpen(coachMemoryKey, true);
-  }, [coachMemoryKey]);
 
   const togglePlayback = playback.toggle;
   const restartPlayback = playback.restart;
@@ -630,7 +622,6 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
             livePitchNotes,
             expectedNotesFromScore(structured),
             (quarters) => wholeNotesToSeconds(quarters / 4),
-            scorePlayheadMarksFromScore(structured),
           )
         : [],
     [livePitchNotes, structured, wholeNotesToSeconds],
@@ -822,13 +813,11 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
             : undefined
       }
       playbackNotes={playbackNoteTimes}
-      playbackEndSec={playback.durationSec}
       highlight={focusedHighlight}
       highlights={highlights}
       pitchMarks={pitchMarks}
       dynamicMarks={dynamicMarks}
       onHighlightSelect={onHighlightSelect}
-      onDynamicSelect={practising ? onDynamicSelect : undefined}
       onScoreOpen={markScoreOpen}
     />
   );
@@ -1038,7 +1027,6 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
                   context={askContext}
                   issue={hasLiveCoach ? previewIssue : null}
                   issues={hasLiveCoach ? coachIssues : []}
-                  hasTake={hasLiveCoach}
                 />
               }
             />

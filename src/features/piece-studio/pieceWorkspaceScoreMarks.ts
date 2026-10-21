@@ -39,7 +39,6 @@ export function pieceDynamicMarks(input: {
   return dynamicLetterMarksFromIssues(
     expectedNotesFromScore(input.structured),
     input.coachIssues,
-    input.structured,
   );
 }
 
