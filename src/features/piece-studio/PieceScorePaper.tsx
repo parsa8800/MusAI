@@ -53,11 +53,13 @@ export function PieceScorePaper({
   onScrubCommit,
   getPlaying,
   playbackNotes,
+  playbackEndSec,
   highlight = null,
   highlights = null,
   pitchMarks = null,
   dynamicMarks = null,
   onHighlightSelect,
+  onDynamicSelect,
   onScoreOpen,
 }: {
   piece: PieceWorkspaceV1;
@@ -77,13 +79,16 @@ export function PieceScorePaper({
   onScrubCommit?: (tSec: number, resume: boolean) => void;
   getPlaying?: () => boolean;
   playbackNotes?: readonly { startSec: number; endSec: number }[];
+  /** Piece length in seconds, including a rest after the last note. */
+  playbackEndSec?: number;
   highlight?: PieceScoreHighlight | null;
   highlights?: readonly PieceScoreHighlight[] | null;
   /** Pitch notehead colour map (Practise). */
   pitchMarks?: readonly PitchNoteMark[] | null;
-  /** Written dynamic letters that were too loud or too soft. */
+  /** Written dynamic letters and hairpins that were not followed. */
   dynamicMarks?: readonly DynamicLetterMark[] | null;
   onHighlightSelect?: (id: string) => void;
+  onDynamicSelect?: (issueId: string) => void;
   /** Fires once the score module is mounted (Listen waits on this plus the piano). */
   onScoreOpen?: () => void;
 }) {
@@ -225,11 +230,13 @@ export function PieceScorePaper({
             onScrubCommit={onScrubCommit}
             getPlaying={getPlaying}
             playbackNotes={playbackNotes}
+            playbackEndSec={playbackEndSec}
             highlight={followPlayback ? null : highlight}
             highlights={followPlayback ? null : highlights}
             pitchMarks={followPlayback ? null : pitchMarks}
             dynamicMarks={followPlayback ? null : dynamicMarks}
             onHighlightSelect={onHighlightSelect}
+            onDynamicSelect={onDynamicSelect}
           />
         ) : (
           <>

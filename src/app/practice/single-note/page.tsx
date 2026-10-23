@@ -8,7 +8,7 @@ export default function SingleNotePracticePage() {
         <PracticeHubBackLink />
       </div>
       <header className="mb-7 flex w-full max-w-[min(1000px,100%)] flex-col items-center text-center sm:mb-8">
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-[var(--musai-ink)] sm:text-3xl">
+        <h1 className="musai-page-title font-display">
           Tuning trainer
         </h1>
       </header>

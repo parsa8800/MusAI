@@ -3,10 +3,12 @@ import type { CursorPose } from "@/features/piece-studio/score/cursorTrack";
 import {
   applyPlayheadElement,
   buildPlayheadWaypoints,
+  followPlayheadClock,
   followPlayheadInScrollParent,
   interpolatePlayhead,
   playheadStaffSpan,
   SCORE_PLAYHEAD_WIDTH_PX,
+  type PlayheadClockFollow,
 } from "@/features/piece-studio/score/scorePlayhead";
 import type { StaffBand } from "@/features/piece-studio/score/staffBands";
 
@@ -122,10 +124,42 @@ describe("score playhead geometry", () => {
     expect(after.y).toBeGreaterThan(before.y + 20);
   });
 
+  it("keeps moving through a rest after the last note until the piece ends", () => {
+    const ending: CursorPose[] = [
+      { tSec: 0, endSec: 0.5, x: 40, y: 20, height: 40 },
+      { tSec: 1, endSec: 1.5, x: 120, y: 20, height: 40 },
+    ];
+    const pieceEnd = 3;
+    const onLast = interpolatePlayhead(ending, 1, staff, pieceEnd)!;
+    const beatOfRest = interpolatePlayhead(ending, 2, staff, pieceEnd)!;
+    const nextBeat = interpolatePlayhead(ending, 2.5, staff, pieceEnd)!;
+    const atEnd = interpolatePlayhead(ending, pieceEnd, staff, pieceEnd)!;
+    expect(onLast.centerX).toBeCloseTo(120);
+    expect(beatOfRest.centerX).toBeGreaterThan(onLast.centerX + 16);
+    expect(nextBeat.centerX).toBeGreaterThan(beatOfRest.centerX + 8);
+    expect(atEnd.centerX).toBeGreaterThan(nextBeat.centerX);
+    expect(atEnd.y).toBeCloseTo(onLast.y, 1);
+  });
+
   it("settles past the final note after the piece ends", () => {
     const bar = interpolatePlayhead(snaps, 9, staff);
     expect(bar!.centerX).toBeGreaterThan(snaps[4]!.x + 8);
     expect(bar!.y).toBeGreaterThan(70);
+  });
+
+  it("glides across a large pitch leap instead of jumping to the next note", () => {
+    const leap: CursorPose[] = [
+      { tSec: 0, x: 40, y: 200, height: 12 },
+      { tSec: 0.5, x: 120, y: 8, height: 12 },
+      { tSec: 1, x: 200, y: 160, height: 12 },
+    ];
+    const staffBand: StaffBand[] = [{ y: 40, height: 48, x: 16, width: 420 }];
+    const mid = interpolatePlayhead(leap, 0.25, staffBand)!;
+    const later = interpolatePlayhead(leap, 0.75, staffBand)!;
+    expect(mid.centerX).toBeCloseTo(80);
+    expect(later.centerX).toBeCloseTo(160);
+    expect(mid.y).toBeCloseTo(interpolatePlayhead(leap, 0, staffBand)!.y, 1);
+    expect(later.y).toBeCloseTo(mid.y, 1);
   });
 
   it("keeps a fixed staff height through a pitch leap — no vertical chasing", () => {
@@ -236,5 +270,49 @@ describe("score playhead geometry", () => {
     expect(scrollTo).toHaveBeenCalledWith(
       expect.objectContaining({ behavior: "auto" }),
     );
+  });
+});
+
+describe("followPlayheadClock", () => {
+  function step(
+    state: PlayheadClockFollow | null,
+    target: number,
+    wallMs: number,
+    playing = true,
+  ) {
+    return followPlayheadClock(state, target, wallMs, playing);
+  }
+
+  it("stays on a clock that advances every frame", () => {
+    let state: PlayheadClockFollow | null = null;
+    for (let i = 0; i <= 20; i += 1) {
+      state = step(state, i * 0.016, i * 16);
+      expect(state.shown).toBeCloseTo(i * 0.016, 2);
+    }
+  });
+
+  it("keeps travelling while a coarse clock sits on a note, then meets the next tick", () => {
+    let state = step(null, 0, 0);
+    state = step(state, 0.25, 250);
+    const landed = state.shown;
+    expect(landed).toBeCloseTo(0.25, 2);
+    for (let i = 1; i <= 12; i += 1) {
+      state = step(state, 0.25, 250 + i * 16);
+    }
+    expect(state.shown).toBeGreaterThan(0.4);
+    expect(state.shown).toBeLessThan(0.7);
+    state = step(state, 0.5, 250 + 13 * 16);
+    expect(Math.abs(state.shown - 0.5)).toBeLessThan(0.08);
+  });
+
+  it("jumps when the score is seeked, and holds when playback pauses", () => {
+    let state = step(null, 1, 0);
+    state = step(state, 1.016, 16);
+    state = step(state, 3, 32);
+    expect(state.shown).toBeCloseTo(3, 2);
+    state = step(state, 3, 80, false);
+    expect(state.shown).toBeCloseTo(3, 2);
+    state = step(state, 3, 200, false);
+    expect(state.shown).toBeCloseTo(3, 2);
   });
 });

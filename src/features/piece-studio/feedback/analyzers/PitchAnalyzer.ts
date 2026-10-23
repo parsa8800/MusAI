@@ -7,8 +7,9 @@ import {
   matchPiecePitch,
 } from "@/features/piece-studio/pitch/piecePitchMatch";
 import {
+  PIECE_FAR_CENTS,
+  PIECE_IN_TUNE_CENTS,
   PRACTICE_CLEAR_MISS_CENTS,
-  PRACTICE_IN_TUNE_CENTS,
 } from "@/lib/intonationScore";
 
 function barPhrase(measure: string | null): string {
@@ -46,6 +47,7 @@ export const PitchAnalyzer: PieceFeedbackAnalyzer = {
             sampleRateHz: input.audio.sampleRateHz,
             expectedMidis: expected.map((n) => n.midi),
             durationQuarters: expected.map((n) => n.durationQuarters),
+            onsetQuarters: expected.map((n) => n.absoluteOnsetQuarters),
             ...activePiecePitchWindow(),
           })
         : null);
@@ -63,7 +65,10 @@ export const PitchAnalyzer: PieceFeedbackAnalyzer = {
         kind = "missed";
       } else {
         ({ cents } = centsFromMatchedHz(hz, note.midi));
-        if (Math.abs(cents) > PRACTICE_IN_TUNE_CENTS) {
+        const absCents = Math.abs(cents);
+        if (absCents >= PIECE_FAR_CENTS) {
+          kind = "missed";
+        } else if (absCents > PIECE_IN_TUNE_CENTS) {
           kind = cents > 0 ? "sharp" : "flat";
         }
       }

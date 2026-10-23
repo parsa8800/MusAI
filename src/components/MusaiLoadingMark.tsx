@@ -2,43 +2,23 @@
 
 import {
   useEffect,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
 
 /**
- * The one loading mark. A dot walks three notes, rests on the first and the
- * last, then comes back. A progress bar is only shown when `progress` is set
- * (piece upload, or opening a piece to practise).
- *
- * Real progress is the floor. The bar eases up to it, then keeps a slowing
- * crawl so a long reading step never looks frozen. It does not reach the
- * end until the read actually finishes.
+ * The one loading mark. A soft dot walks three notes, rests on the first and
+ * the last, then comes back. Nothing else is drawn.
  */
 export function MusaiLoadingMark({
   compact = false,
-  progress,
-  progressLabel = "Loading the piece",
 }: {
   compact?: boolean;
-  progress?: number;
-  progressLabel?: string;
 }) {
-  const target =
-    typeof progress === "number" && Number.isFinite(progress)
-      ? Math.max(0, Math.min(100, progress))
-      : null;
-  const shown = useDisplayedProgress(target);
-  const percent = shown == null ? null : Math.round(shown);
-  const fill = shown == null ? 0 : shown;
-  const scale = Math.max(0, Math.min(1, fill / 100));
-  const drawn = percent != null && percent >= 100;
-
   return (
     <div
       className={compact ? "musai-load musai-load--compact" : "musai-load"}
-      aria-hidden={shown == null ? true : undefined}
+      aria-hidden="true"
     >
       <svg className="musai-piece-load__staff" viewBox="0 0 240 88">
         <g className="musai-piece-load__lines">
@@ -66,42 +46,11 @@ export function MusaiLoadingMark({
           cy={38}
           className="musai-piece-load__glow musai-piece-load__glow--3"
         />
-        <circle className="musai-piece-load__dot" cx="0" cy="0" r="4.4" />
+        <g className="musai-piece-load__dot">
+          <circle className="musai-piece-load__dot-blur" r="8" />
+          <circle r="4.4" />
+        </g>
       </svg>
-      {percent != null ? (
-        <div className="musai-load__meter">
-          <div
-            className={
-              drawn
-                ? "musai-load__overall musai-load__overall--done"
-                : "musai-load__overall"
-            }
-            role="progressbar"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={percent}
-            aria-label={progressLabel}
-          >
-            <span
-              className="musai-load__glow"
-              aria-hidden="true"
-              style={{ transform: `scaleX(${scale})` }}
-            />
-            <span className="musai-load__track">
-              <span
-                className="musai-load__fill"
-                style={{ transform: `scaleX(${scale})` }}
-              />
-            </span>
-            <span
-              className="musai-load__tip"
-              aria-hidden="true"
-              style={{ left: `${scale * 100}%` }}
-            />
-          </div>
-          <p className="musai-load__percent">{percent}%</p>
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -148,51 +97,6 @@ export function advanceDisplayedProgress(
   return Math.max(value, next);
 }
 
-/**
- * Ease toward real progress, then keep moving through the quiet stretches
- * between reader updates.
- */
-function useDisplayedProgress(target: number | null): number | null {
-  const [shown, setShown] = useState<number | null>(null);
-  const valueRef = useRef(0);
-  const targetRef = useRef(target);
-  const activeRef = useRef(false);
-  targetRef.current = target;
-
-  useEffect(() => {
-    if (target == null) {
-      activeRef.current = false;
-      valueRef.current = 0;
-      setShown(null);
-      return;
-    }
-
-    if (!activeRef.current) {
-      activeRef.current = true;
-      valueRef.current = target;
-      setShown(target);
-    }
-
-    let frame = 0;
-    let last = performance.now();
-
-    const step = (now: number) => {
-      const dt = Math.max(0, now - last);
-      last = now;
-      const goal = targetRef.current ?? 0;
-      const value = advanceDisplayedProgress(valueRef.current, goal, dt);
-      valueRef.current = value;
-      setShown(value);
-      frame = window.requestAnimationFrame(step);
-    };
-
-    frame = window.requestAnimationFrame(step);
-    return () => window.cancelAnimationFrame(frame);
-  }, [target == null]);
-
-  return shown;
-}
-
 function LoadNote({
   cx,
   cy,
@@ -232,7 +136,6 @@ export function MusaiLoadingScreen({
       aria-label={label}
     >
       <MusaiLoadingMark />
-      <p className="musai-load-screen__copy">{label}</p>
     </div>
   );
 }

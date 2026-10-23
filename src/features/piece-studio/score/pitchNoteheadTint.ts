@@ -108,7 +108,15 @@ function collectHeads(wrap: HTMLElement): HeadNode[] {
   const out: HeadNode[] = [];
   for (const p of raw) {
     const prev = out[out.length - 1];
-    if (prev && Math.abs(prev.x - p.x) < 8 && Math.abs(prev.y - p.y) < 36) {
+    const sameAttack = Math.max(
+      3,
+      Math.min(p.width, prev?.width ?? p.width) * 0.28,
+    );
+    if (
+      prev &&
+      Math.abs(prev.x - p.x) < sameAttack &&
+      Math.abs(prev.y - p.y) < 36
+    ) {
       continue;
     }
     out.push(p);

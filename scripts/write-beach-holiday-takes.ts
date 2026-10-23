@@ -69,17 +69,17 @@ const takes: Array<{
       secPerQuarter: BEAT,
       gapEdits: [
         { afterNoteIndex: 0, extraSec: BEAT },
-        { afterNoteIndex: 17, extraSec: -0.2 },
+        { afterNoteIndex: 17, extraSec: -0.36 },
       ],
     },
   },
   {
     name: "03-rhythm-one-note-late.wav",
-    input: { secPerQuarter: BEAT, gapEdits: [{ afterNoteIndex: 2, extraSec: 0.2 }] },
+    input: { secPerQuarter: BEAT, gapEdits: [{ afterNoteIndex: 2, extraSec: 0.36 }] },
   },
   {
     name: "04-rhythm-one-note-cut-short.wav",
-    input: { secPerQuarter: BEAT, gapEdits: [{ afterNoteIndex: 2, extraSec: -0.32 }] },
+    input: { secPerQuarter: BEAT, gapEdits: [{ afterNoteIndex: 2, extraSec: -0.4 }] },
   },
   { name: "05-rhythm-steadily-slower.wav", input: { secPerQuarter: 1.15 } },
   { name: "06-rhythm-missed-note.wav", input: { secPerQuarter: BEAT, omit: [2] } },

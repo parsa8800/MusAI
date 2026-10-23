@@ -74,7 +74,20 @@ export type ScoreDynamic = {
   mark: string;
 };
 
-export type ScoreEvent = ScoreNote | ScoreRest | ScoreDynamic;
+/** A crescendo or decrescendo, either a hairpin or a printed word. */
+export type ScoreHairpin = {
+  kind: "hairpin";
+  /** Onset within the measure where the mark starts. */
+  onsetQuarters: number;
+  /**
+   * End, in quarter notes from the start of the piece.
+   * A wedge stop sets this. A printed word stays null until the next mark.
+   */
+  endAbsoluteQuarters: number | null;
+  direction: "crescendo" | "decrescendo";
+};
+
+export type ScoreEvent = ScoreNote | ScoreRest | ScoreDynamic | ScoreHairpin;
 
 export type ScoreKey = {
   fifths: number;

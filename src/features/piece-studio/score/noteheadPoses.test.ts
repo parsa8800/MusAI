@@ -63,6 +63,36 @@ describe("collectNoteheadPosesFromDom", () => {
     const poses = collectNoteheadPosesFromDom(wrap);
     expect(poses).toHaveLength(4);
     expect(poses.map((p) => p.x)).toEqual([45, 85, 125, 165]);
+
+    const crowded = document.createElement("div");
+    crowded.getBoundingClientRect = wrap.getBoundingClientRect.bind(wrap);
+    Object.defineProperty(crowded, "scrollLeft", { value: 0 });
+    Object.defineProperty(crowded, "scrollTop", { value: 0 });
+    const crowdedHost = document.createElement("div");
+    crowdedHost.className = "musai-piece-osmd";
+    const crowdedSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    for (const x of [40, 48, 56, 64]) {
+      const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      g.setAttribute("class", "vf-notehead");
+      g.getBoundingClientRect = () =>
+        ({
+          left: x,
+          top: 50,
+          right: x + 12,
+          bottom: 62,
+          width: 12,
+          height: 12,
+          x,
+          y: 50,
+          toJSON: () => ({}),
+        }) as DOMRect;
+      crowdedSvg.appendChild(g);
+    }
+    crowdedHost.appendChild(crowdedSvg);
+    crowded.appendChild(crowdedHost);
+    document.body.appendChild(crowded);
+    expect(collectNoteheadPosesFromDom(crowded)).toHaveLength(4);
+    crowded.remove();
     expect(poses.every((p) => p.width === 10)).toBe(true);
     expect(poses.every((p) => p.height === 12)).toBe(true);
     wrap.remove();

@@ -1,14 +1,9 @@
 "use client";
 
 import { animate, stagger } from "animejs";
-import { useEffect, useMemo, useRef } from "react";
-import { CoachParsaChat } from "@/components/CoachParsaChat";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ScalePitchCueKey } from "@/components/ScalePitchCueKey";
 import { PieceCoachLessonCard } from "@/features/piece-studio/feedback/visual/PieceCoachLessonCard";
-import {
-  localPieceCoachReply,
-  pieceCoachOpenerText,
-} from "@/features/piece-studio/feedback/visual/pieceCoachChat";
 import {
   collapsePieceCoachIssues,
   groupPieceCoachTopics,
@@ -25,10 +20,13 @@ import {
   tapFeedback,
 } from "@/lib/motion";
 
+function topicKeysFromIssues(issues: readonly PieceCoachIssueView[]): string[] {
+  return groupPieceCoachTopics(issues).map((topic) => topic.key);
+}
+
 /**
- * Practise support panel: take map on the score + separate coach chat.
- * Pitch stays visual on the score — the panel only summarises.
- * Presentation only — no analyzer changes.
+ * Take map for the Teacher rail: skill filters + issue cards.
+ * Chat lives only in StudioTeacherRail / PieceAskCoach — not here.
  */
 export function PieceFeedbackReview({
   issues,
@@ -37,6 +35,8 @@ export function PieceFeedbackReview({
   onShowOnScore,
   onHearIssue,
   hearingIssue = false,
+  visibleCategories,
+  onVisibleCategoriesChange,
 }: {
   issues: readonly PieceCoachIssueView[];
   activeId: string | null;
@@ -46,48 +46,74 @@ export function PieceFeedbackReview({
   /** Play the written notes for this issue (score playback, not the Listen tab). */
   onHearIssue?: (id: string) => void;
   hearingIssue?: boolean;
+  /** Categories shown on the score. Defaults to every topic in this take. */
+  visibleCategories?: ReadonlySet<string>;
+  onVisibleCategoriesChange?: (next: ReadonlySet<string>) => void;
 }) {
   const issuesRef = useRef<HTMLDivElement>(null);
   const uniqueIssues = useMemo(() => collapsePieceCoachIssues(issues), [issues]);
   const topics = useMemo(() => groupPieceCoachTopics(uniqueIssues), [uniqueIssues]);
 
+  const [localVisible, setLocalVisible] = useState<ReadonlySet<string>>(() =>
+    new Set(topicKeysFromIssues(uniqueIssues)),
+  );
+
+  useEffect(() => {
+    if (visibleCategories) return;
+    setLocalVisible(new Set(topicKeysFromIssues(uniqueIssues)));
+  }, [uniqueIssues, visibleCategories]);
+
+  const visible = visibleCategories ?? localVisible;
+
+  const setVisible = (next: ReadonlySet<string>) => {
+    if (onVisibleCategoriesChange) onVisibleCategoriesChange(next);
+    else setLocalVisible(next);
+  };
+
+  const visibleIssues = useMemo(
+    () => uniqueIssues.filter((issue) => visible.has(pieceCoachTopicKey(issue))),
+    [uniqueIssues, visible],
+  );
+
+  const visibleTopics = useMemo(
+    () => topics.filter((topic) => visible.has(topic.key)),
+    [topics, visible],
+  );
+
   const active = useMemo(() => {
-    if (uniqueIssues.length === 0) return null;
-    const direct = uniqueIssues.find((issue) => issue.id === activeId);
+    if (visibleIssues.length === 0) return null;
+    const direct = visibleIssues.find((issue) => issue.id === activeId);
     if (direct) return direct;
     const source = issues.find((issue) => issue.id === activeId);
-    if (source) {
+    if (source && visible.has(pieceCoachTopicKey(source))) {
       const key = pieceCoachCollapseKey(source);
-      const match = uniqueIssues.find(
+      const match = visibleIssues.find(
         (issue) => pieceCoachCollapseKey(issue) === key,
       );
       if (match) return match;
     }
-    return uniqueIssues[0] ?? null;
-  }, [activeId, issues, uniqueIssues]);
+    return visibleIssues[0] ?? null;
+  }, [activeId, issues, visible, visibleIssues]);
 
   const activeTopicKey = active ? pieceCoachTopicKey(active) : null;
-  const pitchTopic = activeTopicKey === "pitch";
-
-  const topicIssues = useMemo(() => {
-    if (!activeTopicKey) return [];
-    return topics.find((topic) => topic.key === activeTopicKey)?.issues ?? [];
-  }, [topics, activeTopicKey]);
-
-  const openerText = useMemo(() => pieceCoachOpenerText(uniqueIssues), [uniqueIssues]);
-
-  const takeChatKey = useMemo(
-    () => uniqueIssues.map((issue) => issue.id).join("|") || "empty",
-    [uniqueIssues],
+  const pitchVisible = visible.has("pitch");
+  const pitchTopic = visibleTopics.find((topic) => topic.key === "pitch");
+  const pitchIssues = pitchTopic?.issues ?? [];
+  const otherVisibleIssues = useMemo(
+    () =>
+      visibleTopics
+        .filter((topic) => topic.key !== "pitch")
+        .flatMap((topic) => topic.issues),
+    [visibleTopics],
   );
 
   const hearPitchId = useMemo(() => {
-    if (!pitchTopic || topicIssues.length === 0) return null;
-    return topicIssues[0]?.id ?? null;
-  }, [pitchTopic, topicIssues]);
+    if (!pitchVisible || pitchIssues.length === 0) return null;
+    return pitchIssues[0]?.id ?? null;
+  }, [pitchVisible, pitchIssues]);
 
   useEffect(() => {
-    if (pitchTopic) return;
+    if (otherVisibleIssues.length === 0) return;
     const root = issuesRef.current;
     if (!root || prefersReducedMotion()) return;
     const cards = root.querySelectorAll<HTMLElement>(
@@ -109,10 +135,10 @@ export function PieceFeedbackReview({
         /* cleanup */
       }
     };
-  }, [activeTopicKey, pitchTopic]);
+  }, [otherVisibleIssues, visibleTopics]);
 
   useEffect(() => {
-    if (pitchTopic) return;
+    if (otherVisibleIssues.length === 0) return;
     const root = issuesRef.current;
     if (!root || prefersReducedMotion() || !active?.id) return;
     const selected = root.querySelector<HTMLElement>(
@@ -133,15 +159,34 @@ export function PieceFeedbackReview({
         /* cleanup */
       }
     };
-  }, [active?.id, pitchTopic]);
+  }, [active?.id, otherVisibleIssues]);
 
-  if (!active || !activeTopicKey) return null;
+  if (uniqueIssues.length === 0) return null;
 
-  const fromTake = active.source === "analysis";
+  const fromTake = uniqueIssues[0]!.source === "analysis";
 
   const focusIssue = (id: string) => {
     onActiveId(id);
     onShowOnScore?.(id);
+  };
+
+  const toggleTopic = (key: string) => {
+    const next = new Set(visible);
+    if (next.has(key)) {
+      next.delete(key);
+    } else {
+      next.add(key);
+    }
+    setVisible(next);
+    const topic = topics.find((entry) => entry.key === key);
+    if (next.has(key) && topic?.issues[0]) {
+      focusIssue(topic.issues[0].id);
+    } else if (active && !next.has(pieceCoachTopicKey(active))) {
+      const fallback = uniqueIssues.find((issue) =>
+        next.has(pieceCoachTopicKey(issue)),
+      );
+      if (fallback) focusIssue(fallback.id);
+    }
   };
 
   return (
@@ -149,8 +194,8 @@ export function PieceFeedbackReview({
       className="musai-piece-review"
       data-testid="piece-feedback-preview"
       data-mock={fromTake ? "false" : "true"}
-      data-source={active.source}
-      data-topic={activeTopicKey}
+      data-source={fromTake ? "analysis" : "mock-preview"}
+      data-topic={activeTopicKey ?? "none"}
       aria-label="Practise feedback"
     >
       <section
@@ -178,37 +223,34 @@ export function PieceFeedbackReview({
 
         <div
           className="musai-piece-review__skills"
-          role="listbox"
-          aria-label="Areas from this take"
+          role="group"
+          aria-label="Show on the score"
           data-testid="piece-focus-skills"
         >
           <div className="musai-piece-review__skills-list" role="presentation">
             {topics.map((topic) => {
-              const selected = topic.key === activeTopicKey;
+              const pressed = visible.has(topic.key);
               const count = topic.issues.length;
               const showCount = count > 1;
-              const focusId =
-                topic.issues.find((issue) => issue.id === activeId)?.id ??
-                topic.issues[0]!.id;
               return (
                 <button
                   key={topic.key}
                   type="button"
-                  role="option"
-                  aria-selected={selected}
+                  aria-pressed={pressed}
                   aria-label={
-                    showCount ? `${topic.label}, ${count} issues` : topic.label
+                    showCount
+                      ? `${topic.label}, ${count} issues`
+                      : topic.label
                   }
                   className={[
                     "musai-pressable",
                     "musai-piece-review__skill",
-                    selected ? "is-active" : "is-idle",
+                    pressed ? "is-active" : "is-idle",
                   ].join(" ")}
                   data-topic={topic.key}
                   onClick={() => {
-                    if (selected && focusId === active.id) return;
                     tapFeedback("light");
-                    focusIssue(focusId);
+                    toggleTopic(topic.key);
                   }}
                 >
                   <span className="musai-piece-review__skill-label">
@@ -225,13 +267,13 @@ export function PieceFeedbackReview({
           </div>
         </div>
 
-        {pitchTopic ? (
+        {pitchVisible && pitchIssues.length > 0 ? (
           <div
             className="musai-piece-review__pitch"
             data-testid="piece-pitch-map"
           >
             <p className="musai-piece-review__pitch-summary">
-              {pitchSummaryLine(topicIssues)}
+              {pitchSummaryLine(pitchIssues)}
             </p>
             <ScalePitchCueKey compact />
             {hearPitchId && onHearIssue ? (
@@ -254,17 +296,19 @@ export function PieceFeedbackReview({
               </button>
             ) : null}
           </div>
-        ) : topicIssues.length > 0 ? (
+        ) : null}
+
+        {otherVisibleIssues.length > 0 ? (
           <div
             ref={issuesRef}
             className="musai-piece-review__issues"
             role="listbox"
-            aria-label="Issues in this category"
+            aria-label="Issues on the score"
             data-testid="piece-focus-issues"
-            data-topic={activeTopicKey}
+            data-topic={activeTopicKey ?? "mixed"}
           >
-            {topicIssues.map((issue) => {
-              const selected = issue.id === active.id;
+            {otherVisibleIssues.map((issue) => {
+              const selected = issue.id === active?.id;
               return (
                 <div
                   key={issue.id}
@@ -313,38 +357,6 @@ export function PieceFeedbackReview({
             })}
           </div>
         ) : null}
-      </section>
-
-      <section
-        className="musai-piece-review__panel musai-piece-review__panel--coach"
-        aria-labelledby="piece-coach-chat-title"
-        data-testid="piece-coach-panel"
-      >
-        <header className="musai-piece-review__panel-head musai-piece-review__panel-head--coach">
-          <h2
-            id="piece-coach-chat-title"
-            className="musai-piece-review__title musai-piece-review__title--coach sr-only"
-          >
-            Ask your coach
-          </h2>
-        </header>
-
-        <div className="musai-piece-review__chat">
-          <CoachParsaChat
-            key={takeChatKey}
-            start
-            embed
-            title="Coach"
-            openerText={openerText}
-            source="template"
-            suggestions={[]}
-            showPreviewDot={false}
-            getReply={async (userText) => ({
-              reply: localPieceCoachReply(userText, active, uniqueIssues),
-              source: "template",
-            })}
-          />
-        </div>
       </section>
     </div>
   );

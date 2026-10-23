@@ -47,6 +47,7 @@ export function analyzePieceTake(input: {
           sampleRateHz: input.sampleRateHz,
           expectedMidis: expectedNotes.map((n) => n.midi),
           durationQuarters: expectedNotes.map((n) => n.durationQuarters),
+          onsetQuarters: expectedNotes.map((n) => n.absoluteOnsetQuarters),
           ...activePiecePitchWindow(),
         })
       : null;
@@ -85,14 +86,16 @@ function pitchNotesFromMatch(
 ): PiecePitchNoteV1[] {
   return expected.map((note, i) => {
     const hz = match.slots[i];
-    const heardSec = match.timesSec[i] ?? null;
+    const heardSec = match.timesSec[i] ?? match.attackSec[i] ?? null;
+    const heardEndSec = match.endSec?.[i] ?? null;
     if (hz == null || !(hz > 0)) {
-      return { noteIndex: note.noteIndex, cents: null, heardSec: null };
+      return { noteIndex: note.noteIndex, cents: null, heardSec: null, heardEndSec: null };
     }
     return {
       noteIndex: note.noteIndex,
       cents: centsFromMatchedHz(hz, note.midi).cents,
       heardSec,
+      heardEndSec,
     };
   });
 }

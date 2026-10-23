@@ -15,6 +15,8 @@ import {
 import {
   applyDynamicLetterTints,
   clearDynamicLetterTints,
+  dynamicPressTargets,
+  type DynamicPressTarget,
 } from "@/features/piece-studio/score/dynamicLetterTint";
 import type { PitchNoteMark } from "@/features/piece-studio/feedback/visual/piecePitchScoreMap";
 import type { DynamicLetterMark } from "@/features/piece-studio/feedback/visual/pieceDynamicsScoreMap";
@@ -172,6 +174,24 @@ function metricsLookEngraved(metrics: ScoreLayoutMetrics): boolean {
 
 export const PIECE_SCORE_ORIGINAL_SLOT_ID = "musai-piece-original-slot";
 
+/** A press that lands on the engraving still belongs to the mark underneath. */
+function annotationUnderPoint(
+  x: number,
+  y: number,
+): { kind: "rhythm" | "dynamics"; id: string } | null {
+  if (typeof document.elementsFromPoint !== "function") return null;
+  for (const node of document.elementsFromPoint(x, y)) {
+    if (!(node instanceof Element)) continue;
+    const heat = node.closest("[data-highlight-id]");
+    const rhythmId = heat?.getAttribute("data-highlight-id");
+    if (rhythmId) return { kind: "rhythm", id: rhythmId };
+    const dynamic = node.closest("[data-musai-dynamic-issue]");
+    const dynamicId = dynamic?.getAttribute("data-musai-dynamic-issue");
+    if (dynamicId) return { kind: "dynamics", id: dynamicId };
+  }
+  return null;
+}
+
 /**
  * React shell over ScoreRenderer.
  * Consumes MusicXML interchange for engraving; playback timing stays on MusaiScoreV1.
@@ -193,11 +213,13 @@ export function OsmdScoreAdapter({
   onScrubCommit,
   getPlaying,
   playbackNotes,
+  playbackEndSec,
   highlight = null,
   highlights = null,
   pitchMarks = null,
   dynamicMarks = null,
   onHighlightSelect,
+  onDynamicSelect,
   onPaintState,
   showInlineError = true,
   themeOverride = null,
@@ -226,6 +248,8 @@ export function OsmdScoreAdapter({
   getPlaying?: () => boolean;
   /** MusaiScore note times — when set, playhead clock follows these, not OSMD units. */
   playbackNotes?: readonly { startSec: number; endSec: number }[];
+  /** Piece length in seconds, including a rest after the last note. */
+  playbackEndSec?: number;
   /** Single focused overlay. Prefer `highlights` when a category has several. */
   highlight?: PieceScoreHighlight | null;
   /** Focused issue overlays. Listen playback hides them. */
@@ -235,9 +259,11 @@ export function OsmdScoreAdapter({
    * Cleared when empty / Listen follow mode.
    */
   pitchMarks?: readonly PitchNoteMark[] | null;
-  /** Written dynamic letters that were too loud or too soft. */
+  /** Written dynamic letters and hairpins that were not followed. */
   dynamicMarks?: readonly DynamicLetterMark[] | null;
   onHighlightSelect?: (id: string) => void;
+  /** A red dynamic letter or hairpin was pressed. */
+  onDynamicSelect?: (issueId: string) => void;
   /** Fires preparing → ready | failed. Import review gates confirm on `ready`. */
   onPaintState?: (state: ScorePaintState) => void;
   /** When false, parent owns the failure UI (no inline error card). */
@@ -273,6 +299,7 @@ export function OsmdScoreAdapter({
   const [pageIndex, setPageIndex] = useState(0);
   const [metrics, setMetrics] = useState<ScoreLayoutMetrics | null>(null);
   const [density, setDensity] = useState<ScoreScrollDensity>("compact");
+  const [dynamicHits, setDynamicHits] = useState<DynamicPressTarget[]>([]);
   /** Re-apply Listen pose after layout snapshot refreshes (snapsRef only). */
   const syncPlaybackPoseRef = useRef<(() => void) | null>(null);
   const suppressScoreClickRef = useRef(false);
@@ -395,6 +422,7 @@ export function OsmdScoreAdapter({
     if (followPlayback || !wrap) {
       clearPitchNoteheadTints(wrap);
       clearDynamicLetterTints(wrap);
+      setDynamicHits([]);
       return;
     }
     const marks = pitchMarks ?? [];
@@ -402,6 +430,7 @@ export function OsmdScoreAdapter({
       convertRef.current ?? ((wn: number) => wn * 4 * (60 / 100));
     applyPitchNoteheadTints(wrap, snapsRef.current, marks, convert);
     applyDynamicLetterTints(wrap, dynamicMarks ?? []);
+    setDynamicHits(dynamicPressTargets(wrap));
     return () => {
       clearPitchNoteheadTints(wrap);
       clearDynamicLetterTints(wrap);
@@ -837,6 +866,31 @@ export function OsmdScoreAdapter({
   }, [playheadOn, followPlayback, subscribePlaybackTime, getPlaybackTime]);
 
   const onClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    const target = event.target;
+    if (target instanceof Element) {
+      const owned = target.closest(
+        "[data-testid='piece-score-heat'], [data-testid='piece-dynamic-hit']",
+      );
+      if (owned) return;
+      const hit = target.closest("[data-musai-dynamic]");
+      const issueId = hit?.getAttribute("data-musai-dynamic-issue");
+      if (issueId) {
+        event.stopPropagation();
+        onDynamicSelect?.(issueId);
+        return;
+      }
+      const stacked = annotationUnderPoint(event.clientX, event.clientY);
+      if (stacked?.kind === "rhythm") {
+        event.stopPropagation();
+        onHighlightSelect?.(stacked.id);
+        return;
+      }
+      if (stacked?.kind === "dynamics") {
+        event.stopPropagation();
+        onDynamicSelect?.(stacked.id);
+        return;
+      }
+    }
     const markScore = onLoopMark ?? onSeek;
     if (!playheadOn || !markScore) return;
     if (suppressScoreClickRef.current) {
@@ -919,6 +973,7 @@ export function OsmdScoreAdapter({
                   data-role={style === "note" ? "focus" : undefined}
                   data-emphasis={emphasis}
                   data-pitch-kind={item.pitchKind ?? undefined}
+                  data-highlight-id={item.id}
                   aria-label={`${item.label} on the score`}
                   style={{
                     left: rect.x,
@@ -926,13 +981,54 @@ export function OsmdScoreAdapter({
                     width: rect.width,
                     height: rect.height,
                   }}
-                  onClick={(event) => {
+                  onPointerDown={(event) => {
+                    if (event.button !== 0) return;
                     event.stopPropagation();
                     onHighlightSelect?.(item.id);
+                  }}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    event.preventDefault();
                   }}
                 />
               );
             })
+          : null}
+        {!followPlayback
+          ? dynamicHits.map((hit, index) => (
+              <button
+                key={`${hit.issueId}-${index}`}
+                type="button"
+                className="musai-piece-dynamic-hit"
+                data-testid="piece-dynamic-hit"
+                aria-label="Dynamics on the score"
+                style={{
+                  position: "absolute",
+                  zIndex: 32,
+                  left: hit.x,
+                  top: hit.y,
+                  width: hit.width,
+                  height: hit.height,
+                  minWidth: 44,
+                  minHeight: 36,
+                  margin: 0,
+                  padding: 0,
+                  border: 0,
+                  background: "transparent",
+                  pointerEvents: "auto",
+                  alignSelf: "flex-start",
+                }}
+                onPointerDown={(event) => {
+                  if (event.button !== 0) return;
+                  event.stopPropagation();
+                  onDynamicSelect?.(hit.issueId);
+                }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  event.preventDefault();
+                }}
+              />
+            ))
           : null}
         <ScorePlaybackPlayhead
           active={Boolean(playheadOn && subscribePlaybackTime)}
@@ -940,6 +1036,7 @@ export function OsmdScoreAdapter({
           staffBandsRef={staffBandsRef}
           scrollParentRef={wrapRef}
           getPlaybackTime={getPlaybackTime}
+          playbackEndSec={playbackEndSec}
           subscribePlaybackTime={subscribePlaybackTime}
           syncRef={syncPlaybackPoseRef}
           scrubEnabled={scrubEnabled}

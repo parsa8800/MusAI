@@ -3,7 +3,6 @@
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { MusaiSegmentedControl } from "@/components/MusaiSegmentedControl";
 import { MusaiSplitPane } from "@/components/MusaiSplitPane";
 import { PracticeHubBackLink } from "@/components/PracticeHubBackLink";
 import { StudioCoachLauncher } from "@/components/StudioCoachLauncher";
@@ -13,12 +12,10 @@ import {
   PiecePrepareMark,
 } from "@/features/piece-studio/PiecePrepareMark";
 import { MusaiLoadingMark } from "@/components/MusaiLoadingMark";
-import { PieceListenControls } from "@/features/piece-studio/playback/PieceListenControls";
 import { PieceNameControl } from "@/features/piece-studio/PieceNameControl";
 import { recommendedPieceTitle } from "@/features/piece-studio/pieceTitle";
 import { PitchColourKey } from "@/features/piece-studio/PitchColourKey";
 import { PieceScorePdfButton } from "@/features/piece-studio/score/PieceScorePdfButton";
-import { listenUnavailable } from "@/features/piece-studio/listenUnavailable";
 import {
   loopBoundsSec,
   secondsAtQuarter,
@@ -38,9 +35,11 @@ import {
   coachIssueById,
   coachIssuesFromEvents,
   collapsePieceCoachIssues,
+  pieceCoachTopicKey,
   type PieceCoachIssueView,
 } from "@/features/piece-studio/feedback/visual/pieceCoachIssueView";
 import { PieceAskCoach } from "@/features/piece-studio/feedback/visual/PieceAskCoach";
+import { PieceFeedbackReview } from "@/features/piece-studio/feedback/visual/PieceFeedbackReview";
 import { PieceRhythmHighlightPopup } from "@/features/piece-studio/feedback/visual/PieceRhythmHighlightPopup";
 import {
   readCoachMemory,
@@ -57,9 +56,7 @@ import {
   pieceFeedbackSpanWholeNotes,
 } from "@/features/piece-studio/feedback/visual/pieceFeedbackAnnotation";
 import {
-  AudioListenDock,
   PIECE_LOAD_HOLD_MS,
-  PIECE_VIEW_OPTIONS,
   PieceWorkspaceMissing,
   PieceWorkspaceOpening,
 } from "@/features/piece-studio/PieceWorkspaceChrome";
@@ -92,10 +89,7 @@ import {
   takePlayheadAnchors,
 } from "@/features/piece-studio/practice/takePlayheadTime";
 import type { MusaiScoreV1 } from "@/features/piece-studio/score/musaiScore";
-import {
-  resolvePieceWorkspaceView,
-  type PieceWorkspaceV1,
-} from "@/features/piece-studio/pieceStudioTypes";
+import type { PieceWorkspaceV1 } from "@/features/piece-studio/pieceStudioTypes";
 import { tapFeedback } from "@/lib/motion";
 import { bufferToMono } from "@/lib/analyzePitch";
 import { createAudioContext } from "@/lib/audioContext";
@@ -137,7 +131,7 @@ const PiecePractiseDock = dynamic(
 );
 
 /**
- * Persistent piece workspace. Score (with playback) and Practise are the two views.
+ * Persistent piece workspace. One practise page: score on screen, record under it.
  */
 export function PieceWorkspaceView({ slug }: { slug: string }) {
   const router = useRouter();
@@ -149,9 +143,8 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
   const [piece, setPiece] = useState<PieceWorkspaceV1 | null | undefined>(
     undefined,
   );
-  const [view, setView] = useState<"score" | "practise">(() =>
-    requested === "practise" ? "practise" : "score",
-  );
+  /** Single workspace mode — score stays on screen while the student practises. */
+  const view = "practise" as const;
   const [loopPick, setLoopPick] = useState<"start" | "end" | null>(null);
   const [loadHold, setLoadHold] = useState(PIECE_LOAD_HOLD_MS > 0);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -212,9 +205,20 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
   );
 
   const [pitchColoursOn, setPitchColoursOn] = useState(true);
+  const [visibleCategories, setVisibleCategories] = useState<ReadonlySet<string>>(
+    () => new Set(["pitch", "rhythm", "tempo", "dynamics"]),
+  );
   const latestAttemptId = latestAttempt?.attemptId ?? null;
   useEffect(() => {
     setPitchColoursOn(true);
+    const keys = new Set(coachIssues.map((issue) => pieceCoachTopicKey(issue)));
+    setVisibleCategories(
+      keys.size > 0
+        ? keys
+        : new Set(["pitch", "rhythm", "tempo", "dynamics"]),
+    );
+    // Reset when the take changes. coachIssues for that take arrive with it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- take id is the reset signal
   }, [latestAttemptId]);
 
   const pitchMarks = useMemo(
@@ -225,14 +229,28 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
         structured,
         pitchColoursOn,
         livePitchNotes,
+        visibleCategories,
       }),
-    [view, hasLivePitch, structured, livePitchNotes, pitchColoursOn],
+    [
+      view,
+      hasLivePitch,
+      structured,
+      livePitchNotes,
+      pitchColoursOn,
+      visibleCategories,
+    ],
   );
 
   // Wrong written dynamics stay pressable on the score. Pitch stays on noteheads.
   const dynamicMarks = useMemo(
-    () => pieceDynamicMarks({ view, structured, coachIssues }),
-    [view, structured, coachIssues],
+    () =>
+      pieceDynamicMarks({
+        view,
+        structured,
+        coachIssues,
+        visibleCategories,
+      }),
+    [view, structured, coachIssues, visibleCategories],
   );
 
   /** Pitch stays on noteheads. Every rhythm miss gets a staff rectangle. */
@@ -243,8 +261,15 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
         coachIssues,
         previewIssue,
         focusedHighlight,
+        visibleCategories,
       }),
-    [showPreview, coachIssues, previewIssue, focusedHighlight],
+    [
+      showPreview,
+      coachIssues,
+      previewIssue,
+      focusedHighlight,
+      visibleCategories,
+    ],
   );
 
   const wholeNotesToSeconds = useCallback((wholeNotes: number) => {
@@ -474,15 +499,12 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
 
   useEffect(() => {
     if (!piece) return;
-    const next = resolvePieceWorkspaceView(requested, piece.lastView);
-    setView(next);
-    touchPieceWorkspace(piece.pieceId, next);
-    if (requested === "listen") {
-      router.replace(`${PIECE_STUDIO_HREF}/${piece.slug}?view=score`, {
+    touchPieceWorkspace(piece.pieceId, "practise");
+    if (requested && requested !== "practise") {
+      router.replace(`${PIECE_STUDIO_HREF}/${piece.slug}?view=practise`, {
         scroll: false,
       });
     }
-    // Only re-sync view when the piece identity or URL view changes — not every catalog tick.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [piece?.pieceId, requested]);
 
@@ -598,13 +620,10 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
   }, [slug]);
 
   useEffect(() => {
-    if (view !== "score") playback.pause();
-    if (view !== "practise") {
-      setPractiseClock(null);
-    }
-    // Pause when leaving Listen; playback identity is stable enough here.
+    // Practise-only workspace: keep written-score playback paused.
+    playback.pause();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view]);
+  }, [piece?.pieceId]);
 
   useEffect(() => {
     const first = coachIssues[0]?.id ?? null;
@@ -718,22 +737,6 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
     return <PieceWorkspaceOpening />;
   }
 
-  const setWorkspaceView = (next: "score" | "practise") => {
-    if (next === view) return;
-    tapFeedback("light");
-    // Flip the tab immediately; persist + URL after the frame so input never
-    // waits behind catalog writes.
-    setView(next);
-    const pieceId = piece.pieceId;
-    const slug = piece.slug;
-    window.queueMicrotask(() => {
-      touchPieceWorkspace(pieceId, next);
-      router.replace(`${PIECE_STUDIO_HREF}/${slug}?view=${next}`, {
-        scroll: false,
-      });
-    });
-  };
-
   const askContext: PieceAskContext = {
     title: piece.title,
     composer: structured?.composer ?? piece.composer,
@@ -742,18 +745,9 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
     tempoBpm: structured?.tempoBpm ?? piece.score.tempoBpm,
     measureCount: structured?.measureCount || piece.score.measureCount || 0,
   };
-  const listening = view === "score";
-  const practising = view === "practise";
-  const scoreOpen = scoreOpenFor === piece.pieceId;
-  const awaitingPiano =
-    piece.sourceKind !== "audio" &&
-    playback.scoreReady &&
-    playback.instrumentStatus !== "ready" &&
-    playback.instrumentStatus !== "error";
-  const listenPreparing =
-    listening && piece.sourceKind !== "audio" && (!scoreOpen || awaitingPiano);
-  const loadingCover = listening && (loadHold || listenPreparing);
-  const listenPlayhead = listening && playback.scoreReady;
+  const practising = true;
+  const loadingCover = false;
+  const listenPlayhead = false;
   const showListenPlayhead = listenPlayhead && !loadingCover;
   const practisePlayhead = practising && practiseClock != null;
   const useScoreClock = listenPlayhead;
@@ -822,52 +816,7 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
     />
   );
 
-  const listenDock = listening ? (
-    <div className="musai-piece-workspace__dock">
-      {piece.sourceKind === "audio" ? (
-        <AudioListenDock objectUrl={audioUrl} title={piece.title} />
-      ) : (
-        <PieceListenControls
-          ready={playback.scoreReady}
-          playing={playback.playing}
-          durationSec={playback.durationSec}
-          bpm={playback.bpm}
-          baseBpm={playback.baseBpm}
-          speedPreset={playback.speedPreset}
-          metronomeOn={playback.metronomeOn}
-          clickLevel={playback.clickLevel}
-          loop={playback.loop}
-          measureCount={playback.measureCount}
-          unavailable={listenUnavailable(
-            piece,
-            playback.scoreReady,
-            structured,
-          )}
-          instrumentStatus={playback.instrumentStatus}
-          sampleName={
-            instrument.listenSoundfont === "violin" ? "violin" : "piano"
-          }
-          subscribeTime={playback.subscribeTime}
-          getCurrentSec={playback.getCurrentSec}
-          onToggle={onTogglePlayback}
-          onPause={playback.pause}
-          onRestart={onRestartPlayback}
-          onBpm={playback.setBpm}
-          onSpeedPreset={playback.setSpeedPreset}
-          onToggleMetronome={playback.toggleMetronome}
-          onClickLevel={playback.setClickLevel}
-          onPreviewClick={() => {
-            void playback.previewClick();
-          }}
-          onLoopPress={onLoopPress}
-          loopPick={loopPick}
-        />
-      )}
-    </div>
-  ) : null;
-
-  // Same outer fiber across Score / Listen / Practise so OSMD is not remounted.
-  // Listen dock lives under the stage so short scores pull transport up with them.
+  // Same outer fiber across takes so OSMD is not remounted.
   const scoreColumn = (
     <div
       className="musai-piece-workspace__practise-stage"
@@ -908,7 +857,6 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
           onTogglePitchColours={() => setPitchColoursOn((on) => !on)}
         />
       ) : null}
-      {loadingCover ? null : listenDock}
     </div>
   );
 
@@ -924,17 +872,25 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
         }
         data-preparing={loadingCover ? "true" : undefined}
       >
-        <header className="musai-piece-workspace__nav flex shrink-0 items-center gap-2 px-0 py-2 sm:gap-3 sm:py-2.5">
+        <header className="musai-piece-workspace__nav">
           <PracticeHubBackLink
             className="!mb-0 shrink-0"
             href={PIECE_STUDIO_HREF}
             label="Piece studio"
             ariaLabel="Back to Piece studio"
           />
-          {loadingCover ? null : (
-            <PieceScorePdfButton
-              title={piece.title}
-              className="musai-piece-workspace__pdf"
+          {teacherShown ? null : (
+            <StudioCoachLauncher
+              open={coachOpen}
+              controlsId="piece-coach"
+              label="Teacher"
+              onToggle={() =>
+                setCoachOpen((open) => {
+                  const next = !open;
+                  if (coachMemoryKey) writeCoachOpen(coachMemoryKey, next);
+                  return next;
+                })
+              }
             />
           )}
         </header>
@@ -955,20 +911,11 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
                   if (saved) setCatalogTick((n) => n + 1);
                 }}
               />
+              <PieceScorePdfButton
+                title={piece.title}
+                className="musai-piece-workspace__pdf"
+              />
             </div>
-          </div>
-        )}
-
-        {loadingCover ? null : (
-          <div className="musai-piece-workspace__modes">
-            <MusaiSegmentedControl
-              ariaLabel="Piece workspace"
-              value={view}
-              onChange={setWorkspaceView}
-              options={PIECE_VIEW_OPTIONS}
-              size="compact"
-              className="musai-piece-workspace__tabs"
-            />
           </div>
         )}
 
@@ -1013,11 +960,18 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
                     claimFresh={claimRhythm}
                     onClose={() => setRhythmExplainId(null)}
                   />
+                ) : hasLiveCoach ? (
+                  <PieceFeedbackReview
+                    issues={coachIssues}
+                    activeId={previewId}
+                    onActiveId={setPreviewId}
+                    onShowOnScore={onHighlightSelect}
+                    visibleCategories={visibleCategories}
+                    onVisibleCategoriesChange={setVisibleCategories}
+                  />
                 ) : (
                   <p className="musai-teacher-rail__quiet">
-                    {hasLiveCoach
-                      ? "This take is on the score"
-                      : "Record a take to see notes here"}
+                    Record a take to see notes here
                   </p>
                 )
               }
@@ -1031,18 +985,6 @@ export function PieceWorkspaceView({ slug }: { slug: string }) {
               }
             />
           ) : null}
-          <StudioCoachLauncher
-            open={coachOpen}
-            controlsId="piece-coach"
-            label="Teacher"
-            onToggle={() =>
-              setCoachOpen((open) => {
-                const next = !open;
-                if (coachMemoryKey) writeCoachOpen(coachMemoryKey, next);
-                return next;
-              })
-            }
-          />
         </div>
       </div>
     </StudioViewport>

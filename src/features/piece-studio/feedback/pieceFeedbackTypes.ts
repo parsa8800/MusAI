@@ -2,8 +2,8 @@
  * Structured piece feedback. Coach Parsa reads this — not audio buffers.
  *
  * Skills are independent. A category with status `not_ready` must not invent
- * events. Pitch, rhythm, and dynamics are implemented. Tempo and consistency
- * are not.
+ * events. Pitch, rhythm, tempo, and dynamics are implemented. Consistency
+ * stays deferred until cross-take history is judged honestly.
  */
 
 export const PIECE_FEEDBACK_SCHEMA_VERSION = 1 as const;
@@ -30,6 +30,8 @@ export type PieceFeedbackKind =
   | "slowing"
   | "too_loud"
   | "too_soft"
+  | "unchanged"
+  | "reversed"
   | "weak_section";
 
 /** How urgently Coach Parsa should surface the event. */
@@ -81,6 +83,11 @@ export type PiecePitchNoteV1 = {
    * Drives last-take playhead alignment. Absent on reports saved earlier.
    */
   heardSec?: number | null;
+  /**
+   * When this note stopped sounding. The playhead stays on the note until then.
+   * Absent on reports saved earlier.
+   */
+  heardEndSec?: number | null;
 };
 
 export type PieceFeedbackReportV1 = {

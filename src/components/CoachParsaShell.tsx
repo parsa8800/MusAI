@@ -29,6 +29,10 @@ export type CoachParsaShellProps = {
   focus?: CoachParsaFocusProps | null;
   openerText: string;
   suggestions?: string[];
+  /** Shown in the empty message field. */
+  placeholder?: string;
+  /** Hide the title row. The rail already names the column. */
+  showHeader?: boolean;
   source?: CoachReplySource;
   sanitizeUserText?: CoachParsaChatProps["sanitizeUserText"];
   getReply: CoachParsaChatProps["getReply"];
@@ -52,6 +56,8 @@ export function CoachParsaShell({
   focus = null,
   openerText,
   suggestions,
+  placeholder,
+  showHeader,
   source = "template",
   sanitizeUserText,
   getReply,
@@ -89,6 +95,8 @@ export function CoachParsaShell({
         openerText={openerText}
         source={source}
         suggestions={suggestions}
+        placeholder={placeholder}
+        showHeader={showHeader}
         sanitizeUserText={sanitizeUserText}
         topSlot={focusCard}
         getReply={getReply}

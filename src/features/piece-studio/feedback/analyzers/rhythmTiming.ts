@@ -3,13 +3,13 @@
  * A steady slower or faster performance stays even, so it is not flagged here.
  */
 
-/** About a fifth of a beat. Smaller wobble still counts as on the beat. */
-export const RHYTHM_ONSET_BEAT_FRACTION = 0.22;
+/** About a third of a beat. Smaller wobble still counts as on the beat. */
+export const RHYTHM_ONSET_BEAT_FRACTION = 0.32;
 /** Never tighter than this, even when the beat itself is very fast. */
-export const RHYTHM_ONSET_MIN_SEC = 0.09;
+export const RHYTHM_ONSET_MIN_SEC = 0.14;
 /** Gaps outside this band are the wrong length, not a small early or late start. */
-export const RHYTHM_DURATION_SHORT = 0.65;
-export const RHYTHM_DURATION_LONG = 1.5;
+export const RHYTHM_DURATION_SHORT = 0.52;
+export const RHYTHM_DURATION_LONG = 1.75;
 
 export type RhythmClockNote = {
   noteIndex: number;
@@ -17,7 +17,9 @@ export type RhythmClockNote = {
   absoluteOnsetQuarters: number;
   /** When this note was heard. Null when it was missed or had no attack of its own. */
   heardSec: number | null;
+  durationQuarters?: number;
   midi?: number;
+  measure?: string;
 };
 
 export type RhythmFinding = {
@@ -41,8 +43,8 @@ function median(values: readonly number[]): number {
  * Null when fewer than two notes were heard — there is no beat to judge.
  * An empty list means the heard notes sat on that beat.
  *
- * One finding per gap, so a long hold is not also “the next note is late”:
- * a very long or very short gap is length; a smaller miss is early or late.
+ * One finding per gap: a long or short hold, or a late start.
+ * Rests and a breath before the next phrase stay unmarked unless they are extreme.
  */
 export function findRhythmFindings(
   notes: readonly RhythmClockNote[],
@@ -86,11 +88,18 @@ export function findRhythmFindings(
     RHYTHM_ONSET_MIN_SEC,
   );
 
+  const durationByIndex = new Map(
+    heard.map((note) => [note.noteIndex, note.durationQuarters ?? 1]),
+  );
   const findings: RhythmFinding[] = [];
   for (const gap of gaps) {
     const expectedSec = gap.writtenQuarters * secPerQuarter;
     const ratio = gap.playedSec / expectedSec;
     const errorSec = gap.playedSec - expectedSec;
+    const earlierDur = durationByIndex.get(gap.earlierIndex) ?? 1;
+    const restLike = gap.writtenQuarters > earlierDur + 0.6;
+    if (restLike && ratio >= 0.32 && ratio <= 2.5) continue;
+    if (ratio > RHYTHM_DURATION_LONG && errorSec > 1.2) continue;
     if (ratio > RHYTHM_DURATION_LONG) {
       findings.push({
         noteIndex: gap.earlierIndex,
@@ -107,13 +116,6 @@ export function findRhythmFindings(
         length: "short",
         overshoot: RHYTHM_DURATION_SHORT - ratio,
       });
-      // The next note did arrive early. A short hold is only the note left behind.
-      findings.push({
-        noteIndex: gap.laterIndex,
-        kind: "early",
-        length: null,
-        overshoot: (-errorSec - onsetWindow) / secPerQuarter,
-      });
       continue;
     }
     if (errorSec > onsetWindow) {
@@ -126,21 +128,48 @@ export function findRhythmFindings(
       continue;
     }
     if (errorSec < -onsetWindow) {
-      // A smaller rush is the same join: the note left early was short,
-      // and the note that arrives came in early. Not a short hold on the arrival.
       findings.push({
         noteIndex: gap.earlierIndex,
         kind: "duration",
         length: "short",
         overshoot: 1 - ratio,
       });
-      findings.push({
-        noteIndex: gap.laterIndex,
-        kind: "early",
-        length: null,
-        overshoot: (-errorSec - onsetWindow) / secPerQuarter,
-      });
     }
   }
-  return findings;
+  return dropOnsetThatSitsWithItsBar(findings, heard, secPerQuarter, onsetWindow);
+}
+
+function barKey(note: RhythmClockNote): string {
+  if (note.measure && note.measure !== "?") return note.measure;
+  return String(Math.floor(note.absoluteOnsetQuarters / 4));
+}
+
+/**
+ * A late start after a cut-short or stretched note is often just the player
+ * getting back on the written bar. If that note already sits with the rest
+ * of its bar, leave it unmarked.
+ */
+function dropOnsetThatSitsWithItsBar(
+  findings: RhythmFinding[],
+  heard: readonly (RhythmClockNote & { heardSec: number })[],
+  secPerQuarter: number,
+  onsetWindow: number,
+): RhythmFinding[] {
+  const byIndex = new Map(heard.map((note) => [note.noteIndex, note]));
+  return findings.filter((finding) => {
+    if (finding.kind !== "late" && finding.kind !== "early") return true;
+    const note = byIndex.get(finding.noteIndex);
+    if (!note) return true;
+    const others = heard.filter(
+      (other) => other.noteIndex !== note.noteIndex && barKey(other) === barKey(note),
+    );
+    if (others.length === 0) return true;
+    const errors = others.map((other) => {
+      const written = note.absoluteOnsetQuarters - other.absoluteOnsetQuarters;
+      const expected = other.heardSec + written * secPerQuarter;
+      return note.heardSec - expected;
+    });
+    const signed = median(errors);
+    return Math.abs(signed) > onsetWindow;
+  });
 }

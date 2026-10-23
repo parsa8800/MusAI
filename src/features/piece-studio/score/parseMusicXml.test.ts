@@ -3,6 +3,7 @@ import path from "node:path";
 import { zipSync, strToU8 } from "fflate";
 import { describe, expect, it } from "vitest";
 import { parseMusicXmlToScore } from "@/features/piece-studio/score/parseMusicXml";
+import { dynamicGlyphsFromScore } from "@/features/piece-studio/score/writtenDynamics";
 import { musicXmlFromBytes } from "@/features/piece-studio/score/musicXmlSource";
 import { CANON_XML, TWINKLE_XML } from "@/features/piece-studio/score/musicXmlFixtures";
 
@@ -160,6 +161,60 @@ describe("written tempo", () => {
       "Sonata",
     );
     expect(score.tempoBpm).toBe(48);
+  });
+});
+
+describe("written hairpins", () => {
+  it("reads a wedge across bars and a printed crescendo", () => {
+    const score = parseMusicXmlToScore(
+      `<?xml version="1.0"?>
+<score-partwise version="3.1">
+  <part-list><score-part id="P1"><part-name>Music</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>1</divisions>
+        <time><beats>4</beats><beat-type>4</beat-type></time>
+      </attributes>
+      <direction><direction-type><dynamics><p/></dynamics></direction-type></direction>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+      <direction><direction-type><wedge type="crescendo" number="1"/></direction-type></direction>
+      <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+      <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+      <note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+    </measure>
+    <measure number="2">
+      <direction><direction-type><wedge type="stop" number="1"/></direction-type></direction>
+      <direction><direction-type><words>cresc.</words></direction-type></direction>
+      <note><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+      <note><pitch><step>A</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+      <note><pitch><step>B</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+      <note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type></note>
+    </measure>
+  </part>
+</score-partwise>`,
+      "Hairpin",
+    );
+    const events = score.parts[0]!.measures.flatMap((measure) => measure.events);
+    const hairpins = events.filter((event) => event.kind === "hairpin");
+    expect(hairpins).toEqual([
+      {
+        kind: "hairpin",
+        onsetQuarters: 1,
+        endAbsoluteQuarters: 4,
+        direction: "crescendo",
+      },
+      {
+        kind: "hairpin",
+        onsetQuarters: 0,
+        endAbsoluteQuarters: 8,
+        direction: "crescendo",
+      },
+    ]);
+    expect(dynamicGlyphsFromScore(score).map((glyph) => glyph.type)).toEqual([
+      "letter",
+      "hairpin",
+      "hairpin",
+    ]);
   });
 });
 

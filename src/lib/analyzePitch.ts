@@ -224,8 +224,12 @@ const MERGE_MAX_GAP_SEC = 0.08;
 const SAME_PITCH_RESTART_GAP_SEC = 0.22;
 const MERGE_SEMI_TOL = 0.7;
 
-/** Max abs cents to assign a pitch run to an expected scale degree. */
-export const DETECTED_NOTE_MATCH_MAX_CENTS = 85;
+/**
+ * Max abs cents to assign a pitch run to an expected scale degree.
+ * About a semitone; farther is treated as a different written note.
+ * Colour and score then judge how close a matched note was.
+ */
+export const DETECTED_NOTE_MATCH_MAX_CENTS = 90;
 /** Sequential matching may skip this many unmatched expected degrees (missed notes). */
 export const DETECTED_NOTE_MAX_SKIP = 2;
 

@@ -26,7 +26,7 @@ export function SettingsView() {
 
       <div className="musai-settings__stage">
         <header className="musai-settings__header" data-anime-enter>
-          <h1 className="musai-settings__title font-display">Settings</h1>
+          <h1 className="musai-page-title musai-settings__title font-display">Settings</h1>
         </header>
 
         <section

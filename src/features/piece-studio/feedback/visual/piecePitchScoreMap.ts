@@ -3,8 +3,9 @@ import type { PieceCoachIssueView } from "@/features/piece-studio/feedback/visua
 import type { PieceScoreHighlight } from "@/features/piece-studio/score/OsmdScoreAdapter";
 import type { PieceExpectedNote } from "@/features/piece-studio/score/expectedNotes";
 import {
+  PIECE_FAR_CENTS,
+  PIECE_IN_TUNE_CENTS,
   PRACTICE_CLEAR_MISS_CENTS,
-  PRACTICE_IN_TUNE_CENTS,
 } from "@/lib/intonationScore";
 
 /**
@@ -34,7 +35,8 @@ export type PitchNoteMark = {
 export function pitchPaintKindFromCents(cents: number | null): PitchPaintKind {
   if (cents == null || !Number.isFinite(cents)) return "missed";
   const abs = Math.abs(cents);
-  if (abs <= PRACTICE_IN_TUNE_CENTS) return "in_tune";
+  if (abs >= PIECE_FAR_CENTS) return "missed";
+  if (abs <= PIECE_IN_TUNE_CENTS) return "in_tune";
   if (cents > 0) {
     return abs <= PRACTICE_CLEAR_MISS_CENTS ? "sharp" : "sharp-strong";
   }

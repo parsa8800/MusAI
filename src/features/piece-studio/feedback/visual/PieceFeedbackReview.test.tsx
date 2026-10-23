@@ -32,8 +32,6 @@ describe("PieceFeedbackReview", () => {
     expect(screen.queryByText("Heard")).not.toBeInTheDocument();
     expect(screen.queryByText("Try")).not.toBeInTheDocument();
     expect(screen.queryByText("What’s wrong")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("piece-focus-issues")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("piece-focus-card")).not.toBeInTheDocument();
     expect(screen.queryByText(/Running slightly sharp/i)).not.toBeInTheDocument();
 
     expect(screen.getByTestId("piece-pitch-map")).toBeInTheDocument();
@@ -44,11 +42,12 @@ describe("PieceFeedbackReview", () => {
     expect(screen.getByText("Missed")).toBeInTheDocument();
     expect(screen.queryByText(/Soft washes/i)).not.toBeInTheDocument();
     expect(pitchIssues.length).toBeGreaterThan(1);
-    expect(screen.getByRole("option", { name: /Pitch/i })).toHaveAttribute(
-      "aria-selected",
+    expect(screen.getByRole("button", { name: /Pitch/i })).toHaveAttribute(
+      "aria-pressed",
       "true",
     );
-    expect(screen.getByTestId("coach-chat")).toBeInTheDocument();
+    expect(screen.queryByTestId("coach-chat")).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/Ask your coach/i)).not.toBeInTheDocument();
   });
 
   it("offers Hear this for pitch without listing every note", () => {
@@ -92,38 +91,61 @@ describe("PieceFeedbackReview", () => {
     expect(screen.queryByTestId("piece-section-listen")).not.toBeInTheDocument();
   });
 
-  it("switches focus from the skills rail without ALSO chips in chat", () => {
+  it("toggles skills on the score and focuses a topic when turning it on", () => {
     const onActiveId = vi.fn();
     const onShowOnScore = vi.fn();
-    render(
+    const onVisible = vi.fn();
+    const { rerender } = render(
       <PieceFeedbackReview
         issues={issues}
         activeId={issues[0]!.id}
         onActiveId={onActiveId}
         onShowOnScore={onShowOnScore}
+        visibleCategories={new Set(["pitch", "rhythm", "tempo", "dynamics"])}
+        onVisibleCategoriesChange={onVisible}
       />,
     );
     expect(screen.queryByText("Also")).not.toBeInTheDocument();
-    expect(screen.getByRole("option", { name: /Pitch/i })).toHaveClass(
-      "is-active",
+    expect(screen.getByRole("button", { name: /Pitch/i })).toHaveAttribute(
+      "aria-pressed",
+      "true",
     );
-    expect(screen.getByRole("option", { name: /Tempo/i })).toHaveClass(
-      "is-idle",
+    expect(screen.getByRole("button", { name: /Tempo/i })).toHaveAttribute(
+      "aria-pressed",
+      "true",
     );
-    fireEvent.click(screen.getByRole("option", { name: /Tempo/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Tempo/i }));
+    expect(onVisible).toHaveBeenCalled();
+    const afterOff = onVisible.mock.calls[0]![0] as Set<string>;
+    expect(afterOff.has("tempo")).toBe(false);
+
+    onVisible.mockClear();
+    onActiveId.mockClear();
+    onShowOnScore.mockClear();
+    rerender(
+      <PieceFeedbackReview
+        issues={issues}
+        activeId={issues[0]!.id}
+        onActiveId={onActiveId}
+        onShowOnScore={onShowOnScore}
+        visibleCategories={new Set(["pitch", "rhythm", "dynamics"])}
+        onVisibleCategoriesChange={onVisible}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Tempo/i }));
     expect(onActiveId).toHaveBeenCalledWith("mock-rushing");
     expect(onShowOnScore).toHaveBeenCalledWith("mock-rushing");
+    const afterOn = onVisible.mock.calls[0]![0] as Set<string>;
+    expect(afterOn.has("tempo")).toBe(true);
   });
 
-  it("lists worded cards for non-pitch topics only", () => {
-    const onActiveId = vi.fn();
-    const onShowOnScore = vi.fn();
+  it("hides pitch map when pitch is turned off and keeps other cards", () => {
     render(
       <PieceFeedbackReview
         issues={issues}
         activeId={tempoIssue.id}
-        onActiveId={onActiveId}
-        onShowOnScore={onShowOnScore}
+        onActiveId={() => undefined}
+        visibleCategories={new Set(["tempo", "rhythm", "dynamics"])}
       />,
     );
     expect(screen.queryByTestId("piece-pitch-map")).not.toBeInTheDocument();
@@ -140,12 +162,27 @@ describe("PieceFeedbackReview", () => {
       />,
     );
     expect(
-      screen.getByRole("option", { name: /Pitch, \d+ issues/i }),
+      screen.getByRole("button", { name: /Pitch, \d+ issues/i }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Rhythm" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Rhythm" })).toBeInTheDocument();
     expect(
-      screen.queryByRole("option", { name: /Rhythm, \d+ issues/i }),
+      screen.queryByRole("button", { name: /Rhythm, \d+ issues/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it("only lists skill chips for topics that have points to improve", () => {
+    const rhythmOnly = issues.filter((issue) => issue.category === "rhythm");
+    render(
+      <PieceFeedbackReview
+        issues={rhythmOnly}
+        activeId={rhythmOnly[0]!.id}
+        onActiveId={() => undefined}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /^Rhythm/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Pitch/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Dynamics/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Tempo/i })).not.toBeInTheDocument();
   });
 
   it("marks live analysis without sample banner", () => {
@@ -169,7 +206,7 @@ describe("PieceFeedbackReview", () => {
       "false",
     );
     expect(screen.queryByTestId("piece-focus-sample")).not.toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Pitch" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Pitch" })).toBeInTheDocument();
     expect(screen.getByTestId("piece-pitch-map")).toBeInTheDocument();
   });
 });
