@@ -25,6 +25,8 @@ export type PiecePitchMatch = {
    * so rhythm does not treat that bow as several late or short notes.
    */
   attackSec: Array<number | null>;
+  /** When the bow on that note stops. Only the last note of a shared bow is set. */
+  endSec?: Array<number | null>;
   durationSec: number;
 };
 
@@ -53,12 +55,44 @@ function absCents(hz: number, targetHz: number): number {
   return Math.abs(1200 * Math.log2(hz / targetHz));
 }
 
+/** Frames this far apart mean the tracker was guessing through silence. */
+const SPARSE_RUN_FRAME_GAP_SEC = 0.14;
+
+/**
+ * Primary walk floor. Brief flickers and short blips stay out; short real
+ * bows can still fill empty slots via {@link runCanFillUnclaimedNote}.
+ */
+function runIsStableEnough(run: StablePitchRun): boolean {
+  const dur = run.timeEndSec - run.timeStartSec;
+  if (dur < 0.16) return false;
+  const gaps = Math.max(1, run.frameCount - 1);
+  return dur / gaps <= SPARSE_RUN_FRAME_GAP_SEC;
+}
+
+/**
+ * A quaver bow often settles for only a few frames, a little under the
+ * flicker floor used while walking the piece. It can still fill a note
+ * that nothing else claimed, as long as the frames are packed like a bow
+ * and not scattered across a rest.
+ */
+function runCanFillUnclaimedNote(run: StablePitchRun): boolean {
+  if (runIsStableEnough(run)) return true;
+  if (run.frameCount < 3) return false;
+  const dur = run.timeEndSec - run.timeStartSec;
+  if (!(dur >= 0.09)) return false;
+  const gaps = Math.max(1, run.frameCount - 1);
+  return dur / gaps <= SPARSE_RUN_FRAME_GAP_SEC;
+}
+
 /**
  * A later written note has to be this much closer before we leave an earlier
  * one unmatched. Stops a skipped D from swallowing the C♯ that follows, while
  * a note that is merely very flat stays on the note that was written.
  */
 const LATER_NOTE_WIN_CENTS = 45;
+
+/** A whole step away is another written note. Piece matching stops before that. */
+const MATCH_MAX_CENTS = 150;
 
 /** This many octave-up notes in a row is a real octave change, not one harmonic. */
 const OCTAVE_PHRASE_NOTES = 3;
@@ -97,7 +131,8 @@ export function matchPieceRunsDetailed(
     const run = runs[ri]!;
     // Shorter than this is a tracker flicker, not a note. A real note can be
     // brief once the pitch has settled, so this stays under a fifth of a second.
-    if (run.timeEndSec - run.timeStartSec < 0.16) continue;
+    // A long stretch with only a few frames is rest noise, not a bow.
+    if (!runIsStableEnough(run)) continue;
     let bestJ = -1;
     let bestCents = Infinity;
     const nearEnd = Math.min(n - 1, cursor + DETECTED_NOTE_MAX_SKIP);
@@ -106,7 +141,7 @@ export function matchPieceRunsDetailed(
       for (let j = cursor; j <= searchEnd; j++) {
         if (slots[j] != null) continue;
         const cents = absCents(run.medianHz, midiToHz(expectedMidis[j]!));
-        if (cents > DETECTED_NOTE_MATCH_MAX_CENTS) continue;
+        if (cents >= MATCH_MAX_CENTS) continue;
         if (bestJ < 0 || cents + LATER_NOTE_WIN_CENTS < bestCents) {
           bestJ = j;
           bestCents = cents;
@@ -174,13 +209,15 @@ export function matchPiecePitch(input: {
   expectedMidis: readonly number[];
   /** Written length of each expected note, so one held pitch can cover a repeat. */
   durationQuarters?: readonly number[];
+  /** Written onset in quarter notes, so a rest is not treated as more of the same bow. */
+  onsetQuarters?: readonly number[];
   minHz?: number;
   maxHz?: number;
 }): PiecePitchMatch {
   const durationSec =
     input.mono.length > 0 ? input.mono.length / input.sampleRateHz : 0;
   if (input.expectedMidis.length === 0) {
-    return { slots: [], timesSec: [], attackSec: [], durationSec };
+    return { slots: [], timesSec: [], attackSec: [], endSec: [], durationSec };
   }
   const frames = collectPitchFrames(input.mono, input.sampleRateHz, {
     mode: "piece",
@@ -196,6 +233,7 @@ export function matchPiecePitch(input: {
       runs,
       expectedMidis: input.expectedMidis,
       durationQuarters: durations,
+      onsetQuarters: input.onsetQuarters,
       mono: input.mono,
       sampleRateHz: input.sampleRateHz,
     });
@@ -209,7 +247,13 @@ export function matchPiecePitch(input: {
     durations && durations.length === input.expectedMidis.length
       ? attacksFromDetailedSlots(detailed)
       : timesSec;
-  return { slots, timesSec, attackSec, durationSec };
+  return {
+    slots,
+    timesSec,
+    attackSec,
+    endSec: endsFromDetailedSlots(detailed),
+    durationSec,
+  };
 }
 
 function median(values: readonly number[]): number | null {
@@ -223,7 +267,7 @@ function median(values: readonly number[]): number | null {
  * A short bow stays on the note that was played. A long bow, including one that
  * rings past the last written note, covers each repeat it actually holds.
  */
-const SAME_PITCH_COVER_FRACTION = 0.55;
+const SAME_PITCH_COVER_FRACTION = 0.42;
 
 function runContinuesEarlierSamePitch(
   slots: readonly (MatchedExpectedSlot | null)[],
@@ -249,15 +293,23 @@ export function refineRepeatedPitchSlots(input: {
   runs: readonly StablePitchRun[];
   expectedMidis: readonly number[];
   durationQuarters: readonly number[];
+  onsetQuarters?: readonly number[];
   mono?: Float32Array;
   sampleRateHz?: number;
 }): Array<MatchedExpectedSlot | null> {
   let detailed = input.slots.map((slot) => slot);
   for (let pass = 0; pass < 3; pass++) {
+    detailed = detachReleaseAcrossRests({
+      slots: detailed,
+      expectedMidis: input.expectedMidis,
+      durationQuarters: input.durationQuarters,
+      onsetQuarters: input.onsetQuarters,
+    });
     detailed = shareSustainedSamePitch({
       slots: detailed,
       expectedMidis: input.expectedMidis,
       durationQuarters: input.durationQuarters,
+      onsetQuarters: input.onsetQuarters,
       mono: input.mono,
       sampleRateHz: input.sampleRateHz,
     });
@@ -265,9 +317,82 @@ export function refineRepeatedPitchSlots(input: {
       slots: detailed,
       runs: input.runs,
       expectedMidis: input.expectedMidis,
+      durationQuarters: input.durationQuarters,
+      onsetQuarters: input.onsetQuarters,
+    });
+    detailed = reclaimRunsForEarlierHoles({
+      slots: detailed,
+      expectedMidis: input.expectedMidis,
+      durationQuarters: input.durationQuarters,
+      onsetQuarters: input.onsetQuarters,
     });
   }
   return detailed;
+}
+
+/**
+ * A run parked on a later repeat often belongs on the empty note it
+ * actually started on. Pull it back so the playhead does not skip.
+ */
+/** A gap after the previous note has finished is a rest, not another bow of the same pitch. */
+function writtenRestBefore(
+  onsetQuarters: readonly number[] | undefined,
+  durationQuarters: readonly number[] | undefined,
+  index: number,
+): boolean {
+  if (!onsetQuarters || !durationQuarters || index <= 0) return false;
+  const prevEnd =
+    (onsetQuarters[index - 1] ?? 0) + (durationQuarters[index - 1] ?? 0);
+  return (onsetQuarters[index] ?? prevEnd) > prevEnd + 0.35;
+}
+
+export function reclaimRunsForEarlierHoles(input: {
+  slots: readonly (MatchedExpectedSlot | null)[];
+  expectedMidis: readonly number[];
+  durationQuarters?: readonly number[];
+  onsetQuarters?: readonly number[];
+}): Array<MatchedExpectedSlot | null> {
+  const slots = input.slots.map((slot) => slot);
+  const n = input.expectedMidis.length;
+  for (let i = 0; i < n; i++) {
+    if (slots[i]) continue;
+    const window = gapAroundSlot(slots, i);
+    const target = midiToHz(input.expectedMidis[i]!);
+    let bestJ = -1;
+    let bestCents = 55;
+    for (let j = i + 1; j < n; j++) {
+      if (writtenRestBefore(input.onsetQuarters, input.durationQuarters, j)) break;
+      const slot = slots[j];
+      if (!slot) continue;
+      if (
+        slot.run.timeStartSec < window.start ||
+        slot.run.timeStartSec > window.end
+      ) {
+        continue;
+      }
+      const centsHere = octaveWrappedAbsCents(slot.hz, target);
+      const centsThere = octaveWrappedAbsCents(
+        slot.hz,
+        midiToHz(input.expectedMidis[j]!),
+      );
+      const samePitch = input.expectedMidis[j] === input.expectedMidis[i];
+      if (centsHere > 50) continue;
+      if (!samePitch && centsHere + 8 >= centsThere) continue;
+      // A later phrase often starts on the same pitch after a rest. Do not
+      // pull that attack back over the notes in between.
+      if (samePitch && writtenPitchChangesBetween(input.expectedMidis, i, j)) {
+        continue;
+      }
+      if (centsHere < bestCents) {
+        bestJ = j;
+        bestCents = centsHere;
+      }
+    }
+    if (bestJ < 0) continue;
+    slots[i] = slots[bestJ]!;
+    slots[bestJ] = null;
+  }
+  return slots;
 }
 
 /**
@@ -347,13 +472,16 @@ function bowOnlyGetsLouder(
   const later = windowRms(mono, sampleRate, boundarySec + 0.16, boundarySec + 0.32);
   if (!(before > 0)) return false;
   if (earlier > 0 && before < earlier * 0.85) return false;
-  return early > before * 1.08 && later > early * 1.08;
+  // Mild mid-phrase bloom still counts as covering the repeat. Only a
+  // clear climb through the join blocks sharing the bow.
+  return early > before * 1.14 && later > early * 1.14;
 }
 
 export function shareSustainedSamePitch(input: {
   slots: readonly (MatchedExpectedSlot | null)[];
   expectedMidis: readonly number[];
   durationQuarters: readonly number[];
+  onsetQuarters?: readonly number[];
   mono?: Float32Array;
   sampleRateHz?: number;
 }): Array<MatchedExpectedSlot | null> {
@@ -383,6 +511,7 @@ export function shareSustainedSamePitch(input: {
     if (coveredDur <= 0) continue;
     const runSec = slot.run.timeEndSec - slot.run.timeStartSec;
     for (let j = i + 1; j < n && input.expectedMidis[j] === input.expectedMidis[i]; j++) {
+      if (writtenRestBefore(input.onsetQuarters, input.durationQuarters, j)) break;
       const next = slots[j];
       if (
         next &&
@@ -404,9 +533,13 @@ export function shareSustainedSamePitch(input: {
       const needSec =
         (coveredDur + nextDur * SAME_PITCH_COVER_FRACTION) * secPerQuarter;
       if (runSec < needSec) break;
+      // A swell in the middle of a phrase is still the first note. At the
+      // end of the piece the same bow often just blooms across the last
+      // repeats — those notes were played.
       if (
         input.mono &&
         input.sampleRateHz &&
+        laterDifferentPitchExists(input.expectedMidis, i) &&
         bowOnlyGetsLouder(
           input.mono,
           input.sampleRateHz,
@@ -422,7 +555,61 @@ export function shareSustainedSamePitch(input: {
   return slots;
 }
 
+/**
+ * A note after a rest should not inherit the previous bow or its release.
+ * The next real attack can fill the hole on a later pass.
+ */
+function detachReleaseAcrossRests(input: {
+  slots: readonly (MatchedExpectedSlot | null)[];
+  expectedMidis: readonly number[];
+  durationQuarters: readonly number[];
+  onsetQuarters?: readonly number[];
+}): Array<MatchedExpectedSlot | null> {
+  if (!input.onsetQuarters) return input.slots.map((slot) => slot);
+  const slots = input.slots.map((slot) => slot);
+  for (let i = 1; i < slots.length; i++) {
+    if (!writtenRestBefore(input.onsetQuarters, input.durationQuarters, i)) continue;
+    const here = slots[i];
+    const prev = slots[i - 1];
+    if (!here || !prev) continue;
+    const samePitch =
+      input.expectedMidis[i] === input.expectedMidis[i - 1] ||
+      Math.abs(here.run.midiCenter - prev.run.midiCenter) < 0.85;
+    if (!samePitch) continue;
+    if (
+      here.run === prev.run ||
+      here.run.timeStartSec < prev.run.timeEndSec + 0.45
+    ) {
+      slots[i] = null;
+    }
+  }
+  return slots;
+}
+
 /** A leftover run can only fill a hole it actually sits inside. */
+function laterDifferentPitchExists(
+  expectedMidis: readonly number[],
+  from: number,
+): boolean {
+  const midi = expectedMidis[from];
+  for (let k = from + 1; k < expectedMidis.length; k++) {
+    if (expectedMidis[k] !== midi) return true;
+  }
+  return false;
+}
+
+function writtenPitchChangesBetween(
+  expectedMidis: readonly number[],
+  from: number,
+  to: number,
+): boolean {
+  const midi = expectedMidis[from];
+  for (let k = from + 1; k < to; k++) {
+    if (expectedMidis[k] !== midi) return true;
+  }
+  return false;
+}
+
 function gapAroundSlot(
   slots: readonly (MatchedExpectedSlot | null)[],
   index: number,
@@ -443,7 +630,7 @@ function gapAroundSlot(
     end = slot.run.timeStartSec + 0.15;
     break;
   }
-  if (end === Infinity) end = foundPrev ? start + 2 : 2;
+  if (end === Infinity) end = foundPrev ? start + 2.8 : 2.8;
   return { start, end };
 }
 
@@ -452,6 +639,8 @@ function fillEmptySlotsFromUnusedRuns(input: {
   slots: readonly (MatchedExpectedSlot | null)[];
   runs: readonly StablePitchRun[];
   expectedMidis: readonly number[];
+  durationQuarters?: readonly number[];
+  onsetQuarters?: readonly number[];
 }): Array<MatchedExpectedSlot | null> {
   const slots = input.slots.map((slot) => slot);
   const used = new Set(
@@ -463,20 +652,37 @@ function fillEmptySlotsFromUnusedRuns(input: {
     if (slots[i]) continue;
     const target = midiToHz(input.expectedMidis[i]!);
     const window = gapAroundSlot(slots, i);
+    const afterRest = writtenRestBefore(
+      input.onsetQuarters,
+      input.durationQuarters,
+      i,
+    );
+    let prevRunEnd = 0;
+    for (let k = i - 1; k >= 0; k--) {
+      const prev = slots[k];
+      if (!prev) continue;
+      prevRunEnd = prev.run.timeEndSec;
+      break;
+    }
     let best: StablePitchRun | null = null;
-    let bestCents = 61;
+    let bestCents = MATCH_MAX_CENTS;
     for (const run of unused) {
       if (taken.has(run)) continue;
+      if (!runCanFillUnclaimedNote(run)) continue;
       if (run.timeStartSec < window.start || run.timeStartSec > window.end) {
         continue;
       }
-      const cents = absCents(run.medianHz, target);
+      // A blip buried inside the previous bow is not this note.
+      // A short note that carries on past that bow still is.
+      if (prevRunEnd > 0 && run.timeEndSec < prevRunEnd - 0.02) continue;
+      if (afterRest && run.timeStartSec < prevRunEnd + 0.45) continue;
+      const cents = octaveWrappedAbsCents(run.medianHz, target);
       if (cents < bestCents) {
         best = run;
         bestCents = cents;
       }
     }
-    if (!best || bestCents > 60) continue;
+    if (!best || bestCents >= MATCH_MAX_CENTS) continue;
     slots[i] = {
       hz: best.medianHz,
       run: best,
@@ -504,6 +710,27 @@ function attacksFromDetailedSlots(
     i = j;
   }
   return attacks;
+}
+
+/** The last written note of a bow keeps the moment the sound stops. */
+function endsFromDetailedSlots(
+  slots: readonly (MatchedExpectedSlot | null)[],
+): Array<number | null> {
+  const ends: Array<number | null> = slots.map(() => null);
+  let i = 0;
+  while (i < slots.length) {
+    const slot = slots[i];
+    if (!slot) {
+      i += 1;
+      continue;
+    }
+    let j = i + 1;
+    while (j < slots.length && slots[j]?.run === slot.run) j += 1;
+    const end = slot.run.timeEndSec;
+    if (end > slot.run.timeStartSec + 0.05) ends[j - 1] = end;
+    i = j;
+  }
+  return ends;
 }
 
 function timesFromDetailedSlots(

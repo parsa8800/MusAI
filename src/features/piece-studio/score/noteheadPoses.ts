@@ -122,9 +122,13 @@ function collapseChordHeads<T extends DomNotePose>(sorted: readonly T[]): T[] {
   const out: T[] = [];
   for (const p of sorted) {
     const prev = out[out.length - 1];
-    // Same attack: stacked chord tones or a duplicate head at this x.
-    const chordDx = Math.max(7, Math.min(p.width, prev?.width ?? p.width) * 0.7);
-    if (prev && Math.abs(prev.x - p.x) < chordDx) {
+    // Same attack: a chord stack or the same head counted twice.
+    // A following quaver is a new note, even when the bar is crowded.
+    const sameAttack = Math.max(
+      3,
+      Math.min(p.width, prev?.width ?? p.width) * 0.28,
+    );
+    if (prev && Math.abs(prev.x - p.x) < sameAttack) {
       continue;
     }
     out.push(p);

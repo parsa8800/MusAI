@@ -102,6 +102,82 @@ describe("pieceCoachChat", () => {
     expect(localPieceAskReply("Was I in tune?", piece)).toMatch(/record a take/i);
   });
 
+  it("stays on the named bar of this take when the follow-up is about bar 7", () => {
+    const piece: PieceAskContext = {
+      title: "Beach Holiday",
+      composer: null,
+      keySignature: "G major",
+      timeSignature: "4/4",
+      tempoBpm: 96,
+      measureCount: 12,
+    };
+    const bar7 = {
+      ...pitch,
+      id: "pitch-7",
+      kind: "flat" as const,
+      measure: "7",
+      label: "Bar 7",
+      where: "Bar 7",
+      what: "Running slightly flat",
+      practise: "Lift the finger a little",
+    };
+    const rhythm = {
+      ...bar7,
+      id: "rhythm-7",
+      category: "rhythm" as const,
+      kind: "late" as const,
+      what: "Arrived a little late",
+      practise: "Start it with the beat",
+    };
+    const dynamics = {
+      ...bar7,
+      id: "dynamics-7",
+      category: "dynamics" as const,
+      kind: "too_loud" as const,
+      what: "This p was louder than the rest of your playing",
+      practise: "Follow the marked p",
+    };
+    const issues = [pitch, bar7, rhythm, dynamics];
+    const first = "What happened in bar 2?";
+    const firstReply = localPieceAskReply(first, piece, pitch, issues);
+    expect(firstReply.toLowerCase()).toContain("bar 2");
+    expect(firstReply.toLowerCase()).toContain("sharp");
+
+    const second = localPieceAskReply("what about bar 7", piece, pitch, issues, [
+      { role: "user", text: first },
+      { role: "assistant", text: firstReply },
+    ]);
+    expect(second.toLowerCase()).toContain("bar 7");
+    expect(second.toLowerCase()).toContain("flat");
+    expect(second.toLowerCase()).toContain("late");
+    expect(second.toLowerCase()).toContain("louder");
+    expect(second.toLowerCase()).not.toContain("bar 2");
+    expect(second.toLowerCase()).not.toMatch(/g major|tempo|where to start/);
+    expect(second).not.toMatch(/[—–]|\s-\s/);
+    for (const line of second.split("\n")) {
+      expect(line.trim().endsWith(".")).toBe(false);
+    }
+
+    const stay = localPieceAskReply("How do I practise this?", piece, pitch, issues, [
+      { role: "user", text: first },
+      { role: "assistant", text: firstReply },
+      { role: "user", text: "what about bar 7" },
+      { role: "assistant", text: second },
+    ]);
+    expect(stay.toLowerCase()).toContain("bar 7");
+    expect(stay.toLowerCase()).not.toContain("bar 2");
+
+    const clear = localPieceAskReply("what about bar 4", piece, pitch, issues);
+    expect(clear).toBe(
+      "• Bar 4 was fine\n• Keep it the way you played it",
+    );
+
+    expect(localPieceAskReply("What key is this?", piece, pitch, issues, [
+      { role: "user", text: "what about bar 7" },
+      { role: "assistant", text: second },
+    ])).toMatch(/G major/);
+  });
+
   it("offers two starters and one follow-up", () => {
     expect(pieceCoachIdlePrompts()).toEqual([
       "What key is this?",

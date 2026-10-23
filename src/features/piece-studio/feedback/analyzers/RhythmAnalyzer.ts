@@ -60,7 +60,9 @@ export const RhythmAnalyzer: PieceFeedbackAnalyzer = {
         noteIndex: note.noteIndex,
         absoluteOnsetQuarters: note.absoluteOnsetQuarters,
         heardSec: heardAttackSec(input.pitchMatch, i),
+        durationQuarters: note.durationQuarters,
         midi: note.midi,
+        measure: note.measure,
       })),
     );
     if (!findings) {

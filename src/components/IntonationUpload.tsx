@@ -335,9 +335,6 @@ export function IntonationUpload() {
             aria-label="Analyzing audio"
           >
             <MusaiLoadingMark />
-            <p className="mt-7 text-sm font-medium text-[var(--musai-ink)]">
-              Analyzing…
-            </p>
           </div>
         ) : null}
 

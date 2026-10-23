@@ -107,12 +107,15 @@ export function playheadStaffSpan(
 }
 
 function isSystemBreak(a: CursorPose, b: CursorPose): boolean {
+  // A new system starts when the music jumps back to the left.
+  // Pitch on the same staff must never count: a leap used to split the line
+  // into one-note groups, and the bar teleported onto each notehead.
+  const back = a.x - b.x;
+  if (back < 48) return false;
   const dy = Math.abs(b.y + b.height * 0.5 - (a.y + a.height * 0.5));
-  // Floor at a real staff height — notehead poses are ~10px and must not
-  // turn ordinary pitch leaps into line wraps (that made the bar chase pitch).
   const staff = Math.max(a.height, b.height, 44);
-  if (dy > staff * 1.6 + 28) return true;
-  return b.x + 40 < a.x && dy > staff * 0.55;
+  if (dy > staff * 0.35) return true;
+  return back > 80 && dy > 8;
 }
 
 function groupSystems(snaps: readonly CursorPose[]): CursorPose[][] {
@@ -190,6 +193,8 @@ function poseIndexAtOrBefore(points: readonly CursorPose[], tSec: number): numbe
 export function buildPlayheadWaypoints(
   snaps: readonly CursorPose[],
   staffBands: readonly StaffBand[] = [],
+  /** Written end of the piece, including a rest after the last note. */
+  playbackEndSec?: number,
 ): PlayheadWaypoint[] {
   if (snaps.length === 0) return [];
   const groups = groupSystems(snaps);
@@ -222,7 +227,17 @@ export function buildPlayheadWaypoints(
           ? next.tSec
           : last.tSec + Math.max(0.45, prevGap);
     // Leave this line when the last note has finished, not part-way through it.
-    const tWrap = next ? Math.min(soundedUntil, next.tSec) : soundedUntil;
+    let tWrap = next ? Math.min(soundedUntil, next.tSec) : soundedUntil;
+    // A rest after the final note is still part of the piece. Keep travelling
+    // until that silence is over so the bar does not freeze on the last head.
+    if (
+      !next &&
+      playbackEndSec != null &&
+      Number.isFinite(playbackEndSec) &&
+      playbackEndSec > tWrap + 1e-3
+    ) {
+      tWrap = playbackEndSec;
+    }
     const staffRight = band ? band.x + band.width - 6 : null;
     const exitX =
       staffRight != null
@@ -304,22 +319,29 @@ const EMPTY_STAFF_BANDS: readonly StaffBand[] = [];
 let waypointCache: {
   snaps: readonly CursorPose[];
   staffBands: readonly StaffBand[];
-  points: CursorPose[];
+  playbackEndSec: number | null;
+  points: PlayheadWaypoint[];
 } | null = null;
 
 function waypointsFor(
   snaps: readonly CursorPose[],
   staffBands: readonly StaffBand[],
+  playbackEndSec?: number,
 ): PlayheadWaypoint[] {
+  const end =
+    playbackEndSec != null && Number.isFinite(playbackEndSec)
+      ? playbackEndSec
+      : null;
   if (
     waypointCache &&
     waypointCache.snaps === snaps &&
-    waypointCache.staffBands === staffBands
+    waypointCache.staffBands === staffBands &&
+    waypointCache.playbackEndSec === end
   ) {
-    return waypointCache.points as PlayheadWaypoint[];
+    return waypointCache.points;
   }
-  const points = buildPlayheadWaypoints(snaps, staffBands);
-  waypointCache = { snaps, staffBands, points };
+  const points = buildPlayheadWaypoints(snaps, staffBands, end ?? undefined);
+  waypointCache = { snaps, staffBands, playbackEndSec: end, points };
   return points;
 }
 
@@ -331,8 +353,12 @@ export function interpolatePlayhead(
   snaps: readonly CursorPose[],
   tSec: number,
   staffBands: readonly StaffBand[] = EMPTY_STAFF_BANDS,
+  playbackEndSec?: number,
 ): ScorePlayheadRect | null {
-  const pose = interpolateWaypoints(waypointsFor(snaps, staffBands), tSec);
+  const pose = interpolateWaypoints(
+    waypointsFor(snaps, staffBands, playbackEndSec),
+    tSec,
+  );
   if (!pose) return null;
   const systemNotes = systemNotesForPose(snaps, pose);
   return playheadRectFromPose(pose, staffBands, systemNotes);
@@ -364,6 +390,80 @@ function systemNotesForPose(
     }
   }
   return best;
+}
+
+export type PlayheadClockFollow = {
+  shown: number;
+  target: number;
+  rate: number;
+  wallMs: number;
+  stillSec: number;
+};
+
+/**
+ * Turn a playback clock into the time the bar should draw.
+ *
+ * A smooth clock (Listen, or a take whose currentTime updates every frame)
+ * is followed exactly, so the bar is on a note when that note sounds.
+ * A coarse clock that sits still and then jumps a note is bridged: while it
+ * is quiet the bar keeps travelling at the last heard tempo, and the next
+ * tick meets it instead of teleporting.
+ */
+export function followPlayheadClock(
+  prev: PlayheadClockFollow | null,
+  targetSec: number,
+  wallMs: number,
+  playing: boolean,
+): PlayheadClockFollow {
+  const target = Number.isFinite(targetSec) ? Math.max(0, targetSec) : 0;
+  if (!prev) {
+    return { shown: target, target, rate: 0, wallMs, stillSec: 0 };
+  }
+
+  const wallDtRaw = Math.max(0, (wallMs - prev.wallMs) / 1000);
+  const wallDt = Math.min(0.12, wallDtRaw);
+  const targetDt = target - prev.target;
+  // Compare with the last reported clock, not the drawn time. The bar is
+  // allowed to travel ahead of a clock that has not ticked yet.
+  const jumpedBack = target < prev.target - 0.08;
+  const seek =
+    jumpedBack ||
+    target > prev.target + 2.5 ||
+    (targetDt > 0.55 && wallDtRaw < 0.05);
+  if (seek) {
+    return { shown: target, target, rate: prev.rate, wallMs, stillSec: 0 };
+  }
+
+  if (!playing) {
+    return { shown: target, target, rate: prev.rate, wallMs, stillSec: 0 };
+  }
+
+  if (targetDt > 0.0008) {
+    const instant = wallDtRaw > 0.008 ? targetDt / wallDtRaw : prev.rate;
+    const blended =
+      prev.rate > 0.05
+        ? prev.rate * 0.4 + Math.min(instant, 4) * 0.6
+        : Math.min(Math.max(instant, 0), 4);
+    const rate = Math.max(0.05, blended);
+    const gap = target - prev.shown;
+    const frameBudget = wallDt * Math.max(rate, 0.2) * 2 + 0.025;
+    const shown =
+      gap <= frameBudget
+        ? target
+        : Math.min(target, prev.shown + Math.max(frameBudget, gap * 0.22));
+    return { shown, target, rate, wallMs, stillSec: 0 };
+  }
+
+  if (wallDt <= 0 || prev.rate < 0.05) {
+    return { ...prev, target, wallMs };
+  }
+  const stillSec = prev.stillSec + wallDt;
+  if (stillSec < 0.03) {
+    return { ...prev, target, wallMs, stillSec };
+  }
+  const cap = prev.target + prev.rate * 0.42;
+  const shown = Math.min(cap, prev.shown + prev.rate * wallDt);
+  return { shown, target, rate: prev.rate, wallMs, stillSec };
 }
 
 export function applyPlayheadElement(

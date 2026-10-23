@@ -7,6 +7,7 @@ import {
   type ScoreClef,
   type ScoreDynamic,
   type ScoreEvent,
+  type ScoreHairpin,
   type ScoreKey,
   type ScoreMeasure,
   type ScoreNoteType,
@@ -193,6 +194,30 @@ function dynamicMark(directionEl: Element): string | null {
   return mark ? mark.toLowerCase() : null;
 }
 
+function wedgeInfo(
+  directionEl: Element,
+): { type: string; number: string } | null {
+  const wedge = directionEl.querySelector("wedge");
+  if (!wedge) return null;
+  return {
+    type: (wedge.getAttribute("type") || "").toLowerCase(),
+    number: wedge.getAttribute("number") || "1",
+  };
+}
+
+/** Printed cresc. / decresc. when the page has words instead of a hairpin. */
+function hairpinWords(
+  directionEl: Element,
+): ScoreHairpin["direction"] | null {
+  const raw = [...directionEl.querySelectorAll("words")]
+    .map((node) => text(node))
+    .join(" ");
+  if (!raw.trim()) return null;
+  if (/\b(?:decresc|diminuend)/i.test(raw)) return "decrescendo";
+  if (/\bcresc/i.test(raw)) return "crescendo";
+  return null;
+}
+
 /** Quarters in one beat, so an eighth-note mark becomes quarter-note bpm. */
 const BEAT_IN_QUARTERS: Record<string, number> = {
   whole: 4,
@@ -288,6 +313,8 @@ function parseMeasure(
   time: ScoreTime | null,
   tempoBpm: number | null,
   clef: ScoreClef | null,
+  absoluteStart: number,
+  openWedges: Map<string, ScoreHairpin>,
 ): {
   measure: ScoreMeasure;
   divisions: number;
@@ -295,8 +322,10 @@ function parseMeasure(
   time: ScoreTime | null;
   tempoBpm: number | null;
   clef: ScoreClef | null;
+  advanceQuarters: number;
 } {
   let onset = 0;
+  let maxEnd = 0;
   const events: ScoreEvent[] = [];
   let lastNoteOnset = 0;
 
@@ -339,6 +368,34 @@ function parseMeasure(
             mark,
           };
           events.push(dyn);
+        }
+        const wedge = wedgeInfo(el);
+        if (wedge?.type === "crescendo" || wedge?.type === "diminuendo") {
+          const hairpin: ScoreHairpin = {
+            kind: "hairpin",
+            onsetQuarters: onset,
+            endAbsoluteQuarters: null,
+            direction:
+              wedge.type === "crescendo" ? "crescendo" : "decrescendo",
+          };
+          events.push(hairpin);
+          openWedges.set(wedge.number, hairpin);
+        } else if (wedge?.type === "stop") {
+          const open = openWedges.get(wedge.number);
+          if (open) {
+            open.endAbsoluteQuarters = absoluteStart + onset;
+            openWedges.delete(wedge.number);
+          }
+        } else if (!wedge) {
+          const word = hairpinWords(el);
+          if (word) {
+            events.push({
+              kind: "hairpin",
+              onsetQuarters: onset,
+              endAbsoluteQuarters: null,
+              direction: word,
+            });
+          }
         }
       }
     } else if (tag === "backup") {
@@ -385,6 +442,7 @@ function parseMeasure(
         }
       }
       lastNoteOnset = onsetHere;
+      if (!isGrace) maxEnd = Math.max(maxEnd, onsetHere + dur);
       if (!isChord && !isGrace) onset += dur;
     }
   }
@@ -405,7 +463,62 @@ function parseMeasure(
     time,
     tempoBpm,
     clef,
+    advanceQuarters: measureAdvance(time, maxEnd),
   };
+}
+
+function measureAdvance(time: ScoreTime | null, maxEnd: number): number {
+  const beats = time?.beats ?? 4;
+  const beatType = time?.beatType ?? 4;
+  const fromTime = beats * (4 / Math.max(1, beatType));
+  return Math.max(fromTime, maxEnd, 0);
+}
+
+/** A printed word has no stop. It lasts until the next dynamic mark. */
+function finishHairpins(measures: ScoreMeasure[]) {
+  let quarter = 0;
+  let beats = 4;
+  let beatType = 4;
+  const open: Array<{ hairpin: ScoreHairpin; start: number }> = [];
+  const closeBefore = (abs: number) => {
+    for (let i = open.length - 1; i >= 0; i--) {
+      const item = open[i]!;
+      if (item.hairpin.endAbsoluteQuarters == null && abs > item.start + 0.05) {
+        item.hairpin.endAbsoluteQuarters = abs;
+        open.splice(i, 1);
+      }
+    }
+  };
+  for (const measure of measures) {
+    if (measure.time) {
+      beats = measure.time.beats;
+      beatType = measure.time.beatType;
+    }
+    let maxEnd = 0;
+    for (const event of measure.events) {
+      if (event.kind === "note" || event.kind === "rest") {
+        maxEnd = Math.max(maxEnd, event.onsetQuarters + event.durationQuarters);
+      }
+      if (event.kind !== "dynamic" && event.kind !== "hairpin") continue;
+      const abs = quarter + event.onsetQuarters;
+      if (event.kind === "dynamic") closeBefore(abs);
+      if (event.kind === "hairpin") {
+        closeBefore(abs);
+        if (event.endAbsoluteQuarters == null) {
+          open.push({ hairpin: event, start: abs });
+        }
+      }
+    }
+    quarter += measureAdvance(
+      { beats, beatType, label: `${beats}/${beatType}` },
+      maxEnd,
+    );
+  }
+  for (const item of open) {
+    if (item.hairpin.endAbsoluteQuarters == null) {
+      item.hairpin.endAbsoluteQuarters = Math.max(quarter, item.start + 1);
+    }
+  }
 }
 
 export function parseMusicXmlToScore(
@@ -460,6 +573,8 @@ export function parseMusicXmlToScore(
     let tempoBpm: number | null = null;
     let clef: ScoreClef | null = null;
     const measures: ScoreMeasure[] = [];
+    let absolute = 0;
+    const openWedges = new Map<string, ScoreHairpin>();
     for (const measureEl of childrenNamed(partEl, "measure")) {
       const parsed = parseMeasure(
         measureEl,
@@ -468,17 +583,21 @@ export function parseMusicXmlToScore(
         time,
         tempoBpm,
         clef,
+        absolute,
+        openWedges,
       );
       divisions = parsed.divisions;
       key = parsed.key;
       time = parsed.time;
       tempoBpm = parsed.tempoBpm;
       clef = parsed.clef;
+      absolute += parsed.advanceQuarters;
       measures.push(parsed.measure);
       firstKey = firstKey ?? parsed.measure.key;
       firstTime = firstTime ?? parsed.measure.time;
       firstTempo = firstTempo ?? parsed.measure.tempoBpm;
     }
+    finishHairpins(measures);
     parts.push({
       id,
       name: partNames.get(id) ?? null,

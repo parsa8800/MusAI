@@ -55,8 +55,8 @@ describe("intonationBucketForCents", () => {
     expect(intonationBucketForCents(-25, false)).toBe("in_tune");
   });
   it("sharp and flat outside band", () => {
-    expect(intonationBucketForCents(30, false)).toBe("sharp");
-    expect(intonationBucketForCents(-30, false)).toBe("flat");
+    expect(intonationBucketForCents(35, false)).toBe("sharp");
+    expect(intonationBucketForCents(-35, false)).toBe("flat");
   });
   it("missing → unknown", () => {
     expect(intonationBucketForCents(0, true)).toBe("unknown");

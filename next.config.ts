@@ -6,6 +6,11 @@ const nextConfig: NextConfig = {
   // Production has no badge; errors still surface in the overlay when this is false.
   devIndicators: false,
   transpilePackages: ["opensheetmusicdisplay"],
+  experimental: {
+    // The on-disk Turbopack cache grows without bound and stalls page loads
+    // once it reaches a few gigabytes. Keep dev compiles in memory.
+    turbopackFileSystemCacheForDev: false,
+  },
 };
 
 export default nextConfig;

@@ -396,8 +396,8 @@ html[data-theme="dark"] .musai-notes-placeholder__copy {
   display: flex;
   flex-direction: column;
   width: min(16.5rem, calc(100% - 1.7rem));
-  height: min(28rem, calc(100dvh - 10.5rem - env(safe-area-inset-bottom)));
-  max-height: calc(100dvh - 10.5rem - env(safe-area-inset-bottom));
+  height: auto;
+  max-height: min(28rem, calc(100dvh - 10.5rem - env(safe-area-inset-bottom)));
   min-height: 0;
   overflow: hidden;
   border-radius: 1.05rem;
@@ -447,9 +447,13 @@ html[data-theme="dark"] .musai-studio-coach-drawer {
 .musai-rhythm-popup {
   position: relative;
   z-index: 1;
+  display: flex;
   flex: 0 0 auto;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
   margin: 0.65rem 0.65rem 0;
-  padding: 0.7rem 2rem 0.75rem 0.85rem;
+  padding: 0.7rem 0.85rem 0.75rem;
   border-radius: 0.85rem;
   border: 1px solid color-mix(in srgb, var(--musai-ink) 14%, var(--musai-border));
   background: var(--musai-surface);
@@ -458,30 +462,35 @@ html[data-theme="dark"] .musai-studio-coach-drawer {
     0 8px 18px rgba(0, 0, 0, 0.16);
 }
 
-.musai-rhythm-popup__close {
-  position: absolute;
-  top: 0.4rem;
-  right: 0.4rem;
-  display: grid;
-  width: 1.75rem;
-  height: 1.75rem;
-  place-items: center;
+.musai-rhythm-popup .musai-coach-typing {
+  display: flex;
+  align-self: flex-start;
+  margin: 0.15rem 0 0.2rem;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .musai-rhythm-popup {
+    animation: musai-info-popover-in 0.22s var(--musai-ease-out) both;
+  }
+}
+
+.musai-rhythm-popup__back {
+  display: flex;
+  align-self: flex-start;
+  margin: 0 0 0.45rem;
+  padding: 0;
   border: 0;
-  border-radius: 999px;
   background: transparent;
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
   color: var(--musai-muted);
   cursor: pointer;
 }
 
-.musai-rhythm-popup__close svg {
-  width: 0.85rem;
-  height: 0.85rem;
-}
-
-.musai-rhythm-popup__close:hover,
-.musai-rhythm-popup__close:focus-visible {
+.musai-rhythm-popup__back:hover,
+.musai-rhythm-popup__back:focus-visible {
   color: var(--musai-ink);
-  background: color-mix(in srgb, var(--musai-ink) 8%, transparent);
 }
 
 .musai-rhythm-popup__place {
@@ -490,6 +499,35 @@ html[data-theme="dark"] .musai-studio-coach-drawer {
   font-weight: 650;
   letter-spacing: 0.01em;
   color: color-mix(in srgb, var(--musai-muted) 35%, var(--musai-ink));
+}
+
+.musai-rhythm-popup__line {
+  margin: 0.15rem 0 0;
+  font-size: 0.88rem;
+  font-weight: 560;
+  letter-spacing: -0.01em;
+  line-height: 1.4;
+  color: var(--musai-ink);
+}
+
+.musai-rhythm-popup__points {
+  margin: 0.2rem 0 0;
+  padding: 0 0 0 1.15rem;
+  list-style: disc;
+  list-style-position: outside;
+}
+
+.musai-rhythm-popup__points li {
+  margin: 0.28rem 0 0;
+  font-size: 0.88rem;
+  font-weight: 560;
+  letter-spacing: -0.01em;
+  line-height: 1.4;
+  color: var(--musai-ink);
+}
+
+.musai-rhythm-popup__points li:first-child {
+  margin-top: 0;
 }
 
 .musai-rhythm-popup__notes {
@@ -588,6 +626,201 @@ html[data-theme="dark"] .musai-studio-coach-drawer {
 .musai-studio-coach-drawer .musai-piece-workspace__support {
   width: 100%;
   min-width: 0;
+}
+
+/*
+ * Wide teacher rail. The floating-card rules above still apply under 880px.
+ * At 880px and wider the same element becomes a column beside the music.
+ */
+.musai-studio-practice {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.musai-studio-practice__music {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.musai-teacher-rail {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.musai-teacher-rail__bar {
+  display: none;
+}
+
+.musai-teacher-rail__feedback {
+  flex: 0 0 auto;
+  min-height: 0;
+  max-height: 14rem;
+  overflow: auto;
+  padding: 0.85rem 0.85rem 0.15rem;
+}
+
+.musai-teacher-rail__ask {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.musai-teacher-rail__ask .musai-coach-parsa,
+.musai-teacher-rail__ask .musai-coach-parsa .musai-coach-bubble,
+.musai-teacher-rail__ask .musai-coach-bubble {
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  flex: 0 1 auto;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.musai-teacher-rail__ask .musai-coach-thread:not(.musai-coach-thread--quiet) {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+}
+
+.musai-teacher-rail__quiet {
+  margin: 0.35rem 0.15rem 0;
+  font-size: 0.92rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.4;
+  text-align: center;
+  color: #57534e;
+}
+
+.musai-teacher-rail__points {
+  margin: 0.15rem 0 0;
+  padding: 0 0 0 1.15rem;
+  list-style: disc;
+}
+
+.musai-teacher-rail__points li {
+  margin: 0.28rem 0 0;
+  font-size: 0.88rem;
+  font-weight: 560;
+  letter-spacing: -0.01em;
+  line-height: 1.4;
+  color: var(--musai-ink);
+}
+
+.musai-teacher-rail__points li:first-child {
+  margin-top: 0;
+}
+
+.musai-teacher-rail__places {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.musai-teacher-rail__feedback .musai-rhythm-popup {
+  margin: 0;
+}
+
+@media (min-width: 880px) {
+  .musai-studio-practice[data-teacher="open"] {
+    flex-direction: row;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  /* Scale and other studios: top-right of the practice shell, not mid-page. */
+  .musai-studio-practice:not([data-teacher="open"]) .musai-studio-coach-fab {
+    position: absolute;
+    top: 0.35rem;
+    right: 0;
+    bottom: auto;
+    z-index: 6;
+    transform: none;
+    border-radius: 999px;
+  }
+
+  .musai-studio-practice[data-teacher="open"] .musai-studio-coach-fab {
+    display: none;
+  }
+
+  .musai-studio-practice[data-teacher="open"] .musai-teacher-rail {
+    position: relative;
+    top: auto;
+    right: auto;
+    bottom: auto;
+    z-index: 1;
+    flex: 0 0 24rem;
+    width: 24rem;
+    min-width: 24rem;
+    max-width: 24rem;
+    height: auto;
+    min-height: 28rem;
+    max-height: min(36rem, 100%);
+    align-self: flex-start;
+    overflow: hidden;
+    animation: none;
+  }
+
+  .musai-teacher-rail__bar {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.7rem 0.45rem 0.55rem 0.9rem;
+    border-bottom: 1px solid #cfc9c0;
+  }
+
+  .musai-teacher-rail__name {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: #1c1917;
+  }
+
+  .musai-teacher-rail__close {
+    display: grid;
+    width: 1.85rem;
+    height: 1.85rem;
+    place-items: center;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: #57534e;
+    cursor: pointer;
+  }
+
+  .musai-teacher-rail__close svg {
+    width: 0.85rem;
+    height: 0.85rem;
+  }
+
+  .musai-teacher-rail__close:hover,
+  .musai-teacher-rail__close:focus-visible {
+    color: #1c1917;
+    background: rgba(28, 25, 23, 0.06);
+  }
+
+  /* The old staff lane inset stays in the file above. The music column
+     is already narrower, so the notes use the full column. */
+  .musai-studio-practice .musai-studio-notes-panel:has(.musai-notation-wrap) .musai-notation-wrap,
+  .musai-studio-practice .musai-studio-notes-panel:has(.musai-notation-wrap) .musai-notes-finger,
+  .musai-studio-practice .musai-studio-notes-panel:has(.musai-notation-wrap) .musai-scale-staff-heading,
+  .musai-studio-practice .musai-studio-notes-panel:has(.musai-notation-wrap) .musai-notation-legend {
+    width: 100%;
+    max-width: 100%;
+  }
 }
 
 /* Empty tips / coach pane — icon + input, no stacked copy */
@@ -711,6 +944,10 @@ html[data-theme="dark"] .musai-studio-coach-drawer {
   flex-direction: column;
   align-items: center;
   gap: 0.45rem;
+}
+
+.musai-scale-staff-chrome[data-mode="play"] {
+  gap: 0;
 }
 
 .musai-scale-staff-chrome[data-mode="pick"] {
@@ -2837,11 +3074,6 @@ a.musai-exercise-card:focus-visible {
 
 .musai-settings__title {
   margin: 0;
-  font-size: clamp(1.65rem, 1.2rem + 1.6vw, 2rem);
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  line-height: 1.15;
-  color: var(--musai-ink);
 }
 
 .musai-settings__panel {
@@ -6573,15 +6805,23 @@ html[data-theme="dark"] .musai-note-ring-label[data-selected="true"] {
 
 .musai-coach-composer__input {
   flex: 1 1 auto;
-  max-height: 7rem;
+  max-height: 6.5rem;
   min-height: 2.1rem;
   resize: none;
+  overflow-y: auto;
+  scrollbar-width: none;
   background: transparent;
   padding: 0.4rem 0.2rem;
   font-size: 0.9rem;
   line-height: 1.45;
   color: var(--musai-ink);
   outline: none;
+}
+
+.musai-coach-composer__input::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .musai-coach-composer__input::placeholder {
@@ -6745,6 +6985,18 @@ html[data-theme="dark"] .musai-note-ring-label[data-selected="true"] {
   background: var(--musai-ok);
 }
 
+/* One page title for every studio and tool. */
+.musai-page-title {
+  margin: 0;
+  max-width: 100%;
+  font-size: clamp(1.7rem, 4.2vh, 2.35rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  text-align: center;
+  color: var(--musai-ink);
+}
+
 /* Tuner — shared layout for every instrument profile */
 .musai-tuner-page {
   display: flex;
@@ -6786,11 +7038,6 @@ html[data-theme="dark"] .musai-note-ring-label[data-selected="true"] {
 
 .musai-tuner-page__title {
   margin: 0;
-  font-size: clamp(1.28rem, 1.15rem + 0.55vw, 1.45rem);
-  font-weight: 600;
-  letter-spacing: -0.025em;
-  line-height: 1.15;
-  color: var(--musai-ink);
 }
 
 .musai-tuner {
@@ -7575,6 +7822,70 @@ html[data-theme="dark"] .musai-note-ring-label[data-selected="true"] {
   }
 }
 
+/* Mode switch stays under the page title. Play a scale and the staff sit together in the middle of the space above the recorder. */
+.musai-studio-home-center {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.musai-studio-home--quiet .musai-scale-staff-chrome-wrap,
+.musai-studio-home--quiet .musai-scale-staff-chrome-wrap:has(.musai-scale-staff-chrome[data-mode="pick"]) {
+  margin-bottom: 0.4rem;
+}
+
+.musai-studio-home--quiet .musai-studio-home-center {
+  justify-content: safe center;
+}
+
+.musai-studio-home--quiet .musai-studio-home-center .musai-notation-frame {
+  flex: 0 1 auto;
+}
+
+.musai-studio-home--quiet .musai-studio-home-center .musai-notation-frame:not(:has(.musai-notes-placeholder)):not(:has(.musai-notation-wrap)) {
+  flex: 1 1 auto;
+}
+
+.musai-studio-home--quiet .musai-studio-home-center .musai-notation-frame:has(.musai-notation-wrap) {
+  height: min(16rem, 46%);
+  min-height: 8.5rem;
+  max-height: calc(100% - 1.75rem);
+}
+
+.musai-studio-home--quiet .musai-notes-draft-frame {
+  flex: 0 0 auto;
+  min-height: auto;
+}
+
+.musai-studio-home--quiet .musai-scale-staff-heading--compact,
+.musai-studio-home--quiet .musai-scale-staff-heading--compact.musai-scale-staff-heading--title-only {
+  margin-bottom: 0.15rem;
+}
+
+.musai-studio-home--quiet .musai-notes-placeholder {
+  flex: 0 1 auto;
+  justify-content: center;
+  gap: 0.4rem;
+  padding-top: 0.1rem;
+}
+
+/* Home prompt sits with the notes. Larger than the quiet step, still under the page title. */
+.musai-studio-home--quiet .musai-scale-staff-heading__title {
+  font-size: 1.65rem;
+  font-weight: 550;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+@media (min-width: 640px) {
+  .musai-studio-home--quiet .musai-scale-staff-heading--compact .musai-scale-staff-heading__title {
+    font-size: 1.85rem;
+    line-height: 1;
+  }
+}
+
 /* Soften key picker so the staff, not the letter, leads */
 .musai-scale-staff-chrome[data-mode="pick"] .musai-key-select__letter {
   font-size: 0.84rem;
@@ -7980,25 +8291,8 @@ html[data-theme="dark"] .musai-piece-home__shell {
   text-align: center;
 }
 
-.musai-piece-home__intro::after {
-  content: "";
-  width: 2.1rem;
-  height: 2px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--piece-invite) 78%, transparent);
-}
-
 .musai-piece-home__title {
   margin: 0;
-  font-size: clamp(1.85rem, 4.2vh, 2.4rem);
-  font-weight: 600;
-  letter-spacing: -0.03em;
-  line-height: 1.1;
-  color: var(--musai-ink);
-}
-
-.musai-piece-home__shell[data-has-library="true"] .musai-piece-home__title {
-  font-size: clamp(1.45rem, 2.8vh, 1.85rem);
 }
 
 .musai-piece-home__action {
@@ -9475,10 +9769,6 @@ html[data-theme="dark"] .musai-piece-remove__panel {
     max-width: 100%;
   }
 
-  .musai-piece-home__title {
-    font-size: clamp(1.55rem, 7vw, 1.85rem);
-  }
-
   .musai-piece-drop {
     max-width: 100%;
   }
@@ -9617,27 +9907,133 @@ html[data-theme="dark"] .musai-piece-remove__panel {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.75rem;
   width: 100%;
   min-height: 2.5rem;
   padding-top: 0.5rem;
   padding-bottom: 0.5rem;
 }
 
-.musai-piece-workspace__pdf {
-  width: 2.35rem;
+.musai-piece-workspace__nav .musai-studio-coach-fab {
+  position: static;
+  inset: auto;
+  transform: none;
+  flex-shrink: 0;
   height: 2.35rem;
-  min-height: 2.35rem;
-  margin-left: auto;
-  border-radius: 0.7rem;
+  border-radius: 999px;
+  box-shadow: none;
+}
+
+.musai-piece-score-key {
+  position: relative;
+  z-index: 40;
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: center;
+  overflow: visible;
+  padding: 0.15rem 0 0.45rem;
+}
+
+.musai-pitch-key-pop {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.musai-pitch-key-pop__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  min-height: 1.85rem;
+  padding: 0.32rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--musai-ink) 16%, var(--musai-border));
+  background: color-mix(in srgb, var(--musai-surface) 92%, transparent);
+  cursor: pointer;
+}
+
+.musai-pitch-key-pop__btn[data-active="true"],
+.musai-pitch-key-pop__btn:hover,
+.musai-pitch-key-pop__btn:focus-visible {
+  background: var(--musai-glass-fill);
+}
+
+.musai-pitch-key-pop__dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+}
+
+.musai-pitch-key-pop__dots i {
+  display: block;
+  width: 0.62rem;
+  height: 0.62rem;
+  border-radius: 999px;
+}
+
+.musai-pitch-key-pop__dots i[data-tone="ok"] {
+  background: var(--musai-pitch-ok);
+}
+
+.musai-pitch-key-pop__dots i[data-tone="high"] {
+  background: var(--musai-pitch-high);
+}
+
+.musai-pitch-key-pop__dots i[data-tone="low"] {
+  background: var(--musai-pitch-low);
+}
+
+.musai-pitch-key-pop__dots i[data-tone="miss"] {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.25px var(--musai-pitch-miss);
+}
+
+.musai-pitch-key-pop__panel {
+  position: absolute;
+  top: calc(100% + 0.45rem);
+  left: 50%;
+  z-index: 40;
+  width: max-content;
+  max-width: calc(100vw - 2rem);
+  transform: translateX(-50%);
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--musai-glass-stroke);
+  border-radius: 0.9rem;
+  background: var(--musai-surface);
+  box-shadow: var(--musai-glass-shadow);
+  text-align: center;
+}
+
+.musai-pitch-key-pop__panel ul {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: max-content;
+  margin-inline: auto;
+  gap: 0.45rem;
+}
+
+.musai-pitch-key-pop__panel .mx-auto {
+  width: max-content;
+  max-width: none;
+  margin-inline: auto;
+}
+
+.musai-piece-workspace__pdf {
+  flex-shrink: 0;
+  width: 2.1rem;
+  height: 2.1rem;
+  min-height: 2.1rem;
+  border-radius: 0.65rem;
   border-color: color-mix(in srgb, var(--musai-glass-stroke) 70%, transparent);
   background: color-mix(in srgb, var(--musai-surface) 72%, transparent);
-  color: var(--musai-ink);
+  color: var(--musai-muted);
   box-shadow: inset 0 1px 0 var(--musai-glass-highlight);
 }
 
 .musai-piece-workspace__pdf .musai-piece-score-pdf__glyph {
-  width: 1.2rem;
-  height: 1.2rem;
+  width: 1.05rem;
+  height: 1.05rem;
 }
 
 @media (min-width: 640px) {
@@ -10441,15 +10837,7 @@ html[data-theme="dark"] .musai-piece-workspace__support {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.9rem;
   padding: 2rem 1.5rem;
-}
-
-.musai-load-screen__copy {
-  margin: 0;
-  font-size: 0.875rem;
-  font-weight: 520;
-  color: var(--musai-muted);
 }
 
 .musai-load .musai-piece-load__staff {
@@ -10667,6 +11055,12 @@ html[data-theme="dark"] .musai-piece-workspace__support {
   transform-box: view-box;
   transform-origin: 0 0;
   transform: translate(21.667%, 65.909%);
+}
+
+.musai-piece-load__dot-blur {
+  fill: var(--musai-accent);
+  opacity: 0.55;
+  filter: blur(3.2px);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -12151,8 +12545,8 @@ html[data-theme="dark"] .musai-score-playhead {
 }
 
 /*
- * Practise: playhead sits above heat washes. Dim static highlights slightly
- * so the moving bar stays readable without hiding annotations.
+ * Practise: rhythm boxes sit above the playhead so a tap opens the teacher.
+ * Dim the other washes slightly so the moving bar stays readable.
  */
 .musai-piece-osmd-wrap[data-playhead="true"] .musai-piece-heat[data-emphasis="related"] {
   opacity: 0.32;
@@ -12173,7 +12567,23 @@ html[data-theme="dark"] .musai-score-playhead {
 /* The idle playhead sits on the opening notes. Keep rhythm boxes above it
    so a tap there opens the coach instead of dragging the line. */
 .musai-piece-osmd-wrap[data-playhead="true"] .musai-piece-heat[data-tone="rhythm"] {
-  z-index: 7;
+  z-index: 12;
+}
+
+.musai-piece-dynamic-hit {
+  position: absolute;
+  z-index: 32;
+  box-sizing: border-box;
+  min-width: 44px;
+  min-height: 36px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+  align-self: flex-start;
+  flex: none;
 }
 
 /* Listen and last-take replay — drag the playhead; audio follows on release. */
@@ -12606,22 +13016,6 @@ html[data-theme="dark"] .musai-piece-practise .musai-rec-bar {
   cursor: wait;
 }
 
-.musai-piece-workspace__nav .musai-piece-workspace__pdf {
-  width: 2.35rem;
-  height: 2.35rem;
-  min-height: 2.35rem;
-  border-radius: 0.7rem;
-  border-color: color-mix(in srgb, var(--musai-glass-stroke) 70%, transparent);
-  background: color-mix(in srgb, var(--musai-surface) 72%, transparent);
-  color: var(--musai-ink);
-  box-shadow: inset 0 1px 0 var(--musai-glass-highlight);
-}
-
-.musai-piece-workspace__nav .musai-piece-workspace__pdf .musai-piece-score-pdf__glyph {
-  width: 1.2rem;
-  height: 1.2rem;
-}
-
 .musai-piece-score-pdf__glyph {
   width: 1.05rem;
   height: 1.05rem;
@@ -12629,9 +13023,19 @@ html[data-theme="dark"] .musai-piece-practise .musai-rec-bar {
 }
 
 .musai-piece-workspace__identity-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
   width: auto;
   max-width: min(36rem, 100%);
   min-width: 0;
+}
+
+.musai-piece-workspace__identity-copy .musai-piece-name {
+  width: auto;
+  min-width: 0;
+  flex: 0 1 auto;
 }
 
 .musai-piece-result {
@@ -12758,7 +13162,8 @@ html[data-theme="dark"] .musai-piece-practise .musai-rec-bar {
 .musai-piece-heat {
   --musai-piece-heat: color-mix(in srgb, var(--musai-accent-2) 70%, var(--musai-accent));
   position: absolute;
-  z-index: 2;
+  z-index: 8;
+  pointer-events: auto;
   margin: 0;
   border: 0;
   cursor: pointer;
@@ -12770,12 +13175,12 @@ html[data-theme="dark"] .musai-piece-practise .musai-rec-bar {
 
 .musai-piece-heat[data-emphasis="related"] {
   opacity: 0.42;
-  z-index: 1;
+  z-index: 8;
 }
 
 .musai-piece-heat[data-emphasis="focus"] {
   opacity: 1;
-  z-index: 2;
+  z-index: 9;
 }
 
 /* Liquid-glass bar wash — soft capsule over the staff; radius stays modest
@@ -13068,42 +13473,36 @@ html[data-theme="dark"] .musai-piece-review__panel--coach {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
-  padding: 0;
+  padding: 0 0 0.15rem;
 }
 
 .musai-piece-review__skills-list {
   display: flex;
-  flex-wrap: nowrap;
-  align-items: stretch;
-  gap: 0.18rem;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
   width: 100%;
   margin: 0;
-  padding: 0.18rem;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--musai-glass-stroke) 62%, transparent);
-  background: color-mix(in srgb, var(--musai-surface) 28%, transparent);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, white 14%, transparent);
-  -webkit-backdrop-filter: blur(8px) saturate(1.06);
-  backdrop-filter: blur(8px) saturate(1.06);
+  padding: 0;
 }
 
 .musai-piece-review__skill {
   display: inline-flex;
-  flex: 1 1 0;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  gap: 0.22rem;
+  gap: 0.28rem;
   min-width: 0;
-  min-height: 1.7rem;
-  border: 0;
+  min-height: 1.55rem;
+  border: 1px solid color-mix(in srgb, var(--musai-glass-stroke) 55%, transparent);
   border-radius: 999px;
-  background: transparent;
-  padding: 0.3rem 0.28rem;
+  background: color-mix(in srgb, var(--musai-surface) 28%, transparent);
+  padding: 0.22rem 0.55rem 0.22rem 0.62rem;
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: -0.01em;
   line-height: 1.1;
-  color: color-mix(in srgb, var(--musai-muted) 78%, var(--musai-ink));
+  color: color-mix(in srgb, var(--musai-muted) 55%, var(--musai-ink));
   cursor: pointer;
   transition:
     color 200ms var(--musai-ease-out),
@@ -13114,30 +13513,27 @@ html[data-theme="dark"] .musai-piece-review__panel--coach {
 }
 
 .musai-piece-review__skill.is-idle {
-  opacity: 0.78;
+  opacity: 0.82;
 }
 
 .musai-piece-review__skill.is-idle:hover {
   opacity: 1;
   color: var(--musai-ink);
   background: color-mix(in srgb, var(--musai-surface) 48%, transparent);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, white 28%, transparent);
+  border-color: color-mix(in srgb, var(--musai-glass-stroke) 72%, transparent);
 }
 
 .musai-piece-review__skill.is-active {
   opacity: 1;
   font-weight: 650;
   color: var(--musai-ink);
-  background: color-mix(in srgb, var(--musai-surface) 68%, transparent);
-  box-shadow:
-    inset 0 1px 0 var(--musai-glass-highlight),
-    inset 0 0 0 1px color-mix(in srgb, var(--musai-glass-stroke) 48%, transparent);
+  background: color-mix(in srgb, var(--musai-surface) 62%, transparent);
+  border-color: color-mix(in srgb, var(--musai-glass-stroke) 78%, transparent);
+  box-shadow: inset 0 1px 0 var(--musai-glass-highlight);
 }
 
 .musai-piece-review__skill-label {
   display: inline;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -13294,13 +13690,13 @@ html[data-theme="dark"] .musai-piece-osmd-wrap {
   width: 100%;
   flex-direction: column;
   align-items: stretch;
-  gap: 0.18rem;
+  gap: 0.2rem;
   margin: 0;
-  padding: 0.4rem 0.5rem 0.42rem;
-  border: 1px solid color-mix(in srgb, var(--musai-glass-stroke) 48%, transparent);
-  border-radius: 0.7rem;
-  background: color-mix(in srgb, var(--musai-surface) 24%, transparent);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, white 16%, transparent);
+  padding: 0.42rem 0.55rem 0.45rem;
+  border: 1px solid transparent;
+  border-radius: 0.65rem;
+  background: transparent;
+  box-shadow: none;
   text-align: left;
   cursor: pointer;
   transform-origin: center center;
@@ -13313,51 +13709,48 @@ html[data-theme="dark"] .musai-piece-osmd-wrap {
 }
 
 .musai-piece-lesson.is-idle {
-  opacity: 0.78;
-  padding: 0.28rem 0.42rem 0.3rem;
-  border-color: transparent;
-  background: transparent;
-  box-shadow: none;
+  opacity: 0.88;
+  padding: 0.32rem 0.35rem;
 }
 
 .musai-piece-lesson.is-idle:hover {
   opacity: 1;
-  border-color: color-mix(in srgb, var(--musai-glass-stroke) 42%, transparent);
-  background: color-mix(in srgb, var(--musai-surface) 28%, transparent);
-  box-shadow: none;
+  background: color-mix(in srgb, var(--musai-surface) 32%, transparent);
 }
 
 .musai-piece-lesson.is-selected {
   opacity: 1;
-  border-color: color-mix(in srgb, var(--musai-glass-stroke) 72%, transparent);
-  background: color-mix(in srgb, var(--musai-surface) 46%, transparent);
-  box-shadow:
-    inset 0 1px 0 var(--musai-glass-highlight),
-    0 6px 18px -14px color-mix(in srgb, var(--musai-ink) 12%, transparent);
-  -webkit-backdrop-filter: blur(8px) saturate(1.06);
-  backdrop-filter: blur(8px) saturate(1.06);
+  border-color: color-mix(in srgb, var(--musai-glass-stroke) 58%, transparent);
+  background: color-mix(in srgb, var(--musai-surface) 40%, transparent);
+  box-shadow: inset 0 1px 0 var(--musai-glass-highlight);
 }
 
 .musai-piece-lesson.is-selected:hover {
-  border-color: color-mix(in srgb, var(--musai-glass-stroke) 82%, transparent);
+  border-color: color-mix(in srgb, var(--musai-glass-stroke) 72%, transparent);
 }
 
 .musai-piece-lesson__place {
   margin: 0;
-  font-size: 0.62rem;
+  font-size: 0.68rem;
   font-weight: 650;
-  letter-spacing: 0.045em;
-  text-transform: uppercase;
-  line-height: 1.2;
-  color: color-mix(in srgb, var(--musai-muted) 82%, var(--musai-ink));
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  color: color-mix(in srgb, var(--musai-muted) 55%, var(--musai-ink));
 }
 
-.musai-piece-lesson.is-idle .musai-piece-lesson__place {
-  flex-shrink: 0;
-  font-size: 0.7rem;
-  letter-spacing: 0.03em;
-  text-transform: none;
-  font-weight: 600;
+.musai-piece-lesson.is-idle .musai-piece-lesson__line {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 550;
+  letter-spacing: -0.015em;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--musai-muted) 28%, var(--musai-ink));
+  text-wrap: pretty;
+}
+
+.musai-piece-lesson.is-idle .musai-piece-lesson__place-inline {
+  font-weight: 650;
+  color: color-mix(in srgb, var(--musai-muted) 45%, var(--musai-ink));
 }
 
 .musai-piece-lesson__what {
@@ -13365,27 +13758,17 @@ html[data-theme="dark"] .musai-piece-osmd-wrap {
   font-size: 0.8rem;
   font-weight: 600;
   letter-spacing: -0.015em;
-  line-height: 1.32;
+  line-height: 1.35;
   color: var(--musai-ink);
   text-wrap: pretty;
 }
 
-.musai-piece-lesson.is-idle .musai-piece-lesson__what {
-  font-size: 0.74rem;
-  font-weight: 550;
-  color: color-mix(in srgb, var(--musai-muted) 35%, var(--musai-ink));
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
 .musai-piece-lesson__try {
   margin: 0;
-  font-size: 0.74rem;
+  font-size: 0.76rem;
   font-weight: 550;
   letter-spacing: -0.01em;
-  line-height: 1.32;
+  line-height: 1.35;
   color: color-mix(in srgb, var(--musai-muted) 22%, var(--musai-ink));
   text-wrap: pretty;
 }

@@ -59,7 +59,6 @@ export function PieceStudioView() {
   const importDraftRef = useRef<PieceImportDraft | null>(null);
   const [revision, setRevision] = useState(0);
   const [phase, setPhase] = useState<ImportPiecePhase | null>(null);
-  const [convertProgress, setConvertProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pieces, setPieces] = useState<PieceWorkspaceV1[] | null>(null);
   const [openings, setOpenings] = useState<Record<string, string | null>>({});
@@ -89,7 +88,6 @@ export function PieceStudioView() {
       }
       const generation = ++importGenerationRef.current;
       setPhase("processing");
-      setConvertProgress(restored.progress);
       try {
         const result = await resumeActivePieceImport(
           restored.file,
@@ -98,10 +96,6 @@ export function PieceStudioView() {
             onPhase: (next) => {
               if (generation !== importGenerationRef.current) return;
               setPhase(next);
-            },
-            onProgress: (percent) => {
-              if (generation !== importGenerationRef.current) return;
-              setConvertProgress((prev) => Math.max(prev ?? 0, percent));
             },
           },
         );
@@ -116,7 +110,6 @@ export function PieceStudioView() {
       } catch (err) {
         if (generation !== importGenerationRef.current || cancelled) return;
         setError(err instanceof Error ? err.message : "Couldn’t import that file.");
-        setConvertProgress(null);
       } finally {
         if (generation === importGenerationRef.current) setPhase(null);
       }
@@ -156,7 +149,6 @@ export function PieceStudioView() {
     await clearActivePieceImport();
     setImportDraft(null);
     setPhase(null);
-    setConvertProgress(null);
   };
 
   const onFile = async (file: File | undefined) => {
@@ -166,16 +158,11 @@ export function PieceStudioView() {
     await discardPieceImport(importDraftRef.current);
     setImportDraft(null);
     setPhase("uploading");
-    setConvertProgress(4);
     try {
       const result = await importPieceFromFile(file, new Date(), {
         onPhase: (next) => {
           if (generation !== importGenerationRef.current) return;
           setPhase(next);
-        },
-        onProgress: (percent) => {
-          if (generation !== importGenerationRef.current) return;
-          setConvertProgress((prev) => Math.max(prev ?? 0, percent));
         },
       });
       if (generation !== importGenerationRef.current) {
@@ -183,18 +170,6 @@ export function PieceStudioView() {
           await discardPieceImport(result.draft);
         }
         return;
-      }
-      if (result.status === "ready") {
-        setConvertProgress(100);
-        if (process.env.NODE_ENV !== "test") {
-          await new Promise((resolve) => {
-            window.setTimeout(resolve, 560);
-          });
-        }
-        if (generation !== importGenerationRef.current) {
-          await discardPieceImport(result.draft);
-          return;
-        }
       }
       tapFeedback("medium");
       if (result.status === "committed") {
@@ -206,7 +181,6 @@ export function PieceStudioView() {
     } catch (err) {
       if (generation !== importGenerationRef.current) return;
       setError(err instanceof Error ? err.message : "Couldn’t import that file.");
-      setConvertProgress(null);
     } finally {
       if (generation === importGenerationRef.current) {
         setPhase(null);
@@ -293,7 +267,6 @@ export function PieceStudioView() {
             draft={importDraft}
             processing={busy && !importDraft}
             processingLabel={phase ? importPhaseLabel(phase) : OMR_COPY.reading}
-            progress={convertProgress ?? undefined}
             onConfirm={(title) => void onConfirmReview(title)}
             onTryAgain={() => void onTryAgain()}
             onChooseAnotherFile={() => void onChooseAnotherFile()}
@@ -318,7 +291,7 @@ export function PieceStudioView() {
           data-has-library={hasLibrary ? "true" : "false"}
         >
           <header className="musai-piece-home__intro">
-            <h1 className="musai-piece-home__title font-display">Piece Studio</h1>
+            <h1 className="musai-page-title musai-piece-home__title font-display">Piece Studio</h1>
           </header>
 
           <section

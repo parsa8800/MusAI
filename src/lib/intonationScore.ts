@@ -1,11 +1,29 @@
-/** Cents within this band count as in tune / green for practice takes
- *  (Scale Studio and Piece Studio share the same violin-practice profile).
- *  Violin intonation is rarely tighter than ~20–25¢ in casual takes.
+/** Cents within this band count as in tune for Scale Studio.
+ *  Piece Studio noteheads use {@link PIECE_IN_TUNE_CENTS}.
+ *  Casual takes rarely sit tighter than ~25–30¢; stay fair without chasing perfection.
  */
-export const PRACTICE_IN_TUNE_CENTS = 25;
+export const PRACTICE_IN_TUNE_CENTS = 30;
 
 /** Only mark a note as a clear miss (and show direction cues) past this. */
-export const PRACTICE_CLEAR_MISS_CENTS = 45;
+export const PRACTICE_CLEAR_MISS_CENTS = 50;
+
+/**
+ * Piece Studio noteheads stay quiet a little past the shared practice line.
+ * Scale Studio keeps {@link PRACTICE_IN_TUNE_CENTS}.
+ */
+export const PIECE_IN_TUNE_CENTS = 35;
+
+/**
+ * About a whole step. Piece Studio does not call this sharp or flat.
+ * A semitone flat can still be the written note.
+ */
+export const PIECE_FAR_CENTS = 170;
+
+/**
+ * A tone away is a different written note, not a sharp or flat.
+ * Piece Studio greys those. Anything closer still gets pitch colour.
+ */
+export const PRACTICE_WRONG_NOTE_CENTS = 200;
 
 /** Scale Studio name for {@link PRACTICE_IN_TUNE_CENTS}. Prefer PRACTICE_* in new code. */
 export const SCALE_IN_TUNE_CENTS = PRACTICE_IN_TUNE_CENTS;
@@ -22,7 +40,8 @@ export function unwrapOctaveCents(cents: number): number {
 
 /**
  * Generous scoring: close pitches stay high.
- * ≤25¢ ≈ 100–92, ≤45¢ ≈ 92–78, then falls off more quickly.
+ * Within the in-tune band ≈ 100–92, then the clear-miss band ≈ 92–78,
+ * then falls off more quickly.
  */
 export function scoreForAbsCents(absCents: number): number {
   const a = Math.abs(absCents);

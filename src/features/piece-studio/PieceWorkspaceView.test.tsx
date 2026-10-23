@@ -69,101 +69,68 @@ describe("PieceWorkspaceView", () => {
     clearCoachMemory();
   });
 
-  it("opens a named workspace with Score and Practise on one page", async () => {
+  it("opens a named workspace as one practise page", async () => {
     render(<PieceWorkspaceView slug="canon-in-d" />);
     expect(await screen.findByRole("heading", { name: "Canon in D" })).toBeInTheDocument();
     expect(screen.queryByText(/Pachelbel · D major · 4\/4 · 80 bpm/i)).not.toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Score" })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
+    expect(screen.queryByRole("tab", { name: "Score" })).not.toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "Listen" })).not.toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Practise" })).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Practise" })).not.toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: /Back to Piece studio/i }),
     ).toHaveAttribute("href", "/practice/piece");
   });
 
-  it("keeps playback and PDF on the score page, not under the mode tabs", async () => {
+  it("keeps PDF beside the piece title and Teacher in the header", async () => {
     await savePieceRecognizedMusicXml("canon", TWINKLE_XML);
     render(<PieceWorkspaceView slug="canon-in-d" />);
-    expect(await screen.findByRole("heading", { name: "Canon in D" })).toBeInTheDocument();
+    const title = await screen.findByRole("heading", { name: "Canon in D" });
     const pdf = await screen.findByRole("button", { name: "View PDF" });
-    expect(pdf.closest(".musai-piece-workspace__nav")).toBeTruthy();
+    const teacher = screen.getByRole("button", { name: /^teacher$/i });
+    expect(pdf.closest(".musai-piece-workspace__identity-copy")).toBeTruthy();
+    expect(title.closest(".musai-piece-workspace__identity-copy")).toBeTruthy();
+    expect(pdf.closest(".musai-piece-workspace__nav")).toBeNull();
+    expect(teacher.closest(".musai-piece-workspace__nav")).toBeTruthy();
     expect(pdf.closest(".musai-piece-workspace__modes")).toBeNull();
     expect(pdf.closest(".musai-piece-score-viewer")).toBeNull();
-    expect(await screen.findByRole("button", { name: "Play" })).toBeInTheDocument();
-    expect(screen.queryByTestId("piece-score-tools")).not.toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Score" })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
-  });
-
-  it("keeps the Score/Practise tablist the same fixed control across views", async () => {
-    render(<PieceWorkspaceView slug="canon-in-d" />);
-    expect(await screen.findByRole("heading", { name: "Canon in D" })).toBeInTheDocument();
-
-    const tablist = screen.getByRole("tablist", { name: "Piece workspace" });
-    expect(tablist).toHaveClass("musai-piece-workspace__tabs");
-    expect(tablist).toHaveClass("musai-segmented");
-    expect(tablist).toHaveClass("musai-segmented--compact");
-    const classOnScore = tablist.className;
-
-    fireEvent.click(screen.getByRole("tab", { name: "Practise" }));
-    expect(screen.getByRole("tab", { name: "Practise" })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
-    expect(screen.getByRole("tablist", { name: "Piece workspace" }).className).toBe(
-      classOnScore,
-    );
-  });
-
-  it("keeps practise as a state of the same workspace", async () => {
-    render(<PieceWorkspaceView slug="canon-in-d" />);
-    expect(await screen.findByRole("heading", { name: "Canon in D" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("tab", { name: "Practise" }));
-    expect(screen.getByRole("heading", { name: "Canon in D" })).toBeInTheDocument();
-    expect(await screen.findByRole("tab", { name: "Practise" })).toBeInTheDocument();
     expect(
       await screen.findByRole("button", { name: "Record" }, { timeout: 4000 }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /open coach/i })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Tips" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /open coach/i }));
+    expect(screen.queryByTestId("piece-score-tools")).not.toBeInTheDocument();
+  });
+
+  it("opens the piece as one practise workspace without Score tabs", async () => {
+    render(<PieceWorkspaceView slug="canon-in-d" />);
+    expect(await screen.findByRole("heading", { name: "Canon in D" })).toBeInTheDocument();
+    expect(screen.queryByRole("tablist", { name: "Piece workspace" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Score" })).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: "Record" }, { timeout: 4000 }),
+    ).toBeInTheDocument();
+    const teacher = screen.getByRole("button", { name: /^teacher$/i });
+    expect(teacher.closest(".musai-piece-workspace__nav")).toBeTruthy();
+    fireEvent.click(teacher);
     await waitFor(() => {
       expect(screen.getByPlaceholderText(/Ask your teacher/i)).toBeEnabled();
     });
-    expect(screen.getByRole("heading", { name: "Canon in D" })).toBeInTheDocument();
-    expect(replace).toHaveBeenCalledWith(
-      "/practice/piece/canon-in-d?view=practise",
-      { scroll: false },
-    );
+    expect(screen.queryByRole("button", { name: /^teacher$/i })).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/Ask your coach/i)).not.toBeInTheDocument();
   });
 
-  it("keeps the coach thread across Score and Practise", async () => {
+  it("keeps the teacher thread when the piece workspace remounts", async () => {
     const view = render(<PieceWorkspaceView slug="canon-in-d" />);
     expect(await screen.findByRole("heading", { name: "Canon in D" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /open coach/i }));
-    fireEvent.click(await screen.findByRole("button", { name: "What key is this?" }));
+    fireEvent.click(screen.getByRole("button", { name: /^teacher$/i }));
+    const ask = await screen.findByPlaceholderText(/Ask your teacher/i);
+    fireEvent.change(ask, { target: { value: "What key is this?" } });
+    fireEvent.submit(ask.closest("form")!);
     expect(await screen.findByText(/D major/i)).toBeInTheDocument();
-    expect(
-      await screen.findByRole("button", { name: "How fast is it?" }),
-    ).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("tab", { name: "Practise" }));
-    expect(await screen.findByText(/D major/i)).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Where should I start?" }),
-    ).toBeInTheDocument();
 
     view.unmount();
     render(<PieceWorkspaceView slug="canon-in-d" />);
     expect(await screen.findByText(/D major/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /close coach/i })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /hide teacher/i }).length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: "What key is this?" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "How fast is it?" })).toBeInTheDocument();
   });
 
   it("keeps the score visible with the last take so the student can try again", async () => {
@@ -221,28 +188,25 @@ describe("PieceWorkspaceView", () => {
     expect(screen.queryByText(/Analyse/i)).not.toBeInTheDocument();
   });
 
-  it("lets the student chat about the piece on Score and Practise without recording", async () => {
+  it("lets the student chat about the piece without recording", async () => {
     await savePieceStructuredScore(
       "canon",
       parseMusicXmlToScore(TWINKLE_XML, "Canon in D"),
     );
     render(<PieceWorkspaceView slug="canon-in-d" />);
     expect(await screen.findByRole("heading", { name: "Canon in D" })).toBeInTheDocument();
-    fireEvent.click(await screen.findByRole("button", { name: /open coach/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /^teacher$/i }));
     await waitFor(() => {
       expect(screen.getByPlaceholderText(/Ask your teacher/i)).toBeEnabled();
     });
-    fireEvent.click(screen.getByRole("tab", { name: "Practise" }));
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText(/Ask your teacher/i)).toBeEnabled();
-    });
+    expect(screen.queryByPlaceholderText(/Ask your coach/i)).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Tips" })).not.toBeInTheDocument();
     expect(screen.queryByTestId("piece-feedback-preview")).not.toBeInTheDocument();
     expect(screen.queryByTestId("piece-pitch-map")).not.toBeInTheDocument();
     expect(screen.queryByText(/colour on the score/i)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Hear this/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "PDF" })).not.toBeInTheDocument();
-    expect(await screen.findByRole("tab", { name: "Practise" })).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Score" })).not.toBeInTheDocument();
   });
 
   it("does not open a missing piece as a blank workspace", async () => {
@@ -251,23 +215,18 @@ describe("PieceWorkspaceView", () => {
     expect(screen.queryByRole("heading", { name: "Canon in D" })).not.toBeInTheDocument();
   });
 
-  it("plays the digital score on the score page with the music still in view", async () => {
+  it("keeps the engraved score and record dock on one practise page", async () => {
     await savePieceStructuredScore(
       "canon",
       parseMusicXmlToScore(TWINKLE_XML, "Canon in D"),
     );
     render(<PieceWorkspaceView slug="canon-in-d" />);
     expect(await screen.findByRole("heading", { name: "Canon in D" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Score" })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
-    expect(await screen.findByRole("button", { name: "Play" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Restart from beginning" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Playback options" })).toBeInTheDocument();
-    expect(screen.queryByTestId("piece-listen-options")).not.toBeInTheDocument();
-    expect(screen.getByTestId("piece-listen-clock")).toBeInTheDocument();
-    expect(screen.queryByRole("slider", { name: /Tempo/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Score" })).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: "Record" }, { timeout: 4000 }),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("piece-listen-clock")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Canon in D" })).toBeInTheDocument();
   });
 
@@ -295,7 +254,7 @@ describe("PieceWorkspaceView", () => {
     spy.mockRestore();
   });
 
-  it("plays a score that was read from a PDF on the score page", async () => {
+  it("opens a PDF-recognised piece on the practise page", async () => {
     upsertPieceWorkspace({
       schemaVersion: PIECE_STUDIO_SCHEMA_VERSION,
       pieceId: "scan",
@@ -307,7 +266,7 @@ describe("PieceWorkspaceView", () => {
       sourceMimeType: "application/pdf",
       importedAt: "2026-01-01T00:00:00.000Z",
       lastOpenedAt: "2026-01-01T00:00:00.000Z",
-      lastView: "score",
+      lastView: "practise",
       score: {
         schemaVersion: PIECE_STUDIO_SCHEMA_VERSION,
         format: "musicxml",
@@ -333,12 +292,14 @@ describe("PieceWorkspaceView", () => {
     );
     render(<PieceWorkspaceView slug="etude" />);
     expect(await screen.findByRole("heading", { name: "Twinkle" })).toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: "Play" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: "Record" }, { timeout: 4000 }),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/import musicxml/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/once the page can be read/i)).not.toBeInTheDocument();
   });
 
-  it("does not tell a confirmed PDF piece that the page still needs reading when playback is empty", async () => {
+  it("does not tell a confirmed PDF piece that the page still needs reading", async () => {
     upsertPieceWorkspace({
       schemaVersion: PIECE_STUDIO_SCHEMA_VERSION,
       pieceId: "empty-scan",
@@ -350,7 +311,7 @@ describe("PieceWorkspaceView", () => {
       sourceMimeType: "application/pdf",
       importedAt: "2026-01-01T00:00:00.000Z",
       lastOpenedAt: "2026-01-01T00:00:00.000Z",
-      lastView: "listen",
+      lastView: "practise",
       score: {
         schemaVersion: PIECE_STUDIO_SCHEMA_VERSION,
         format: "musicxml",
@@ -373,14 +334,12 @@ describe("PieceWorkspaceView", () => {
     search = new URLSearchParams("view=listen");
     render(<PieceWorkspaceView slug="empty-scan" />);
     expect(await screen.findByRole("heading", { name: "Blank page" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Score" })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
+    expect(screen.queryByRole("tab", { name: "Score" })).not.toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "Listen" })).not.toBeInTheDocument();
-    expect(
-      await screen.findByText(/doesn’t have timing to play yet/i),
-    ).toBeInTheDocument();
+    expect(replace).toHaveBeenCalledWith(
+      "/practice/piece/empty-scan?view=practise",
+      { scroll: false },
+    );
     expect(screen.queryByText(/once the page can be read/i)).not.toBeInTheDocument();
   });
 

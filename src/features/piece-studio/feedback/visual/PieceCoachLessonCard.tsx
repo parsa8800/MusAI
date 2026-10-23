@@ -7,7 +7,7 @@ function oneLine(text: string): string {
 }
 
 /**
- * One selectable issue — where, what’s wrong, and (when selected) what to try.
+ * One selectable issue — quiet one-liner when idle; place + tip when open.
  */
 export function PieceCoachLessonCard({
   place,
@@ -22,6 +22,9 @@ export function PieceCoachLessonCard({
   selected: boolean;
   onSelect: () => void;
 }) {
+  const tip = oneLine(what);
+  const tryNext = oneLine(next);
+
   return (
     <button
       type="button"
@@ -38,24 +41,39 @@ export function PieceCoachLessonCard({
         onSelect();
       }}
     >
-      {place ? (
-        <p className="musai-piece-lesson__place" data-testid="piece-focus-where">
-          {place}
-        </p>
-      ) : null}
-
-      {selected && next.trim() ? (
+      {selected ? (
         <>
+          {place ? (
+            <p
+              className="musai-piece-lesson__place"
+              data-testid="piece-focus-where"
+            >
+              {place}
+            </p>
+          ) : null}
           <p className="musai-piece-lesson__what" data-testid="piece-focus-what">
-            {`• ${oneLine(what)}`}
+            {`• ${tip}`}
           </p>
-          <p className="musai-piece-lesson__try" data-testid="piece-focus-try">
-            {`• ${oneLine(next)}`}
-          </p>
+          {tryNext ? (
+            <p className="musai-piece-lesson__try" data-testid="piece-focus-try">
+              {`• ${tryNext}`}
+            </p>
+          ) : null}
         </>
       ) : (
-        <p className="musai-piece-lesson__what" data-testid="piece-focus-what">
-          {oneLine(what)}
+        <p className="musai-piece-lesson__line" data-testid="piece-focus-what">
+          {place ? (
+            <>
+              <span
+                className="musai-piece-lesson__place-inline"
+                data-testid="piece-focus-where"
+              >
+                {place}
+              </span>
+              {" · "}
+            </>
+          ) : null}
+          {tip}
         </p>
       )}
     </button>

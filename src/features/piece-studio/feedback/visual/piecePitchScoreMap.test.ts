@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   pitchMarksFromTake,
   pitchNoteMarksFromIssues,
+  pitchPaintKindFromCents,
   pitchScoreHighlightsFromIssues,
   pitchSummaryLine,
 } from "@/features/piece-studio/feedback/visual/piecePitchScoreMap";
@@ -31,6 +32,18 @@ function pitchIssue(
 }
 
 describe("piecePitchScoreMap", () => {
+  it("keeps sharp and flat colour inside a tone, and greys a whole step", () => {
+    expect(pitchPaintKindFromCents(26)).toBe("in_tune");
+    expect(pitchPaintKindFromCents(-33)).toBe("in_tune");
+    expect(pitchPaintKindFromCents(40)).toBe("sharp");
+    expect(pitchPaintKindFromCents(-120)).toBe("flat-strong");
+    expect(pitchPaintKindFromCents(160)).toBe("sharp-strong");
+    expect(pitchPaintKindFromCents(-180)).toBe("missed");
+    expect(pitchPaintKindFromCents(-199)).toBe("missed");
+    expect(pitchPaintKindFromCents(-200)).toBe("missed");
+    expect(pitchPaintKindFromCents(220)).toBe("missed");
+  });
+
   it("maps pitch kinds onto note marks", () => {
     const marks = pitchNoteMarksFromIssues([
       pitchIssue({ id: "a", kind: "sharp", measure: "1" }),

@@ -50,18 +50,18 @@ describe("RhythmAnalyzer", () => {
       expectedNotes: notes(4),
       pitchMatch: {
         slots: [1, 1, 1, 1],
-        timesSec: [0, 1, 1.35, 1.85],
-        attackSec: [0, 1, 1.35, 1.85],
+        timesSec: [0, 1, 1.25, 1.75],
+        attackSec: [0, 1, 1.25, 1.75],
         durationSec: 2,
       },
     });
     expect(report.status).toBe("ready");
     expect(report.events.map((event) => [event.noteIndex, event.kind])).toEqual([
       [0, "duration"],
-      [2, "duration"],
+      [1, "duration"],
     ]);
     expect(report.events[0]?.explanation).toBe("Bar 1, beat 1 was held too long.");
-    expect(report.events[1]?.explanation).toBe("Bar 1, beat 3 was cut short.");
+    expect(report.events[1]?.explanation).toBe("Bar 1, beat 2 was cut short.");
     expect(report.events[0]?.explanation).not.toMatch(/cent/i);
   });
 

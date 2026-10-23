@@ -7,22 +7,41 @@
  * pitch of the scale.
  */
 export const SCALE_SCORE_WEIGHTS = {
-  noteAccuracy: 0.3,
-  intonation: 0.25,
-  completeness: 0.2,
-  steadiness: 0.15,
-  toneClarity: 0.1,
+  noteAccuracy: 0.34,
+  intonation: 0.28,
+  completeness: 0.22,
+  steadiness: 0.1,
+  toneClarity: 0.06,
+} as const;
+
+/**
+ * When pitch pillars are already strong, use these weights so steadiness
+ * and tone refine the score without trapping a clean take in the mid-80s.
+ */
+export const SCALE_SCORE_WEIGHTS_PITCH_STRONG = {
+  noteAccuracy: 0.36,
+  intonation: 0.3,
+  completeness: 0.24,
+  steadiness: 0.06,
+  toneClarity: 0.04,
+} as const;
+
+/** Pitch pillars at or above these unlock the pitch-strong weights. */
+export const SCALE_PITCH_STRONG_MIN = {
+  noteAccuracy: 90,
+  intonation: 88,
+  completeness: 95,
 } as const;
 
 /** |cents| at or below this still counts as the written pitch class. */
-export const NOTE_ACCURACY_FULL_CENTS = 50;
+export const NOTE_ACCURACY_FULL_CENTS = 55;
 /** Beyond this, a matched slot is treated as the wrong pitch. */
-export const NOTE_ACCURACY_ZERO_CENTS = 85;
+export const NOTE_ACCURACY_ZERO_CENTS = 100;
 
 /** In-tune band used by note colouring and the intonation category. */
-export const SCORE_IN_TUNE_CENTS = 25;
+export const SCORE_IN_TUNE_CENTS = 30;
 /** Soft miss band — still the right note, but not in tune. */
-export const SCORE_CLEAR_MISS_CENTS = 45;
+export const SCORE_CLEAR_MISS_CENTS = 50;
 
 /**
  * When a take has no stored timing / tone samples (older sessions),
@@ -63,7 +82,7 @@ export const SCALE_SCORE_CAPS = {
   mostlyWrongAccuracyFrac: 0.35,
   mostlyWrongCap: 40,
   /** Missing any expected note blocks a near-100 look. */
-  incompleteCap: 91,
+  incompleteCap: 95,
   /** Fraction of expected slots that are actually in tune. */
   lowInTuneFrac: 0.4,
   lowInTuneCap: 58,
@@ -76,15 +95,15 @@ export const SCALE_SCORE_CAPS = {
  * A single weak pillar keeps the take below the ceiling.
  */
 export const SCALE_EXCELLENT_MIN = {
-  noteAccuracy: 94,
-  intonation: 92,
-  completeness: 98,
-  steadiness: 78,
-  toneClarity: 78,
+  noteAccuracy: 92,
+  intonation: 90,
+  completeness: 96,
+  steadiness: 70,
+  toneClarity: 70,
 } as const;
 
-export const SCALE_EXCELLENT_IN_TUNE_PERCENT = 90;
-export const SCALE_EXCELLENT_OVERALL = 88;
+export const SCALE_EXCELLENT_IN_TUNE_PERCENT = 88;
+export const SCALE_EXCELLENT_OVERALL = 85;
 
 /** Below this, a take is treated as silence / a mic miss. */
 export const SILENT_TAKE_ANALYZED = 0;

@@ -756,6 +756,12 @@ html[data-musai-device="phone"] .musai-tuner-reel__letter {
   background: #f6f3ee;
 }
 
+.musai-teacher-panel .musai-rhythm-popup {
+  background: #fff;
+  border-color: #cfc9c0;
+  box-shadow: 0 8px 18px rgba(28, 25, 23, 0.08);
+}
+
 .musai-teacher-panel .musai-coach-thread--quiet {
   display: flex;
   flex-direction: column;
@@ -885,6 +891,12 @@ html[data-theme="dark"] .musai-teacher-panel {
   background: #1b2129;
 }
 
+html[data-theme="dark"] .musai-teacher-panel .musai-rhythm-popup {
+  background: #242b34;
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.28);
+}
+
 html[data-theme="dark"] .musai-teacher-panel .musai-coach-welcome__mark,
 html[data-theme="dark"] .musai-teacher-panel .musai-coach-prompts--stack .musai-coach-prompt,
 html[data-theme="dark"] .musai-teacher-panel .musai-coach-composer__field {
@@ -893,13 +905,65 @@ html[data-theme="dark"] .musai-teacher-panel .musai-coach-composer__field {
   color: #f4f1ec;
 }
 
-html[data-theme="dark"] .musai-teacher-panel .musai-coach-welcome__title {
+html[data-theme="dark"] .musai-teacher-panel .musai-coach-welcome__title,
+html[data-theme="dark"] .musai-teacher-rail__name {
   color: #f4f1ec;
 }
 
 html[data-theme="dark"] .musai-teacher-panel .musai-coach-welcome__line,
 html[data-theme="dark"] .musai-teacher-panel .musai-coach-composer__input::placeholder,
-html[data-theme="dark"] .musai-teacher-panel .musai-coach-mic {
+html[data-theme="dark"] .musai-teacher-panel .musai-coach-mic,
+html[data-theme="dark"] .musai-teacher-rail__bar {
+  border-bottom-color: rgba(255, 255, 255, 0.22);
+}
+
+html[data-theme="dark"] .musai-teacher-rail__close {
   color: #a8a29e;
+}
+
+.musai-teacher-rail .musai-coach-thread--quiet,
+.musai-teacher-rail .musai-coach-prompts {
+  display: none;
+}
+
+@media (min-width: 880px) {
+  .musai-studio-practice[data-teacher="open"] .musai-teacher-rail.musai-studio-coach-drawer {
+    align-self: flex-start;
+    flex: 0 0 24rem;
+    width: 24rem;
+    min-width: 24rem;
+    max-width: 24rem;
+    height: auto;
+    min-height: 28rem;
+    max-height: min(36rem, 100%);
+  }
+
+  .musai-studio-practice[data-teacher="open"] .musai-teacher-rail .musai-teacher-rail__ask,
+  .musai-studio-practice[data-teacher="open"] .musai-teacher-rail .musai-coach-parsa,
+  .musai-studio-practice[data-teacher="open"] .musai-teacher-rail .musai-coach-bubble {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+  }
+
+  .musai-studio-practice[data-teacher="open"] .musai-teacher-rail .musai-coach-composer {
+    margin-top: auto;
+  }
+
+  .musai-studio-practice[data-teacher="open"] .musai-teacher-rail .musai-teacher-rail__feedback {
+    flex: 0 0 auto;
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+.musai-teacher-panel.musai-teacher-rail .musai-teacher-rail__places {
+  display: flex;
+  flex-flow: column nowrap;
+  gap: 0.4rem;
+  margin: 0;
 }
 

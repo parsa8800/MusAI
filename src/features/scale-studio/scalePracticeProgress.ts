@@ -40,7 +40,7 @@ export const GREAT_ACCURACY_PERCENT = 90;
 export const GREAT_TAKES_FOR_FULL = 3;
 
 /** How fast mastery moves toward a stronger attempt, before remaining-ease. */
-export const MASTERY_IMPROVE_RATE = 0.42;
+export const MASTERY_IMPROVE_RATE = 0.58;
 /** How fast mastery eases down after a weaker attempt. */
 export const MASTERY_REGRESS_RATE = 0.08;
 /** Even gentler drop once mastery is already high. */
@@ -48,16 +48,16 @@ export const MASTERY_HIGH_REGRESS_RATE = 0.04;
 export const MASTERY_HIGH_THRESHOLD = 90;
 
 /** Extra crawl toward 100 when the take itself is already excellent. */
-export const MASTERY_EXCELLENT_SCORE = 94;
-export const MASTERY_EXCELLENT_PULL = 0.14;
+export const MASTERY_EXCELLENT_SCORE = 92;
+export const MASTERY_EXCELLENT_PULL = 0.22;
 /** Near the top, excellent takes still move a little so 100 is reachable. */
-export const MASTERY_NEAR_TOP = 97;
-export const MASTERY_NEAR_TOP_MIN_GAIN = 0.55;
+export const MASTERY_NEAR_TOP = 96;
+export const MASTERY_NEAR_TOP_MIN_GAIN = 0.85;
 /**
  * First take seeds the bar at the attempt score, but cannot claim 100%
  * unless the take is a fully correct great run (`isGreatAccuracyTake`).
  */
-export const MASTERY_FIRST_TAKE_CAP = 92;
+export const MASTERY_FIRST_TAKE_CAP = 96;
 
 export function clampMastery(n: number): number {
   if (!Number.isFinite(n)) return 0;
@@ -176,7 +176,9 @@ export function updateScaleMastery(
   if (excellent && current >= MASTERY_NEAR_TOP) {
     delta = Math.max(delta, MASTERY_NEAR_TOP_MIN_GAIN);
   }
-  return clampMastery(current + delta);
+  const next = clampMastery(current + delta);
+  // 100% stays reserved for a fully correct great take.
+  return Math.min(next, 99);
 }
 
 function isSilentAttempt(

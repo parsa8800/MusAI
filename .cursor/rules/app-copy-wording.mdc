@@ -1,0 +1,38 @@
+---
+description: Student-facing copy should sound spoken, not AI-dashed
+alwaysApply: true
+---
+
+# App wording
+
+User-facing strings (teacher, popups, buttons, empty states, coach chat) should read like something you would say out loud.
+
+## Do not use dashes as punctuation
+
+Do not use `—`, `–`, or a spaced hyphen (` - `) to join clauses. It looks generated.
+
+```
+Hold E and F# as crotchets — each gets a full beat.
+Pitch looks settled — colour on the score.
+```
+
+```
+Hold E and F# as crotchets so each gets a full beat
+1 note sat outside pitch
+```
+
+Ranges in UI copy use words (`Bar 1 to 2`), not `Bar 1–2`.
+
+Hyphens inside words and note names stay (`F#`, `in-tune` in code only).
+
+## No full stop on short tips
+
+Popup lines, chips, and bullet/dot points do not end with `.`
+
+Normal sentences in a longer teacher reply may use full stops. Short clipped tips do not.
+
+## Bullets vs one line
+
+Use two short bullet points when there is both “what happened” and “what to try”, or when several notes in one highlight share the same fix.
+
+Keep a single line when one short sentence is enough, for example starting with the beat.

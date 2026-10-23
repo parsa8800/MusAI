@@ -49,7 +49,7 @@ export default function ResultsPage() {
           ariaLabel="Back to Tuning trainer"
         />
         <header className="mb-8 text-center sm:mb-9">
-          <h1 className="font-display text-2xl font-semibold tracking-tight text-[var(--musai-ink)] sm:text-3xl">
+          <h1 className="musai-page-title font-display">
             Results
           </h1>
         </header>

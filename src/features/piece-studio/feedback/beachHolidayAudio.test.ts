@@ -74,20 +74,19 @@ describe("Beach Holiday rhythm audio", () => {
       secPerQuarter: BEAT,
       gapEdits: [
         { afterNoteIndex: 0, extraSec: BEAT },
-        { afterNoteIndex: 17, extraSec: -0.2 },
+        { afterNoteIndex: 17, extraSec: -0.36 },
       ],
     });
     expect(rhythmOf(report)).toEqual([
       [0, "duration"],
       [17, "duration"],
-      [18, "early"],
     ]);
   });
 
   it("marks one note that arrives a bit late", () => {
     const { report } = play({
       secPerQuarter: BEAT,
-      gapEdits: [{ afterNoteIndex: 2, extraSec: 0.2 }],
+      gapEdits: [{ afterNoteIndex: 2, extraSec: 0.36 }],
     });
     expect(rhythmOf(report)).toEqual([[3, "late"]]);
   });
@@ -95,12 +94,9 @@ describe("Beach Holiday rhythm audio", () => {
   it("marks one note cut much too short", () => {
     const { report } = play({
       secPerQuarter: BEAT,
-      gapEdits: [{ afterNoteIndex: 2, extraSec: -0.32 }],
+      gapEdits: [{ afterNoteIndex: 2, extraSec: -0.4 }],
     });
-    expect(rhythmOf(report)).toEqual([
-      [2, "duration"],
-      [3, "early"],
-    ]);
+    expect(rhythmOf(report)).toEqual([[2, "duration"]]);
   });
 
   it("does not mark a slower take that stays even", () => {
@@ -152,6 +148,15 @@ describe("Beach Holiday dynamics audio", () => {
       "ready",
     );
     expect(dynamicsOf(report)).toEqual([]);
+    const barTenQuavers = notes.filter(
+      (note) => note.measure === "10" && note.durationQuarters <= 0.5,
+    );
+    expect(barTenQuavers).toHaveLength(4);
+    for (const note of barTenQuavers) {
+      const cents = report.pitchNotes?.[note.noteIndex]?.cents;
+      expect(cents).not.toBeNull();
+      expect(Math.abs(cents ?? 99)).toBeLessThanOrEqual(35);
+    }
   });
 
   it("marks the soft mark when that part is as loud as the loud part", () => {
@@ -160,7 +165,11 @@ describe("Beach Holiday dynamics audio", () => {
       amplitudeFor: amp({ p: F, f: F, ff: FF }),
     });
     expect(dynamicsOf(report)).toEqual([
-      [0, "too_loud", "The soft mark was too loud."],
+      [
+        0,
+        "too_loud",
+        "This p was louder than the rest of your playing\nFollow the marked p",
+      ],
     ]);
   });
 
@@ -170,7 +179,11 @@ describe("Beach Holiday dynamics audio", () => {
       amplitudeFor: amp({ p: P, f: F, ff: F }),
     });
     expect(dynamicsOf(report)).toEqual([
-      [50, "too_soft", "The loud mark was too soft."],
+      [
+        50,
+        "too_soft",
+        "This ff was quieter than the rest of your playing\nFollow the marked ff",
+      ],
     ]);
   });
 
@@ -180,7 +193,11 @@ describe("Beach Holiday dynamics audio", () => {
       amplitudeFor: amp({ p: P, f: P, ff: FF }),
     });
     expect(dynamicsOf(report)).toEqual([
-      [16, "too_soft", "The loud mark was too soft."],
+      [
+        16,
+        "too_soft",
+        "This f was quieter than the rest of your playing\nFollow the marked f",
+      ],
     ]);
   });
 });

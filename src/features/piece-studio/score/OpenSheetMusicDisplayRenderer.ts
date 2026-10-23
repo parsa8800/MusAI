@@ -29,6 +29,7 @@ import {
   type ScorePaintOptions,
 } from "@/features/piece-studio/score/scorePresentation";
 import { prepareMusicXmlForEngraving } from "@/features/piece-studio/score/prepareMusicXmlForEngraving";
+import { tagEngravedDynamics } from "@/features/piece-studio/score/tagEngravedDynamics";
 import { MIN_SCORE_VIEWPORT_WIDTH_PX } from "@/features/piece-studio/score/scoreViewport";
 
 type OsmdCursor = {
@@ -390,6 +391,7 @@ export function createOpenSheetMusicDisplayRenderer(): ScoreRenderer {
         });
       }
 
+      tagEngravedDynamics(osmd);
       return metrics;
     },
 

@@ -68,7 +68,7 @@ describe("piece feedback architecture", () => {
   it("emits pitch events with location, severity, time, and student copy", () => {
     const score = parseMusicXmlToScore(TWINKLE_XML, "Twinkle");
     const sampleRate = 44100;
-    const sharpHz = midiToHz(72) * 2 ** (50 / 1200);
+    const sharpHz = midiToHz(72) * 2 ** (60 / 1200);
     const mono = concat([
       tone(sharpHz, sampleRate, 0.45),
       tone(midiToHz(79), sampleRate, 0.45),
@@ -103,7 +103,7 @@ describe("piece feedback architecture", () => {
     expect(sharp?.explanation).toMatch(/bar 1/i);
     expect(sharp?.explanation).not.toMatch(/cent/i);
     expect(report.pitchNotes?.length).toBe(expectedNotesFromScore(score).length);
-    expect(report.pitchNotes?.[0]?.cents).toBeGreaterThan(25);
+    expect(report.pitchNotes?.[0]?.cents).toBeGreaterThan(40);
     expect(report.pitchNotes?.[0]?.heardSec).toBeTypeOf("number");
   });
 
@@ -124,7 +124,7 @@ describe("piece feedback architecture", () => {
     expect(missed[0]?.severity).toBe("focus");
   });
 
-  it("does not invent tempo, dynamics, or consistency", () => {
+  it("keeps consistency deferred on a short take", () => {
     const score = parseMusicXmlToScore(TWINKLE_XML, "Twinkle");
     const sampleRate = 44100;
     const mono = concat([
@@ -141,13 +141,21 @@ describe("piece feedback architecture", () => {
     });
     const rhythm = report.skills.find((s) => s.category === "rhythm");
     expect(rhythm?.status).toBe("ready");
-    const unimplemented = PIECE_FEEDBACK_CATEGORIES.filter(
-      (c) => c !== "pitch" && c !== "rhythm",
-    );
-    for (const category of unimplemented) {
+    const consistency = report.skills.find((s) => s.category === "consistency");
+    expect(consistency).toEqual({
+      category: "consistency",
+      status: "not_ready",
+      events: [],
+    });
+    expect(report.events.some((e) => e.category === "consistency")).toBe(false);
+    // Short Twinkle fixtures often leave tempo/dynamics not ready; longer
+    // takes (Beach Holiday) can mark them ready without inventing events.
+    for (const category of PIECE_FEEDBACK_CATEGORIES) {
       const skill = report.skills.find((s) => s.category === category);
-      expect(skill).toEqual({ category, status: "not_ready", events: [] });
-      expect(report.events.some((e) => e.category === category)).toBe(false);
+      expect(skill?.category).toBe(category);
+      if (skill?.status === "not_ready") {
+        expect(skill.events).toEqual([]);
+      }
     }
   });
 

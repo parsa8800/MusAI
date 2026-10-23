@@ -18,10 +18,10 @@ describe("findRhythmFindings", () => {
     expect(findings).toEqual([]);
   });
 
-  it("marks a rushed join as the note left short and the note that arrived early", () => {
+  it("marks a rushed join as the note left short, not also the next note", () => {
     // Beat sits near 0.5s. Note 0 is held for 1.0s.
     // Note 1 is left early, so note 2 arrives ~0.15s early.
-    const findings = findRhythmFindings(quarters([0, 1, 1.35, 1.85]));
+    const findings = findRhythmFindings(quarters([0, 1, 1.25, 1.75]));
     expect(findings).toEqual([
       expect.objectContaining({
         noteIndex: 0,
@@ -33,12 +33,8 @@ describe("findRhythmFindings", () => {
         kind: "duration",
         length: "short",
       }),
-      expect.objectContaining({
-        noteIndex: 2,
-        kind: "early",
-        length: null,
-      }),
     ]);
+    expect(findings?.some((finding) => finding.kind === "early")).toBe(false);
   });
 
   it("does not mark a slower take that stays even", () => {
@@ -53,7 +49,7 @@ describe("findRhythmFindings", () => {
   });
 
   it("marks a moderately late arrival without calling it the wrong length", () => {
-    const findings = findRhythmFindings(quarters([0, 0.5, 1.15, 1.65]));
+    const findings = findRhythmFindings(quarters([0, 0.5, 1.28, 1.78]));
     expect(findings).toEqual([
       expect.objectContaining({ noteIndex: 2, kind: "late" }),
     ]);
@@ -74,15 +70,10 @@ describe("findRhythmFindings", () => {
         kind: "duration",
         length: "short",
       }),
-      expect.objectContaining({
-        noteIndex: 1,
-        kind: "early",
-        length: null,
-      }),
     ]);
   });
 
-  it("marks a note that is cut far too short and the note that came in early", () => {
+  it("marks a note that is cut far too short without a second early mark", () => {
     const findings = findRhythmFindings(quarters([0, 0.2, 0.7, 1.2]));
     expect(findings).toEqual([
       expect.objectContaining({
@@ -90,12 +81,33 @@ describe("findRhythmFindings", () => {
         kind: "duration",
         length: "short",
       }),
-      expect.objectContaining({
-        noteIndex: 1,
-        kind: "early",
-        length: null,
-      }),
     ]);
+  });
+
+  it("does not mark a rest unless the gap is extreme", () => {
+    const afterRest = findRhythmFindings([
+      { noteIndex: 0, absoluteOnsetQuarters: 0, durationQuarters: 1, heardSec: 0 },
+      { noteIndex: 1, absoluteOnsetQuarters: 4, durationQuarters: 1, heardSec: 2.2 },
+      { noteIndex: 2, absoluteOnsetQuarters: 5, durationQuarters: 1, heardSec: 2.7 },
+    ]);
+    expect(afterRest).toEqual([]);
+  });
+
+  it("does not mark the next bar's even quavers after two short crotchets", () => {
+    const findings = findRhythmFindings([
+      { noteIndex: 6, absoluteOnsetQuarters: 6, durationQuarters: 1, measure: "2", heardSec: 3.0 },
+      { noteIndex: 7, absoluteOnsetQuarters: 7, durationQuarters: 1, measure: "2", heardSec: 3.2 },
+      { noteIndex: 8, absoluteOnsetQuarters: 8, durationQuarters: 0.5, measure: "3", heardSec: 4.0 },
+      { noteIndex: 9, absoluteOnsetQuarters: 8.5, durationQuarters: 0.5, measure: "3", heardSec: 4.25 },
+      { noteIndex: 10, absoluteOnsetQuarters: 9, durationQuarters: 0.5, measure: "3", heardSec: 4.5 },
+      { noteIndex: 11, absoluteOnsetQuarters: 9.5, durationQuarters: 0.5, measure: "3", heardSec: 4.75 },
+    ]);
+    expect(findings?.some((finding) => finding.noteIndex === 8 || finding.noteIndex === 9)).toBe(
+      false,
+    );
+    expect(findings?.some((finding) => finding.noteIndex === 6 && finding.length === "short")).toBe(
+      true,
+    );
   });
 
   it("cannot judge rhythm from a single heard note", () => {

@@ -290,7 +290,7 @@ describe("updateScaleMastery", () => {
     const next = updateScaleMastery(40, 85);
     const ease = masteryRemainingEase(40);
     expect(next).toBeGreaterThan(48);
-    expect(next).toBeLessThan(60);
+    expect(next).toBeLessThan(70);
     expect(next).toBeCloseTo(40 + (85 - 40) * MASTERY_IMPROVE_RATE * ease, 5);
   });
 
@@ -367,26 +367,27 @@ describe("updateScaleMastery high region", () => {
     expect(after).toBeLessThan(100);
   });
 
-  it("can reach 100 from 99 with repeated excellent attempts", () => {
+  it("caps below 100 without a fully correct take, even from 99", () => {
     const after = foldScores([99, 99, 99], 99);
-    expect(after).toBe(100);
+    expect(after).toBe(99);
   });
 
   it("does not jump 90 to 100 on one excellent attempt", () => {
     expect(updateScaleMastery(90, 100)).toBeLessThan(95);
   });
 
-  it("lets repeated excellent attempts approach 100 without a streak unlock", () => {
+  it("lets repeated excellent attempts approach but not claim 100 without a fully correct take", () => {
     let mastery = 80;
     let steps = 0;
     const firstGain = updateScaleMastery(80, 98) - 80;
-    while (mastery < 100 && steps < 40) {
+    while (mastery < 99 && steps < 40) {
       mastery = updateScaleMastery(mastery, 98);
       steps += 1;
     }
     expect(firstGain).toBeGreaterThan(2);
-    expect(steps).toBeGreaterThan(8);
-    expect(mastery).toBe(100);
+    expect(steps).toBeGreaterThan(4);
+    expect(mastery).toBe(99);
+    expect(updateScaleMastery(mastery, 98)).toBe(99);
   });
 
   it("drops only a little from 100 after one weak attempt", () => {

@@ -47,6 +47,16 @@ export type PieceCoachContextV1 = {
   focus: PieceCoachFocusItemV1[];
 };
 
+function firstLine(explanation: string): string | null {
+  const line = explanation.split("\n")[0]?.trim().replace(/\.$/, "");
+  return line || null;
+}
+
+function secondLine(explanation: string): string | null {
+  const line = explanation.split("\n")[1]?.trim().replace(/\.$/, "");
+  return line || null;
+}
+
 function whereFromEvent(event: PieceFeedbackEventV1): string {
   if (event.category === "tempo") return "The whole piece";
   if (event.measure) return `Bar ${event.measure}`;
@@ -82,6 +92,9 @@ function improveFirstFromKind(
       return "Ease the loud spots";
     case "too_soft":
       return "Speak the soft spots";
+    case "unchanged":
+    case "reversed":
+      return secondLine(explanation) ?? "Follow the shape";
     case "weak_section":
       return "Strengthen the shaky bars";
     default:
@@ -114,9 +127,10 @@ function whatFromKind(
     case "rushing":
       return explanation.replace(/\.$/, "") || "The beat did not stay steady";
     case "too_loud":
-      return "Louder than written";
     case "too_soft":
-      return "Quieter than written";
+    case "unchanged":
+    case "reversed":
+      return firstLine(explanation) ?? "Follow the marked dynamic";
     case "weak_section":
       return "This section needs another slow pass";
     default: {
@@ -152,7 +166,9 @@ function practiseFromKind(kind: PieceFeedbackKind, explanation = ""): string {
         : "Stay with the speed of the opening.";
     case "too_loud":
     case "too_soft":
-      return "Play once quietly, then as written.";
+    case "unchanged":
+    case "reversed":
+      return secondLine(explanation) ?? "Follow the marked dynamic";
     default:
       return "Loop this spot slowly a few times, then try the phrase again.";
   }

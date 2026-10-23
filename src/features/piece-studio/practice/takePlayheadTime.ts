@@ -14,21 +14,61 @@ export type ScoreTimeAnchor = {
 };
 
 export function takePlayheadAnchors(
-  pitchNotes: readonly { noteIndex: number; heardSec?: number | null }[],
+  pitchNotes: readonly {
+    noteIndex: number;
+    heardSec?: number | null;
+    heardEndSec?: number | null;
+  }[],
   notes: readonly { noteIndex: number; absoluteOnsetQuarters: number }[],
   absoluteQuartersToSec: (absoluteQuarters: number) => number,
+  scoreMarks: readonly { absoluteOnsetQuarters: number }[] = [],
 ): ScoreTimeAnchor[] {
   const byIndex = new Map(notes.map((note) => [note.noteIndex, note]));
-  const anchors: ScoreTimeAnchor[] = [];
+  const heard: ScoreTimeAnchor[] = [];
   for (const pitch of pitchNotes) {
     if (typeof pitch.heardSec !== "number" || !(pitch.heardSec >= 0)) continue;
     const note = byIndex.get(pitch.noteIndex);
     if (!note) continue;
     const scoreSec = absoluteQuartersToSec(note.absoluteOnsetQuarters);
     if (!Number.isFinite(scoreSec) || scoreSec < 0) continue;
-    anchors.push({ audioSec: pitch.heardSec, scoreSec });
+    // One stop per attack. The bar travels the whole gap to the next note,
+    // so a held sound does not freeze the pointer and then leap.
+    heard.push({ audioSec: pitch.heardSec, scoreSec });
   }
-  return anchors;
+  const marks = scoreMarks
+    .map((mark) => absoluteQuartersToSec(mark.absoluteOnsetQuarters))
+    .filter((scoreSec) => Number.isFinite(scoreSec) && scoreSec >= 0)
+    .sort((a, b) => a - b);
+  return densifyAnchorsAlongScore(heard, marks);
+}
+
+/**
+ * Keep confirmed attacks, and walk the written score (notes and rests) between
+ * them so the playhead does not jump a rest or a missed note.
+ */
+export function densifyAnchorsAlongScore(
+  heard: readonly ScoreTimeAnchor[],
+  scoreMarks: readonly number[],
+): ScoreTimeAnchor[] {
+  const points = monotoneAnchors(heard);
+  if (points.length === 0 || scoreMarks.length === 0) return points;
+  const extra: ScoreTimeAnchor[] = [];
+  for (let i = 0; i < points.length - 1; i++) {
+    const here = points[i]!;
+    const next = points[i + 1]!;
+    const scoreSpan = next.scoreSec - here.scoreSec;
+    const audioSpan = next.audioSec - here.audioSec;
+    if (scoreSpan <= 1e-3 || audioSpan <= 1e-3) continue;
+    for (const mark of scoreMarks) {
+      if (mark <= here.scoreSec + 1e-3 || mark >= next.scoreSec - 1e-3) continue;
+      const u = (mark - here.scoreSec) / scoreSpan;
+      extra.push({
+        audioSec: here.audioSec + u * audioSpan,
+        scoreSec: mark,
+      });
+    }
+  }
+  return monotoneAnchors([...points, ...extra]);
 }
 
 function monotoneAnchors(anchors: readonly ScoreTimeAnchor[]): ScoreTimeAnchor[] {
@@ -93,7 +133,16 @@ export function recordingTimeToScoreTime(
   }
   const here = points[index]!;
   const next = points[index + 1];
-  if (!next) return here.scoreSec;
+  if (!next) {
+    // After the last note, keep walking the written ending (a final rest,
+    // the remaining beats) until the piece and the recording both finish.
+    if (scoreDur > here.scoreSec + 1e-3 && audioDur > here.audioSec + 1e-3) {
+      const span = audioDur - here.audioSec;
+      const u = Math.min(1, Math.max(0, (audio - here.audioSec) / span));
+      return here.scoreSec + u * (scoreDur - here.scoreSec);
+    }
+    return here.scoreSec;
+  }
   const span = next.audioSec - here.audioSec;
   const u = span > 1e-4 ? (audio - here.audioSec) / span : 0;
   return here.scoreSec + Math.min(1, Math.max(0, u)) * (next.scoreSec - here.scoreSec);
@@ -158,10 +207,15 @@ export function scoreTimeToRecordingTime(
  * Heard time of each expected note, for a take saved before those times
  * were stored on the feedback report.
  */
+export type HeardTakeTimes = {
+  heardSec: Array<number | null>;
+  heardEndSec: Array<number | null>;
+};
+
 export async function heardSecondsForRecording(input: {
   score: MusaiScoreV1 | null;
   blob: Blob;
-}): Promise<Array<number | null> | null> {
+}): Promise<HeardTakeTimes | null> {
   const expected = expectedNotesFromScore(input.score);
   if (expected.length === 0 || input.blob.size < 1) return null;
   const ctx = createAudioContext();
@@ -175,9 +229,17 @@ export async function heardSecondsForRecording(input: {
       sampleRateHz: audioBuffer.sampleRate,
       expectedMidis: expected.map((note) => note.midi),
       durationQuarters: expected.map((note) => note.durationQuarters),
+      onsetQuarters: expected.map((note) => note.absoluteOnsetQuarters),
       ...activePiecePitchWindow(),
     });
-    return match.timesSec;
+    return {
+      heardSec: match.attackSec.map(
+        (time, i) => time ?? match.timesSec[i] ?? null,
+      ),
+      heardEndSec: (match.endSec ?? []).map((time) =>
+        typeof time === "number" ? time : null,
+      ),
+    };
   } catch {
     return null;
   } finally {

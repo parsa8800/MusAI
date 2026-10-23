@@ -6,8 +6,10 @@ import {
   SCALE_EXCELLENT_IN_TUNE_PERCENT,
   SCALE_EXCELLENT_MIN,
   SCALE_EXCELLENT_OVERALL,
+  SCALE_PITCH_STRONG_MIN,
   SCALE_SCORE_CAPS,
   SCALE_SCORE_WEIGHTS,
+  SCALE_SCORE_WEIGHTS_PITCH_STRONG,
   SCORE_CAP_BLEND,
   STEADINESS_CV_TO_ZERO,
   STEADINESS_MIN_NOTES,
@@ -349,7 +351,13 @@ export function scoreScaleTake(
     toneClarity: round1(toneClarityScore(notes)),
   };
 
-  const w = SCALE_SCORE_WEIGHTS;
+  const pitchStrong =
+    categories.noteAccuracy >= SCALE_PITCH_STRONG_MIN.noteAccuracy &&
+    categories.intonation >= SCALE_PITCH_STRONG_MIN.intonation &&
+    categories.completeness >= SCALE_PITCH_STRONG_MIN.completeness;
+  const w = pitchStrong
+    ? SCALE_SCORE_WEIGHTS_PITCH_STRONG
+    : SCALE_SCORE_WEIGHTS;
   const raw = clampScore(
     w.noteAccuracy * categories.noteAccuracy +
       w.intonation * categories.intonation +

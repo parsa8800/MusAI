@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   matchPieceRunsDetailed,
+  reclaimRunsForEarlierHoles,
   refineRepeatedPitchSlots,
   shareSustainedSamePitch,
 } from "@/features/piece-studio/pitch/piecePitchMatch";
@@ -138,6 +139,57 @@ describe("shareSustainedSamePitch", () => {
     expect(slots[0]?.run).toBe(pair);
     expect(slots[1]).toBeNull();
   });
+
+  it("still hears the last repeated Gs when the ending bow only blooms", () => {
+    const pulse = run(64, 0, 0.8);
+    const ending = run(55, 1, 2.1);
+    const sampleRate = 48000;
+    const mono = new Float32Array(sampleRate * 4);
+    const fill = (t0: number, t1: number, amp: number) => {
+      const a = Math.floor(t0 * sampleRate);
+      const b = Math.floor(t1 * sampleRate);
+      for (let i = a; i < b; i++) mono[i] = amp;
+    };
+    fill(1.0, 1.4, 0.08);
+    fill(1.4, 1.8, 0.16);
+    fill(1.8, 2.3, 0.28);
+    fill(2.3, 3.1, 0.42);
+    const slots = shareSustainedSamePitch({
+      expectedMidis: [64, 55, 55, 55],
+      durationQuarters: [1, 0.5, 0.5, 1],
+      slots: [
+        { hz: pulse.medianHz, run: pulse },
+        { hz: ending.medianHz, run: ending },
+        null,
+        null,
+      ],
+      mono,
+      sampleRateHz: sampleRate,
+    });
+    expect(slots[1]?.run).toBe(ending);
+    expect(slots[2]?.run).toBe(ending);
+    expect(slots[3]?.run).toBe(ending);
+  });
+
+  it("does not carry a held G across a rest onto the next G", () => {
+    const pulse = run(64, 0, 0.7);
+    const beforeRest = run(67, 0.8, 2.2);
+    const later = run(66, 3.9, 0.6);
+    const slots = shareSustainedSamePitch({
+      expectedMidis: [64, 67, 67, 66],
+      durationQuarters: [1, 1, 0.5, 1],
+      onsetQuarters: [0, 1, 4, 4.5],
+      slots: [
+        { hz: pulse.medianHz, run: pulse },
+        { hz: beforeRest.medianHz, run: beforeRest },
+        null,
+        { hz: later.medianHz, run: later },
+      ],
+    });
+    expect(slots[1]?.run).toBe(beforeRest);
+    expect(slots[2]).toBeNull();
+    expect(slots[3]?.run).toBe(later);
+  });
 });
 
 describe("refineRepeatedPitchSlots", () => {
@@ -242,6 +294,40 @@ describe("matchPieceRunsDetailed", () => {
     expect(slots[1]?.run).toBe(fs);
   });
 
+  it("still hears a pretty flat written note so it can be coloured, not greyed", () => {
+    const flatE = run(64, 0, 0.7);
+    flatE.medianHz = midiToHz(64) * 2 ** (-120 / 1200);
+    flatE.hz = [flatE.medianHz];
+    const fs = run(66, 0.8, 0.7);
+    const slots = matchPieceRunsDetailed([flatE, fs], [64, 66]);
+    expect(slots[0]?.run).toBe(flatE);
+    expect(slots[1]?.run).toBe(fs);
+  });
+
+  it("leaves a note empty when the pitch is a tone or more away", () => {
+    const d = run(62, 0, 0.7);
+    const fs = run(66, 0.8, 0.7);
+    const slots = matchPieceRunsDetailed([d, fs], [64, 66]);
+    expect(slots[0]).toBeNull();
+    expect(slots[1]?.run).toBe(fs);
+  });
+
+  it("keeps an in-tune E on the written E when an F# is still in reach", () => {
+    const held = run(66, 0, 2);
+    held.frameCount = 24;
+    const e = run(64, 2.05, 0.6);
+    e.medianHz = midiToHz(64) * 2 ** (20 / 1200);
+    e.hz = [e.medianHz];
+    const fs = run(66, 2.7, 0.6);
+    const midis = [66, 67, 67, 66, 66, 64, 66];
+    const slots = matchPieceRunsDetailed([held, e, fs], midis);
+    expect(slots[0]?.run).toBe(held);
+    expect(slots[5]?.run).toBe(e);
+    expect(slots[6]?.run).toBe(fs);
+    expect(slots[3]).toBeNull();
+    expect(slots[4]).toBeNull();
+  });
+
   it("does not paint a bar that was played an octave higher", () => {
     const highs = [79, 78, 76, 78].map((midi, i) => run(midi, i * 0.7, 0.65));
     const back = run(67, 3, 0.7);
@@ -267,6 +353,53 @@ describe("matchPieceRunsDetailed", () => {
     expect(slots[2]?.run).toBe(after);
   });
 
+  it("hears four short quavers that were played, and leaves a silent gap empty", () => {
+    const before = run(64, 0, 0.6);
+    const quavers = [67, 67, 66, 66].map((midi, i) => {
+      const note = run(midi, 0.75 + i * 0.2, 0.14);
+      note.frameCount = 4;
+      return note;
+    });
+    const after = run(64, 1.7, 0.6);
+    const midis = [64, 67, 67, 66, 66, 64];
+    const durations = [1, 0.5, 0.5, 0.5, 0.5, 1];
+    const onsets = [0, 1, 1.5, 2, 2.5, 3];
+    const heard = refineRepeatedPitchSlots({
+      slots: matchPieceRunsDetailed([before, ...quavers, after], midis),
+      runs: [before, ...quavers, after],
+      expectedMidis: midis,
+      durationQuarters: durations,
+      onsetQuarters: onsets,
+    });
+    expect(heard.map((slot) => slot?.run)).toEqual([
+      before,
+      ...quavers,
+      after,
+    ]);
+
+    const missed = refineRepeatedPitchSlots({
+      slots: matchPieceRunsDetailed([before, after], midis),
+      runs: [before, after],
+      expectedMidis: midis,
+      durationQuarters: durations,
+      onsetQuarters: onsets,
+    });
+    expect(missed.slice(1, 5).every((slot) => slot == null)).toBe(true);
+    expect(missed[0]?.run).toBe(before);
+    expect(missed[5]?.run).toBe(after);
+
+    const buried = run(67, 0.2, 0.14);
+    buried.frameCount = 4;
+    const inside = refineRepeatedPitchSlots({
+      slots: matchPieceRunsDetailed([before, buried, after], midis),
+      runs: [before, buried, after],
+      expectedMidis: midis,
+      durationQuarters: durations,
+      onsetQuarters: onsets,
+    });
+    expect(inside.slice(1, 5).every((slot) => slot == null)).toBe(true);
+  });
+
   it("ignores a tiny flicker instead of skipping the note in between", () => {
     const csharp = run(73, 0, 0.6);
     const flicker = run(73, 0.7, 0.12);
@@ -286,6 +419,54 @@ describe("matchPieceRunsDetailed", () => {
     const slots = matchPieceRunsDetailed([e], [67, 67, 66, 66, 64]);
     expect(slots.slice(0, 4).every((slot) => slot == null)).toBe(true);
     expect(slots[4]?.run).toBe(e);
+  });
+
+  it("ignores a sparse rest-period run instead of starting the next phrase early", () => {
+    const held = run(74, 20, 1.1);
+    const restNoise = run(66, 21.2, 1.2);
+    restNoise.frameCount = 4;
+    const next = run(67, 22.45, 0.5);
+    const after = run(66, 23, 0.5);
+    const slots = matchPieceRunsDetailed(
+      [held, restNoise, next, after],
+      [74, 67, 66, 64, 66],
+    );
+    expect(slots[0]?.run).toBe(held);
+    expect(slots[1]?.run).toBe(next);
+    expect(slots[2]?.run).toBe(after);
+    expect(slots[3]).toBeNull();
+  });
+
+  it("does not pull the next phrase's opening pitch back across a rest", () => {
+    const first = run(74, 20, 1.1);
+    const later = run(67, 22.45, 0.5);
+    const slots = reclaimRunsForEarlierHoles({
+      expectedMidis: [74, 67, 66, 64, 67],
+      slots: [
+        { hz: first.medianHz, run: first },
+        null,
+        null,
+        null,
+        { hz: later.medianHz, run: later },
+      ],
+    });
+    expect(slots[1]).toBeNull();
+    expect(slots[4]?.run).toBe(later);
+  });
+
+  it("pulls a later same-pitch run back onto the empty note it started on", () => {
+    const first = run(67, 0, 0.5);
+    const later = run(66, 0.7, 0.45);
+    const slots = reclaimRunsForEarlierHoles({
+      expectedMidis: [67, 66, 66],
+      slots: [
+        { hz: first.medianHz, run: first },
+        null,
+        { hz: later.medianHz, run: later },
+      ],
+    });
+    expect(slots[1]?.run).toBe(later);
+    expect(slots[2]).toBeNull();
   });
 
   it("does not fill an opening miss with a later octave of the same note", () => {

@@ -7,6 +7,7 @@ import {
   FormEvent,
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
   type ReactNode,
@@ -287,11 +288,13 @@ function AssistantTurn({
   stream,
   showThinking,
   onStreamDone,
+  label,
 }: {
   text: string;
   stream: boolean;
   showThinking: boolean;
   onStreamDone?: () => void;
+  label: string;
 }) {
   const reduce = usePrefersReducedMotion();
   const readable = formatCoachReadability(text);
@@ -326,7 +329,7 @@ function AssistantTurn({
 
   return (
     <div className="musai-coach-turn musai-coach-turn--coach">
-      <p className="musai-coach-turn__who">Coach</p>
+      <p className="musai-coach-turn__who">{label}</p>
       {phase === "thinking" ? (
         <ThinkingIndicator />
       ) : (
@@ -396,6 +399,8 @@ export type CoachParsaChatProps = {
   sanitizeUserText?: (raw: string) => string;
   embed?: boolean;
   title?: string;
+  /** Name above each reply. Piece studio uses Teacher. */
+  assistantLabel?: string;
   /** Shown in the empty message field. Piece uses the teacher wording. */
   placeholder?: string;
   /** Piece hides this so a rhythm note is not followed by a second title. */
@@ -548,6 +553,7 @@ export function CoachParsaChat({
   sanitizeUserText = (raw) => raw.trim(),
   embed = false,
   title = "Coach · Parsa",
+  assistantLabel = "Coach",
   placeholder = "Ask your coach...",
   showHeader = true,
   emptyNote,
@@ -558,6 +564,7 @@ export function CoachParsaChat({
   const reduce = usePrefersReducedMotion();
   const formId = useId();
   const threadRef = useRef<HTMLDivElement>(null);
+  const draftRef = useRef<HTMLTextAreaElement>(null);
   const stickToBottomRef = useRef(true);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -577,6 +584,13 @@ export function CoachParsaChat({
     disabled: !bootDone || busy,
     onTranscript: setDraft,
   });
+
+  useLayoutEffect(() => {
+    const el = draftRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [draft, speech.listening]);
 
   useEffect(() => {
     setCoachSource(initialSource);
@@ -868,6 +882,7 @@ export function CoachParsaChat({
           return (
             <AssistantTurn
               key={msg.id}
+              label={assistantLabel}
               text={msg.text}
               stream={msg.stream}
               showThinking={idx === 0}
@@ -885,7 +900,7 @@ export function CoachParsaChat({
 
         {awaitingReply ? (
           <div className="musai-coach-turn musai-coach-turn--coach">
-            <p className="musai-coach-turn__who">Coach</p>
+            <p className="musai-coach-turn__who">{assistantLabel}</p>
             <ThinkingIndicator />
           </div>
         ) : null}
@@ -956,6 +971,7 @@ export function CoachParsaChat({
           </label>
           {speech.listening ? <CoachListenLines /> : null}
           <textarea
+            ref={draftRef}
             id={`${formId}-input`}
             rows={1}
             value={draft}

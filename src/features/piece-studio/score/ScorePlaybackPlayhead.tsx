@@ -8,10 +8,27 @@ import {
 } from "@/features/piece-studio/score/cursorTrack";
 import {
   applyPlayheadElement,
+  followPlayheadClock,
   followPlayheadInScrollParent,
   interpolatePlayhead,
+  type PlayheadClockFollow,
 } from "@/features/piece-studio/score/scorePlayhead";
 import type { StaffBand } from "@/features/piece-studio/score/staffBands";
+
+const SCORE_ANNOTATION =
+  "a, button, input, select, textarea, [data-testid='piece-score-heat'], [data-testid='piece-dynamic-hit'], [data-musai-dynamic], [data-highlight-id]";
+
+function pressesScoreAnnotation(
+  target: Element | null,
+  x: number,
+  y: number,
+): boolean {
+  if (target?.closest(SCORE_ANNOTATION)) return true;
+  if (typeof document.elementsFromPoint !== "function") return false;
+  return document.elementsFromPoint(x, y).some(
+    (node) => node instanceof Element && Boolean(node.closest(SCORE_ANNOTATION)),
+  );
+}
 
 /**
  * Reusable live score playhead — a vertical rounded bar driven by real
@@ -29,6 +46,7 @@ export function ScorePlaybackPlayhead({
   staffBandsRef,
   scrollParentRef,
   getPlaybackTime,
+  playbackEndSec,
   subscribePlaybackTime,
   syncRef,
   scrubEnabled = false,
@@ -44,6 +62,8 @@ export function ScorePlaybackPlayhead({
   staffBandsRef: { current: readonly StaffBand[] };
   scrollParentRef: { current: HTMLElement | null };
   getPlaybackTime?: () => number;
+  /** Written end of the piece, so a final rest still gets the bar. */
+  playbackEndSec?: number;
   subscribePlaybackTime?: (listener: PiecePlaybackTimeListener) => () => void;
   syncRef?: { current: (() => void) | null };
   scrubEnabled?: boolean;
@@ -63,15 +83,35 @@ export function ScorePlaybackPlayhead({
   const movedRef = useRef(false);
   const getTimeRef = useRef(getPlaybackTime);
   getTimeRef.current = getPlaybackTime;
+  const getPlayingRef = useRef(getPlaying);
+  getPlayingRef.current = getPlaying;
+  const playbackEndRef = useRef(playbackEndSec);
+  playbackEndRef.current = playbackEndSec;
+  const clockRef = useRef<PlayheadClockFollow | null>(null);
 
   const applyRef = useRef<(tSec: number) => void>(() => {});
   applyRef.current = (tSec: number) => {
     const el = elRef.current;
     if (!el) return;
+    let time = tSec;
+    if (scrubbingRef.current) {
+      clockRef.current = null;
+    } else {
+      const playing = getPlayingRef.current?.() ?? false;
+      const followed = followPlayheadClock(
+        clockRef.current,
+        tSec,
+        performance.now(),
+        playing,
+      );
+      clockRef.current = followed;
+      time = followed.shown;
+    }
     const pose = interpolatePlayhead(
       snapsRef.current,
-      tSec,
+      time,
       staffBandsRef.current,
+      playbackEndRef.current,
     );
     const key = pose
       ? `${pose.x.toFixed(2)},${pose.y.toFixed(2)},${pose.height.toFixed(2)}`
@@ -190,13 +230,9 @@ export function ScorePlaybackPlayhead({
     const onDown = (event: PointerEvent) => {
       if (event.button !== 0 || scrubbingRef.current || onPlayhead(event.target)) return;
       const target = event.target instanceof Element ? event.target : null;
-      // Rhythm highlights are buttons on the staff. Leave those presses alone
-      // so they can open the coach instead of moving the playhead.
-      if (
-        target?.closest(
-          "a, button, input, select, textarea, [data-testid='piece-score-heat']",
-        )
-      ) {
+      // Rhythm boxes and written dynamics open the teacher. Leave those presses
+      // alone so they are not treated as a playhead drag.
+      if (pressesScoreAnnotation(target, event.clientX, event.clientY)) {
         return;
       }
 
@@ -267,6 +303,7 @@ export function ScorePlaybackPlayhead({
     if (!active || !el) {
       lastKey.current = "";
       lastScrollY.current = null;
+      clockRef.current = null;
       if (el) applyPlayheadElement(el, null);
       if (syncRef) syncRef.current = null;
       return;

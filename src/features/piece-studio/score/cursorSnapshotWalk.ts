@@ -41,37 +41,17 @@ function iteratorTime(it: CursorWalkIterator | undefined): number {
   );
 }
 
-/** True when OSMD reports at least one sounding note here (skip clef / barline / rests). */
+/** True when OSMD is on a note or a rest (skip clef / barline). */
 export function cursorHasSoundingNotes(cursor: CursorWalkHandle): boolean {
   const read = cursor.NotesUnderCursor ?? cursor.notesUnderCursor;
   if (typeof read !== "function") return true;
   try {
     const notes = read.call(cursor);
     if (!notes || typeof notes.length !== "number") return true;
-    if (notes.length === 0) return false;
-    for (let i = 0; i < notes.length; i++) {
-      if (!noteLooksLikeRest(notes[i])) return true;
-    }
-    return false;
+    return notes.length > 0;
   } catch {
     return true;
   }
-}
-
-function noteLooksLikeRest(n: unknown): boolean {
-  if (!n || typeof n !== "object") return false;
-  const obj = n as {
-    isRest?: boolean | (() => boolean);
-    IsRest?: boolean;
-  };
-  if (typeof obj.isRest === "function") {
-    try {
-      return Boolean(obj.isRest.call(n));
-    } catch {
-      return false;
-    }
-  }
-  return obj.isRest === true || obj.IsRest === true;
 }
 
 export type CursorWalkOptions = {
